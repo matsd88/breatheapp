@@ -73,6 +73,7 @@ struct CustomTabBar: View {
         )
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
+        .frame(maxWidth: 500)
         .padding(.horizontal, 16)
     }
 }
@@ -242,32 +243,23 @@ struct MainTabView: View {
         .fullScreenCover(isPresented: $showFullPlayer) {
             if let content = playerManager.currentContent {
                 MeditationPlayerView(content: content)
-                    .onAppear { print("[MainTabView] fullScreenCover appeared with content: \(content.title)") }
             } else {
-                // Fallback - should never happen, but prevents white screen
+                // Fallback - prevents white screen
                 Color.clear.onAppear {
-                    print("[MainTabView] fullScreenCover appeared but currentContent is NIL — dismissing")
                     showFullPlayer = false
                 }
             }
         }
         .onChange(of: playerManager.shouldPresentPlayer) { _, shouldPresent in
             if shouldPresent {
-                print("[MainTabView] shouldPresentPlayer changed to true, setting showFullPlayer=true")
                 playerManager.shouldPresentPlayer = false
                 showFullPlayer = true
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .dismissAllSheetsAndPlay)) { _ in
-            print("[MainTabView] Received dismissAllSheetsAndPlay notification")
-            print("[MainTabView] currentContent: \(playerManager.currentContent?.title ?? "nil")")
-            print("[MainTabView] showFullPlayer currently: \(showFullPlayer)")
-            // Wait for all sheets (including nested) to finish dismissing, then open full player
+            // Wait for all sheets to finish dismissing, then open full player
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                print("[MainTabView] 1.0s delay complete, setting showFullPlayer=true")
-                print("[MainTabView] currentContent at this point: \(playerManager.currentContent?.title ?? "nil")")
                 showFullPlayer = true
-                print("[MainTabView] showFullPlayer is now: \(showFullPlayer)")
             }
         }
     }
@@ -318,7 +310,7 @@ struct ShareSheet: View {
                         .padding(.horizontal)
 
                     ShareLink(
-                        item: URL(string: "https://apps.apple.com/app/id123456789")!,
+                        item: Constants.AppStore.shareURL,
                         subject: Text("Check out this meditation app!"),
                         message: Text("I've been using this app for meditation and it's been really helpful. You should try it!")
                     ) {

@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Bundle Info -->
+    <key>CFBundleDevelopmentRegion</key>
+    <string>$(DEVELOPMENT_LANGUAGE)</string>
+    <key>CFBundleDisplayName</key>
+    <string>Meditation</string>
+    <key>CFBundleIconName</key>
+    <string>AppIcon</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>$(MARKETING_VERSION)</string>
+    <key>CFBundleVersion</key>
+    <string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+
+    <!-- Privacy Descriptions -->
+    <key>NSHealthShareUsageDescription</key>
+    <string>We read your mindfulness data to show your meditation progress alongside Apple Health.</string>
+    <key>NSHealthUpdateUsageDescription</key>
+    <string>We save your meditation sessions as Mindful Minutes in Apple Health to track your wellness journey.</string>
+    <key>NSSiriUsageDescription</key>
+    <string>Use Siri to start meditations, play sleep stories, or set a meditation timer hands-free.</string>
+
+    <!-- Background Modes -->
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>audio</string>
+        <string>remote-notification</string>
+    </array>
+
+    <!-- App Transport Security -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <false/>
+        <key>NSAllowsArbitraryLoadsForMedia</key>
+        <true/>
+        <key>NSExceptionDomains</key>
+        <dict>
+            <key>youtube.com</key>
+            <dict>
+                <key>NSIncludesSubdomains</key>
+                <true/>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <true/>
+            </dict>
+            <key>googlevideo.com</key>
+            <dict>
+                <key>NSIncludesSubdomains</key>
+                <true/>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <true/>
+            </dict>
+            <key>ytimg.com</key>
+            <dict>
+                <key>NSIncludesSubdomains</key>
+                <true/>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <true/>
+            </dict>
+        </dict>
+    </dict>
+
+    <!-- Export Compliance - No encryption beyond standard HTTPS -->
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
+
+    <!-- URL Schemes for Deep Linking -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.meditation.app</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>meditation</string>
+            </array>
+        </dict>
+    </array>
+
+    <!-- Launch Screen -->
+    <key>UILaunchStoryboardName</key>
+    <string>LaunchScreen</string>
+
+    <!-- Status Bar -->
+    <key>UIViewControllerBasedStatusBarAppearance</key>
+    <true/>
+
+    <!-- Orientation Support -->
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+
+    <!-- iPad Multitasking -->
+    <key>UIRequiresFullScreen</key>
+    <false/>
+
+    <!-- App Category -->
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.healthcare-fitness</string>
+
+    <!-- Scene Configuration -->
+    <key>UIApplicationSceneManifest</key>
+    <dict>
+        <key>UIApplicationSupportsMultipleScenes</key>
+        <true/>
+    </dict>
+
+    <!-- Quick Actions (Home Screen Shortcuts) - Static Definition -->
+    <key>UIApplicationShortcutItems</key>
+    <array>
+        <dict>
+            <key>UIApplicationShortcutItemType</key>
+            <string>BrowseMeditationAction</string>
+            <key>UIApplicationShortcutItemTitle</key>
+            <string>Meditate</string>
+            <key>UIApplicationShortcutItemSubtitle</key>
+            <string>Browse meditation content</string>
+            <key>UIApplicationShortcutItemIconSymbolName</key>
+            <string>brain.head.profile</string>
+        </dict>
+        <dict>
+            <key>UIApplicationShortcutItemType</key>
+            <string>UnguidedTimerAction</string>
+            <key>UIApplicationShortcutItemTitle</key>
+            <string>Unguided Timer</string>
+            <key>UIApplicationShortcutItemSubtitle</key>
+            <string>Meditate in silence or with sound</string>
+            <key>UIApplicationShortcutItemIconSymbolName</key>
+            <string>timer</string>
+        </dict>
+        <dict>
+            <key>UIApplicationShortcutItemType</key>
+            <string>OpenSleepAction</string>
+            <key>UIApplicationShortcutItemTitle</key>
+            <string>Sleep</string>
+            <key>UIApplicationShortcutItemSubtitle</key>
+            <string>Sleep stories &amp; sounds</string>
+            <key>UIApplicationShortcutItemIconSymbolName</key>
+            <string>moon.stars.fill</string>
+        </dict>
+        <dict>
+            <key>UIApplicationShortcutItemType</key>
+            <string>OpenChatAction</string>
+            <key>UIApplicationShortcutItemTitle</key>
+            <string>Chat</string>
+            <key>UIApplicationShortcutItemSubtitle</key>
+            <string>Talk to Breathe AI</string>
+            <key>UIApplicationShortcutItemIconSymbolName</key>
+            <string>bubble.left.and.text.bubble.right.fill</string>
+        </dict>
+    </array>
+</dict>
+</plist>

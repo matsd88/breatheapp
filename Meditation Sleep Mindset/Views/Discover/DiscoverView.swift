@@ -21,6 +21,7 @@ struct DiscoverView: View {
     @State private var showBodyScan = false
     @State private var showFocusTimer = false
     @State private var showPrograms = false
+    @State private var showYouTubeSearch = false
 
     init(initialCategory: Binding<ContentType?> = .constant(nil)) {
         self._initialCategory = initialCategory
@@ -59,26 +60,29 @@ struct DiscoverView: View {
                                 .padding(.top, 8)
                                 .id("discoverTop")
 
-                            // Search Bar (custom styled) - commented out
+                            // Search Bar — commented out for App Store release
                             // SearchBarView(searchText: $searchText, isActive: $isSearchActive)
 
                             // if isSearchActive && !searchText.isEmpty {
-                            //     // Search Results
                             //     SearchResultsView(
                             //         results: filteredContent,
                             //         onContentTap: { content in
-                            //             selectedContent = content
+                            //             playContent(content, from: filteredContent)
+                            //         },
+                            //         onAddToPlaylist: { content in
+                            //             contentForPlaylistAdd = content
                             //         }
                             //     )
                             // } else {
-                                // Programs Section
-                                DiscoverProgramsPreview(onSeeAll: { showPrograms = true })
+                                // Programs (commented out for initial release)
+                                // DiscoverProgramsPreview(onSeeAll: { showPrograms = true })
 
                                 // Tools Section
                                 DiscoverToolsSection(
                                     onBreathing: { showBreathingExercises = true },
                                     onBodyScan: { showBodyScan = true },
-                                    onFocusTimer: { showFocusTimer = true }
+                                    onFocusTimer: { showFocusTimer = true },
+                                    onYouTubeSearch: Constants.isCuratorMode ? { showYouTubeSearch = true } : nil
                                 )
 
                                 // Quick Categories
@@ -145,6 +149,12 @@ struct DiscoverView: View {
                         .padding(.top, 0)
                         .padding(.bottom)
                     }
+                    .refreshable {
+                        HapticManager.light()
+                        // Re-prefetch visible content stream URLs
+                        let videoIDs = allContent.prefix(10).map { $0.youtubeVideoID }
+                        await YouTubeService.shared.prefetchStreamURLs(for: videoIDs)
+                    }
                     .overlay(alignment: .bottomTrailing) {
                         if showScrollToTop {
                             ScrollToTopButton(
@@ -178,6 +188,10 @@ struct DiscoverView: View {
             .sheet(isPresented: $showFocusTimer) {
                 FocusTimerView()
             }
+            // YouTube search — commented out for App Store release
+            // .sheet(isPresented: $showYouTubeSearch) {
+            //     YouTubeSearchView()
+            // }
             .onChange(of: selectedCategory) { _, _ in
                 showScrollToTop = false
             }
@@ -434,6 +448,7 @@ struct QuickCategoriesView: View {
                     isSelected: selectedCategory == nil,
                     count: contentByType.values.flatMap { $0 }.count
                 ) {
+                    HapticManager.selection()
                     withAnimation(.easeInOut(duration: 0.2)) {
                         selectedCategory = nil
                     }
@@ -446,6 +461,7 @@ struct QuickCategoriesView: View {
                         isSelected: selectedCategory == type,
                         count: contentByType[type]?.count ?? 0
                     ) {
+                        HapticManager.selection()
                         withAnimation(.easeInOut(duration: 0.2)) {
                             selectedCategory = selectedCategory == type ? nil : type
                         }
@@ -473,6 +489,13 @@ struct CategoryPill: View {
                 Text(title)
                     .font(.subheadline)
                     .fontWeight(isSelected ? .semibold : .regular)
+
+                if count > 0 {
+                    Text("\(count)")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(isSelected ? .white.opacity(0.8) : Theme.textSecondary.opacity(0.7))
+                }
             }
             .foregroundStyle(isSelected ? .white : Theme.textSecondary)
             .padding(.horizontal, 16)
@@ -658,6 +681,7 @@ struct ContentCategorySection: View {
 
 // MARK: - Discover Content Card
 struct DiscoverContentCard: View {
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let content: Content
     var isFavorite: Bool = false
     let onTap: () -> Void
@@ -665,6 +689,9 @@ struct DiscoverContentCard: View {
     var onFavorite: (() -> Void)? = nil
     var onShare: (() -> Void)? = nil
     var onMore: () -> Void = {}
+
+    private var cardWidth: CGFloat { sizeClass == .regular ? 200 : 160 }
+    private var cardHeight: CGFloat { sizeClass == .regular ? 125 : 100 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -687,7 +714,7 @@ struct DiscoverContentCard: View {
                         )
                 }
             )
-            .frame(width: 160, height: 100)
+            .frame(width: cardWidth, height: cardHeight)
             .clipped()
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .onTapGesture { onTap() }
@@ -726,7 +753,7 @@ struct DiscoverContentCard: View {
                 .foregroundStyle(Theme.textSecondary)
                 .onTapGesture { onTap() }
         }
-        .frame(width: 160, alignment: .top)
+        .frame(width: cardWidth, alignment: .top)
     }
 }
 
@@ -1016,6 +1043,9 @@ struct UnguidedTimerView: View {
         }
         .presentationDetents(isTimerRunning ? [.large] : [.medium])
         .presentationDragIndicator(.visible)
+        .onDisappear {
+            stopTimer()
+        }
     }
 
     private var timerRunningView: some View {
@@ -1157,6 +1187,7 @@ struct UnguidedTimerView: View {
             }
 
             Button {
+                HapticManager.success()
                 startTimer()
             } label: {
                 Text("Begin Session")
@@ -1238,6 +1269,7 @@ struct UnguidedTimerView: View {
     private func completeSession() {
         timer?.invalidate()
         timer = nil
+        HapticManager.success()
 
         // Fade out ambient sound
         ambientSoundService.fadeOut(duration: 2.0)
@@ -1245,7 +1277,9 @@ struct UnguidedTimerView: View {
         // Record completed session
         recordSession(durationSeconds: selectedDuration * 60)
 
-        // Play completion chime here if needed
+        // Count toward rating prompt
+        AppStateManager.shared.onSessionCompleted()
+
         isTimerRunning = false
         sessionStartTime = nil
     }
@@ -1265,6 +1299,7 @@ struct UnguidedTimerView: View {
 
 // MARK: - Discover Programs Preview
 struct DiscoverProgramsPreview: View {
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @Query(sort: \Program.name) private var programs: [Program]
     @Query private var progress: [ProgramProgress]
     let onSeeAll: () -> Void
@@ -1321,7 +1356,7 @@ struct DiscoverProgramsPreview: View {
                                             .foregroundStyle(Theme.textSecondary)
                                     }
                                 }
-                                .frame(width: 140)
+                                .frame(width: sizeClass == .regular ? 180 : 140)
                             }
                             .buttonStyle(.plain)
                         }
@@ -1333,7 +1368,6 @@ struct DiscoverProgramsPreview: View {
                 ProgramDetailView(program: program)
             }
             .onReceive(NotificationCenter.default.publisher(for: .dismissAllSheetsAndPlay)) { _ in
-                print("[DiscoverProgramsPreview] Received dismissAllSheetsAndPlay, setting selectedProgram=nil")
                 selectedProgram = nil
             }
         }
@@ -1345,10 +1379,21 @@ struct DiscoverToolsSection: View {
     let onBreathing: () -> Void
     let onBodyScan: () -> Void
     let onFocusTimer: () -> Void
+    var onYouTubeSearch: (() -> Void)? = nil
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
+                if let onYouTubeSearch {
+                    DiscoverToolCard(
+                        icon: "play.rectangle.on.rectangle",
+                        title: "Add Content",
+                        subtitle: "Search YouTube",
+                        color: .red,
+                        action: onYouTubeSearch
+                    )
+                }
+
                 DiscoverToolCard(
                     icon: "wind",
                     title: "Breathing",
@@ -1379,6 +1424,7 @@ struct DiscoverToolsSection: View {
 }
 
 struct DiscoverToolCard: View {
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let icon: String
     let title: String
     let subtitle: String
@@ -1386,7 +1432,10 @@ struct DiscoverToolCard: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            HapticManager.light()
+            action()
+        } label: {
             VStack(alignment: .leading, spacing: 8) {
                 ZStack {
                     Circle()
@@ -1406,7 +1455,7 @@ struct DiscoverToolCard: View {
                     .font(.caption2)
                     .foregroundStyle(Theme.textSecondary)
             }
-            .frame(width: 120, alignment: .leading)
+            .frame(width: sizeClass == .regular ? 150 : 120, alignment: .leading)
             .padding(14)
             .background(Theme.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 14))

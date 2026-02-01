@@ -153,38 +153,6 @@ struct ProgramDetailView: View {
                         }
                         .padding(.horizontal)
 
-                        // Start / Continue button
-                        if let p = progress, !p.isCompleted {
-                            let nextDay = days.first { $0.dayNumber == p.currentDay }
-                            if let nextDay = nextDay {
-                                Button {
-                                    startDay(nextDay)
-                                } label: {
-                                    Text("Continue Day \(nextDay.dayNumber)")
-                                        .font(.headline)
-                                        .foregroundStyle(.black)
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 16)
-                                        .background(.white)
-                                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                                }
-                                .padding(.horizontal)
-                            }
-                        } else if progress == nil {
-                            Button {
-                                beginProgram()
-                            } label: {
-                                Text("Begin Program")
-                                    .font(.headline)
-                                    .foregroundStyle(.black)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
-                                    .background(.white)
-                                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                            }
-                            .padding(.horizontal)
-                        }
-
                         Spacer(minLength: 100)
                     }
                 }
@@ -260,16 +228,16 @@ struct ProgramDetailView: View {
 
     private func playContent(_ content: Content) {
         let manager = AudioPlayerManager.shared
-        print("[ProgramDetail] playContent called for: \(content.title), videoID: \(content.youtubeVideoID)")
         manager.queue = [content]
         manager.currentIndex = 0
         manager.currentContent = content
 
-        // Dismiss this sheet first, then notify after a brief delay
-        // so nested sheets have time to fully dismiss
+        // Dismiss all sheets first, then trigger player via the observed property
+        // which MainTabView watches via .onChange(of: shouldPresentPlayer)
+        NotificationCenter.default.post(name: .dismissAllSheetsAndPlay, object: nil)
         dismiss()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            NotificationCenter.default.post(name: .dismissAllSheetsAndPlay, object: nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            manager.shouldPresentPlayer = true
         }
     }
 

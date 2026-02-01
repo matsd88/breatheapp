@@ -90,20 +90,8 @@ class AppStateManager: ObservableObject {
             }
         }
 
-        // On 2nd app open (after notification prompt), trigger share prompt only if user has played a video
-        if appOpenCount == 2 && !hasShownSharePrompt && hasPlayedVideo {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                guard !self.hasShownSharePrompt else { return }
-                self.shouldShowShareSheet = true
-            }
-        }
-
-        // On 3rd app open, request rating
-        if appOpenCount == 3 && !hasShownRatingPrompt {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                self.requestAppRating()
-            }
-        }
+        // Rating and share prompts are triggered by session completion milestones only.
+        // See onSessionCompleted() for the strategy.
     }
 
     // MARK: - Notification Permission
@@ -235,23 +223,36 @@ class AppStateManager: ObservableObject {
         UserDefaults.standard.set(true, forKey: Keys.hasPlayedVideo)
     }
 
-    // MARK: - Favorite Content Trigger
-    func onContentFavorited() {
-        // Show share prompt on first favorite if not already shown and user has played a video
-        if !hasShownSharePrompt && hasPlayedVideo {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+    // MARK: - Session Completed Trigger
+    /// Call after a user completes a meditation session (80%+ listened).
+    /// Engagement prompts are staggered by session count:
+    ///  - 5th session → Share prompt (user has enough experience to recommend)
+    ///  - 8th session → Rating prompt via SKStoreReviewController
+    func onSessionCompleted() {
+        let completedKey = "totalCompletedSessions"
+        let count = UserDefaults.standard.integer(forKey: completedKey) + 1
+        UserDefaults.standard.set(count, forKey: completedKey)
+
+        // After 5th completed session, show share prompt
+        if count == 5 && !hasShownSharePrompt {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                 guard !self.hasShownSharePrompt else { return }
                 self.shouldShowShareSheet = true
             }
-            return
         }
 
-        // Otherwise trigger rating prompt if not shown
-        if !hasShownRatingPrompt {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        // After 8th completed session, request App Store rating
+        if count == 8 && !hasShownRatingPrompt {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                 self.requestAppRating()
             }
         }
+    }
+
+    // MARK: - Favorite Content Trigger
+    func onContentFavorited() {
+        // Favoriting is a lightweight action — no engagement popups.
+        // Share and rating prompts are tied to session milestones only.
     }
 
     // MARK: - Deep Link Handling
