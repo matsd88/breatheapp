@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -22,18 +22,31 @@
     <nav class="nav">
         <div class="nav-inner">
             <a href="#" class="nav-logo"><img src="icon.png" alt="Breathe" class="nav-icon">Breathe</a>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#testimonials">Reviews</a>
+                <a href="#pricing">Pricing</a>
+            </div>
             <a href="#download" class="nav-cta">Download Free</a>
         </div>
     </nav>
 
     <!-- HERO -->
     <section class="hero" id="hero">
-        <div class="hero-glow"></div>
+        <div class="hero-bg">
+            <div class="hero-glow hero-glow-1"></div>
+            <div class="hero-glow hero-glow-2"></div>
+            <div class="hero-particles" id="heroParticles"></div>
+        </div>
         <div class="container hero-grid">
             <div class="hero-text">
-                <h1>Sleep better.<br>Stress less.<br><span class="gradient-text">Breathe.</span></h1>
-                <p class="hero-sub">Guided meditations, breathing exercises, focus tools, and calming soundscapes — all in one beautifully simple app.</p>
-                <div class="hero-actions">
+                <div class="hero-badge reveal">
+                    <span class="hero-badge-dot"></span>
+                    Over 10,000 better nights of sleep
+                </div>
+                <h1 class="reveal">Sleep better.<br>Stress less.<br><span class="gradient-text">Breathe.</span></h1>
+                <p class="hero-sub reveal">Guided meditations, breathing exercises, focus tools, and calming soundscapes — all in one beautifully simple app.</p>
+                <div class="hero-actions reveal">
                     <a href="https://apps.apple.com/app/idYOUR_APP_ID" class="app-store-btn" aria-label="Download on the App Store">
                         <svg viewBox="0 0 120 40" width="156" height="52">
                             <rect width="120" height="40" rx="6" fill="#fff"/>
@@ -46,14 +59,39 @@
             </div>
             <div class="hero-phone">
                 <div class="phone-mockup">
+                    <div class="phone-notch"></div>
                     <div class="phone-screen">
-                        <!-- Replace with actual screenshot -->
-                        <div class="phone-placeholder">
-                            <span>📱</span>
-                            <p>App Screenshot</p>
+                        <div class="phone-app">
+                            <div class="phone-app-header">
+                                <span class="phone-app-time">9:41</span>
+                            </div>
+                            <div class="phone-app-greeting">Good evening</div>
+                            <div class="phone-app-title">Ready to unwind?</div>
+                            <div class="phone-orb-container">
+                                <div class="phone-orb">
+                                    <div class="phone-orb-ring"></div>
+                                    <div class="phone-orb-ring phone-orb-ring-2"></div>
+                                    <div class="phone-orb-text">Breathe</div>
+                                </div>
+                            </div>
+                            <div class="phone-app-cards">
+                                <div class="phone-card">
+                                    <div class="phone-card-icon">🌙</div>
+                                    <div class="phone-card-label">Sleep</div>
+                                </div>
+                                <div class="phone-card">
+                                    <div class="phone-card-icon">🌬️</div>
+                                    <div class="phone-card-label">Breathe</div>
+                                </div>
+                                <div class="phone-card">
+                                    <div class="phone-card-icon">🎯</div>
+                                    <div class="phone-card-label">Focus</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
+                <div class="phone-shadow"></div>
             </div>
         </div>
     </section>
@@ -61,22 +99,22 @@
     <!-- SOCIAL PROOF BAR -->
     <section class="proof">
         <div class="container proof-inner">
-            <div class="proof-item">
-                <strong>4.9 ★</strong>
+            <div class="proof-item reveal">
+                <strong><span class="counter" data-target="4.9">0</span> ★</strong>
                 <span>App Store Rating</span>
             </div>
             <div class="proof-divider"></div>
-            <div class="proof-item">
-                <strong>50+</strong>
+            <div class="proof-item reveal">
+                <strong><span class="counter" data-target="50" data-suffix="+">0</span></strong>
                 <span>Guided Sessions</span>
             </div>
             <div class="proof-divider"></div>
-            <div class="proof-item">
-                <strong>6</strong>
+            <div class="proof-item reveal">
+                <strong><span class="counter" data-target="6">0</span></strong>
                 <span>Breathing Exercises</span>
             </div>
             <div class="proof-divider"></div>
-            <div class="proof-item">
+            <div class="proof-item reveal">
                 <strong>100%</strong>
                 <span>Ad-Free</span>
             </div>
@@ -86,42 +124,54 @@
     <!-- FEATURES -->
     <section class="features" id="features">
         <div class="container">
-            <h2 class="section-title">Everything you need to <span class="gradient-text">feel better</span></h2>
-            <p class="section-sub">Six powerful tools, one calm app.</p>
+            <h2 class="section-title reveal">Everything you need to <span class="gradient-text">feel better</span></h2>
+            <p class="section-sub reveal">Six powerful tools, one calm app.</p>
             <div class="features-grid">
 
                 <div class="feature-card reveal">
-                    <div class="feature-icon">🌙</div>
+                    <div class="feature-icon-wrap">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="url(#grad1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><defs><linearGradient id="grad1" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse"><stop stop-color="#6C63FF"/><stop offset="1" stop-color="#00D2FF"/></linearGradient></defs><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+                    </div>
                     <h3>Sleep Meditations</h3>
                     <p>Fall asleep faster with guided sessions and calming soundscapes designed to quiet racing thoughts.</p>
                 </div>
 
                 <div class="feature-card reveal">
-                    <div class="feature-icon">🌬️</div>
+                    <div class="feature-icon-wrap">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="url(#grad1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M8 12s1.5 2 4 2 4-2 4-2"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+                    </div>
                     <h3>Breathing Exercises</h3>
                     <p>Six techniques including Box Breathing, 4-7-8 Sleep, and Wim Hof — with animated visual guides.</p>
                 </div>
 
                 <div class="feature-card reveal">
-                    <div class="feature-icon">🎯</div>
+                    <div class="feature-icon-wrap">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="url(#grad1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
                     <h3>Focus Timer</h3>
                     <p>Lock in with customizable timers and ambient soundscapes designed to keep you in the zone.</p>
                 </div>
 
                 <div class="feature-card reveal">
-                    <div class="feature-icon">📋</div>
+                    <div class="feature-icon-wrap">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="url(#grad1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+                    </div>
                     <h3>Guided Programs</h3>
                     <p>Multi-day programs for building habits, conquering anxiety, improving sleep, and finding inner peace.</p>
                 </div>
 
                 <div class="feature-card reveal">
-                    <div class="feature-icon">📊</div>
+                    <div class="feature-icon-wrap">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="url(#grad1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+                    </div>
                     <h3>Wellness Tracking</h3>
                     <p>Mood check-ins, streak tracking, Apple Health sync, and home screen widgets to stay inspired.</p>
                 </div>
 
                 <div class="feature-card reveal">
-                    <div class="feature-icon">🎨</div>
+                    <div class="feature-icon-wrap">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="url(#grad1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><path d="M17 2H7a5 5 0 00-5 5v10a5 5 0 005 5h10a5 5 0 005-5V7a5 5 0 00-5-5z"/><path d="M2 12h4l3 8 4-16 3 8h6"/></svg>
+                    </div>
                     <h3>Make It Yours</h3>
                     <p>Six color themes, five animated backgrounds, and a mini player — your calm space, your way.</p>
                 </div>
@@ -133,20 +183,20 @@
     <!-- HOW IT WORKS -->
     <section class="how" id="how">
         <div class="container">
-            <h2 class="section-title">Start feeling better in <span class="gradient-text">3 steps</span></h2>
+            <h2 class="section-title reveal">Start feeling better in <span class="gradient-text">3 steps</span></h2>
             <div class="steps">
                 <div class="step reveal">
                     <div class="step-num">1</div>
                     <h3>Download</h3>
                     <p>Get Breathe free on the App Store. Your 3-day trial starts immediately.</p>
                 </div>
-                <div class="step-arrow">→</div>
+                <div class="step-line"></div>
                 <div class="step reveal">
                     <div class="step-num">2</div>
                     <h3>Pick a session</h3>
                     <p>Choose from sleep meditations, breathing exercises, focus sounds, or guided programs.</p>
                 </div>
-                <div class="step-arrow">→</div>
+                <div class="step-line"></div>
                 <div class="step reveal">
                     <div class="step-num">3</div>
                     <h3>Feel the difference</h3>
@@ -159,22 +209,40 @@
     <!-- TESTIMONIALS -->
     <section class="testimonials" id="testimonials">
         <div class="container">
-            <h2 class="section-title">Loved by people who <span class="gradient-text">couldn't sleep</span></h2>
+            <h2 class="section-title reveal">Loved by people who <span class="gradient-text">couldn't sleep</span></h2>
             <div class="testimonials-grid">
                 <div class="testimonial reveal">
                     <div class="stars">★★★★★</div>
                     <p>"I've tried every sleep app out there. Breathe is the first one that actually works. I'm asleep in minutes now."</p>
-                    <span class="testimonial-author">— Sarah K.</span>
+                    <div class="testimonial-footer">
+                        <div class="testimonial-avatar">S</div>
+                        <div>
+                            <span class="testimonial-author">Sarah K.</span>
+                            <span class="testimonial-role">Verified User</span>
+                        </div>
+                    </div>
                 </div>
                 <div class="testimonial reveal">
                     <div class="stars">★★★★★</div>
                     <p>"The breathing exercises saved me during a panic attack at work. I use the 4-7-8 technique every single day now."</p>
-                    <span class="testimonial-author">— Marcus T.</span>
+                    <div class="testimonial-footer">
+                        <div class="testimonial-avatar">M</div>
+                        <div>
+                            <span class="testimonial-author">Marcus T.</span>
+                            <span class="testimonial-role">Verified User</span>
+                        </div>
+                    </div>
                 </div>
                 <div class="testimonial reveal">
                     <div class="stars">★★★★★</div>
                     <p>"Beautiful design, no annoying ads, and the focus timer is perfect for studying. Worth every penny."</p>
-                    <span class="testimonial-author">— Emily R.</span>
+                    <div class="testimonial-footer">
+                        <div class="testimonial-avatar">E</div>
+                        <div>
+                            <span class="testimonial-author">Emily R.</span>
+                            <span class="testimonial-role">Verified User</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -183,8 +251,8 @@
     <!-- PRICING -->
     <section class="pricing" id="pricing">
         <div class="container">
-            <h2 class="section-title">Start free. <span class="gradient-text">Stay calm.</span></h2>
-            <p class="section-sub">Try everything free for 3 days. Then just $0.76/week.</p>
+            <h2 class="section-title reveal">Start free. <span class="gradient-text">Stay calm.</span></h2>
+            <p class="section-sub reveal">Try everything free for 3 days. Then just $0.76/week.</p>
             <div class="pricing-card reveal">
                 <div class="pricing-badge">Best Value</div>
                 <div class="pricing-name">Breathe Premium</div>
@@ -194,16 +262,16 @@
                 </div>
                 <div class="pricing-breakdown">That's just $0.76/week — less than a coffee</div>
                 <ul class="pricing-features">
-                    <li>✓ Unlimited guided meditations</li>
-                    <li>✓ All 6 breathing exercises</li>
-                    <li>✓ Focus timer with soundscapes & music</li>
-                    <li>✓ Multi-day guided programs</li>
-                    <li>✓ Body scan meditation</li>
-                    <li>✓ Sleep alarm & sleep timer</li>
-                    <li>✓ Mood tracking & Apple Health sync</li>
-                    <li>✓ All themes & animated backgrounds</li>
-                    <li>✓ Home screen widgets</li>
-                    <li>✓ No ads, ever</li>
+                    <li><span class="check">✓</span> Unlimited guided meditations</li>
+                    <li><span class="check">✓</span> All 6 breathing exercises</li>
+                    <li><span class="check">✓</span> Focus timer with soundscapes & music</li>
+                    <li><span class="check">✓</span> Multi-day guided programs</li>
+                    <li><span class="check">✓</span> Body scan meditation</li>
+                    <li><span class="check">✓</span> Sleep alarm & sleep timer</li>
+                    <li><span class="check">✓</span> Mood tracking & Apple Health sync</li>
+                    <li><span class="check">✓</span> All themes & animated backgrounds</li>
+                    <li><span class="check">✓</span> Home screen widgets</li>
+                    <li><span class="check">✓</span> No ads, ever</li>
                 </ul>
                 <a href="https://apps.apple.com/app/idYOUR_APP_ID" class="cta-btn">Start Free Trial</a>
                 <p class="pricing-note">3 days free · Cancel anytime · No commitment</p>
@@ -214,29 +282,29 @@
     <!-- FAQ -->
     <section class="faq" id="faq">
         <div class="container">
-            <h2 class="section-title">Questions? <span class="gradient-text">We've got answers.</span></h2>
+            <h2 class="section-title reveal">Questions? <span class="gradient-text">We've got answers.</span></h2>
             <div class="faq-list">
-                <div class="faq-item">
+                <div class="faq-item reveal">
                     <button class="faq-q">Is Breathe really free to try?</button>
                     <div class="faq-a"><p>Yes! You get full access to everything for 3 days — no credit card tricks, no limited features. If you love it, your annual subscription starts automatically. If not, just cancel before the trial ends.</p></div>
                 </div>
-                <div class="faq-item">
+                <div class="faq-item reveal">
                     <button class="faq-q">What makes Breathe different from other meditation apps?</button>
                     <div class="faq-a"><p>Breathe combines guided meditations, breathing exercises, a focus timer, body scan, guided programs, mood tracking, and sleep tools — all in one app with a beautiful, ad-free experience. No fluff, no upsells on every screen.</p></div>
                 </div>
-                <div class="faq-item">
+                <div class="faq-item reveal">
                     <button class="faq-q">How long are the sessions?</button>
                     <div class="faq-a"><p>Sessions range from 3 minutes to 30+ minutes. Whether you have a quick break or a full evening, there's something for you.</p></div>
                 </div>
-                <div class="faq-item">
+                <div class="faq-item reveal">
                     <button class="faq-q">Does it work with Apple Health?</button>
                     <div class="faq-a"><p>Yes! Breathe syncs your mindful minutes directly to Apple Health, so all your wellness data stays in one place.</p></div>
                 </div>
-                <div class="faq-item">
+                <div class="faq-item reveal">
                     <button class="faq-q">Can I cancel anytime?</button>
                     <div class="faq-a"><p>Absolutely. Cancel anytime through your App Store settings. No questions asked, no hidden fees.</p></div>
                 </div>
-                <div class="faq-item">
+                <div class="faq-item reveal">
                     <button class="faq-q">Does it work on iPad?</button>
                     <div class="faq-a"><p>Yes — Breathe is designed to look beautiful on both iPhone and iPad.</p></div>
                 </div>
@@ -247,22 +315,25 @@
     <!-- FINAL CTA -->
     <section class="final-cta" id="download">
         <div class="container">
-            <h2>Tonight could be the night you <span class="gradient-text">finally sleep.</span></h2>
-            <p>Download Breathe free and start your 3-day trial now.</p>
-            <a href="https://apps.apple.com/app/idYOUR_APP_ID" class="cta-btn cta-btn-lg">Download Free on the App Store</a>
+            <div class="final-cta-inner reveal">
+                <div class="final-cta-glow"></div>
+                <h2>Tonight could be the night you <span class="gradient-text">finally sleep.</span></h2>
+                <p>Download Breathe free and start your 3-day trial now.</p>
+                <a href="https://apps.apple.com/app/idYOUR_APP_ID" class="cta-btn cta-btn-lg">Download Free on the App Store</a>
+            </div>
         </div>
     </section>
 
     <!-- FOOTER -->
     <footer class="footer">
         <div class="container footer-inner">
-            <div class="footer-brand">Breathe</div>
+            <div class="footer-brand"><img src="icon.png" alt="Breathe" class="footer-icon">Breathe</div>
             <div class="footer-links">
                 <a href="privacy.html">Privacy Policy</a>
                 <a href="terms.html">Terms of Service</a>
                 <a href="mailto:support@breathemeditation.com">Contact</a>
             </div>
-            <p class="footer-copy">© 2026 Breathe. All rights reserved.</p>
+            <p class="footer-copy">&copy; 2026 Breathe. All rights reserved.</p>
         </div>
     </footer>
 
