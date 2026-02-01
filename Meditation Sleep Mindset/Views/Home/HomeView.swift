@@ -529,6 +529,29 @@ struct HomeView: View {
         return result
     }
 
+    /// Prefetch stream URLs for content the user is most likely to play next
+    private func prefetchLikelyContent() {
+        Task.detached(priority: .utility) {
+            var videoIDs: [String] = []
+
+            // Continue listening is highest priority
+            await MainActor.run {
+                if let data = self.continueListeningData {
+                    videoIDs.append(data.content.youtubeVideoID)
+                }
+                // Recently played (top 3)
+                for content in self.recentlyPlayedContent.prefix(3) {
+                    if !videoIDs.contains(content.youtubeVideoID) {
+                        videoIDs.append(content.youtubeVideoID)
+                    }
+                }
+            }
+
+            guard !videoIDs.isEmpty else { return }
+            await YouTubeService.shared.prefetchStreamURLs(for: videoIDs)
+        }
+    }
+
     private func refreshRecommendations(showLoading: Bool = false) {
         // Cancel any in-flight recommendation task to prevent race conditions
         recommendationTask?.cancel()
@@ -754,6 +777,8 @@ struct HomeView: View {
                 if cachedRecommendations.isEmpty {
                     refreshRecommendations()
                 }
+                // Prefetch stream URLs for content the user is most likely to tap
+                prefetchLikelyContent()
             }
             .onChange(of: selectedMood) { _, _ in
                 refreshRecommendations(showLoading: true)

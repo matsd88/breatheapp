@@ -438,10 +438,10 @@ class AudioPlayerManager: ObservableObject {
 
             setupPlayer(with: streamURL)
 
-            // Safety timeout: if still loading after 20s, show error and allow retry
+            // Safety timeout: if still loading after 15s, show error and allow retry
             let contentID = content.youtubeVideoID
             Task { @MainActor [weak self] in
-                try? await Task.sleep(nanoseconds: 20_000_000_000)
+                try? await Task.sleep(nanoseconds: 15_000_000_000)
                 guard let self, self.isLoading, self.currentContent?.youtubeVideoID == contentID else { return }
                 self.error = "Playback timed out. Tap retry to try again."
                 self.isLoading = false
@@ -553,13 +553,15 @@ class AudioPlayerManager: ObservableObject {
                 }
             }
 
-            // Step 2: Pre-build AVPlayerItem so next track loads instantly
+            // Step 2: Pre-build AVPlayerItem with preloaded keys so next track loads instantly
             if let url = playableURL {
                 let asset = AVURLAsset(url: url, options: [
                     AVURLAssetPreferPreciseDurationAndTimingKey: false
                 ])
+                // Pre-load playable key so it's ready when we switch
+                _ = try? await asset.load(.isPlayable, .duration)
                 let item = AVPlayerItem(asset: asset)
-                item.preferredForwardBufferDuration = 2.0
+                item.preferredForwardBufferDuration = 1.0
                 await MainActor.run {
                     self.prefetchedPlayerItem = item
                     self.prefetchedVideoID = videoID
@@ -604,18 +606,41 @@ class AudioPlayerManager: ObservableObject {
     }
 
     private func setupPlayer(with url: URL) {
-        // Create asset with optimized loading
+        // Create asset with optimized loading — skip precise timing for faster start
         let asset = AVURLAsset(url: url, options: [
-            AVURLAssetPreferPreciseDurationAndTimingKey: false  // Faster loading
+            AVURLAssetPreferPreciseDurationAndTimingKey: false
         ])
 
+        // Asynchronously load the playable key so AVPlayer doesn't block on it
+        Task { [weak self] in
+            do {
+                let isPlayable = try await asset.load(.isPlayable)
+                guard let self else { return }
+                guard self.isLoading else { return }
+                guard isPlayable else {
+                    self.error = "Content is not playable"
+                    self.isLoading = false
+                    return
+                }
+                self.finishPlayerSetup(with: asset)
+            } catch {
+                guard let self else { return }
+                self.error = error.localizedDescription
+                self.isLoading = false
+            }
+        }
+    }
+
+    /// Complete player setup once asset keys are loaded
+    private func finishPlayerSetup(with asset: AVURLAsset) {
         playerItem = AVPlayerItem(asset: asset)
 
-        // Optimize for faster playback start
-        playerItem?.preferredForwardBufferDuration = 2.0  // Only buffer 2 seconds ahead initially
+        // Minimal initial buffer — start playback ASAP, buffer more as we play
+        playerItem?.preferredForwardBufferDuration = 1.0
 
         player = AVPlayer(playerItem: playerItem)
-        player?.automaticallyWaitsToMinimizeStalling = false  // Start playing as soon as buffer is ready
+        // Let AVPlayer start as soon as it has minimum buffer rather than waiting for "safe" amount
+        player?.automaticallyWaitsToMinimizeStalling = false
 
         // Observe duration
         playerItem?.publisher(for: \.duration)

@@ -146,7 +146,7 @@ actor YouTubeService {
             }
 
             group.addTask {
-                try await Task.sleep(nanoseconds: 8_000_000_000) // 8 second timeout per attempt
+                try await Task.sleep(nanoseconds: 6_000_000_000) // 6 second timeout per attempt
                 throw YouTubeError.networkError
             }
 
@@ -180,23 +180,35 @@ actor YouTubeService {
                 throw YouTubeError.noAudioStream
             }
 
-            // Pick a mid-quality stream: good audio quality without excessive bandwidth
-            // For meditation content, ~128kbps is ideal (clear speech, reasonable buffer time)
-            let targetBitrate = 128_000
-            let bestStream = audioStreams.min(by: {
+            // For meditation/sleep content, low bitrate = faster buffering.
+            // ~64kbps is plenty for spoken word; use ~128kbps for music/soundscapes.
+            // Pick the lowest bitrate that's at least 48kbps for acceptable quality.
+            let minAcceptable = 48_000
+            let targetBitrate = 96_000
+            let acceptable = audioStreams.filter { ($0.bitrate ?? 0) >= minAcceptable }
+            let bestStream = (acceptable.isEmpty ? audioStreams : acceptable).min(by: {
                 abs(($0.bitrate ?? 0) - targetBitrate) < abs(($1.bitrate ?? 0) - targetBitrate)
             }) ?? audioStreams.first!
 
             return bestStream.url
         } else {
-            // Get progressive video streams (video + audio combined), prefer 720p for mobile
+            // Get progressive video streams (video + audio combined)
             let progressiveStreams = streams.filter { $0.isProgressive }.sorted {
-                ($0.bitrate ?? 0) > ($1.bitrate ?? 0) // Highest quality first
+                ($0.bitrate ?? 0) < ($1.bitrate ?? 0) // Lowest bitrate first
             }
 
-            // Prefer 720p or nearest resolution for good quality without excessive data
-            if let best = progressiveStreams.first {
+            // For mobile, 360p is plenty for meditation visuals and loads MUCH faster.
+            // Target ~500kbps progressive stream — prioritize fast start over resolution.
+            let targetBitrate = 500_000
+            if let best = progressiveStreams.min(by: {
+                abs(($0.bitrate ?? 0) - targetBitrate) < abs(($1.bitrate ?? 0) - targetBitrate)
+            }) {
                 return best.url
+            }
+
+            // Fallback: any progressive stream (prefer lowest bitrate for speed)
+            if let smallest = progressiveStreams.first {
+                return smallest.url
             }
 
             // If no progressive streams, try video-only
