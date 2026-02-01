@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terms of Service — Breathe</title>
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --navy: #0a0e1a;
+            --white: #fff;
+            --white-70: rgba(255,255,255,0.7);
+            --white-50: rgba(255,255,255,0.5);
+            --white-10: rgba(255,255,255,0.08);
+            --accent: #6C63FF;
+            --accent2: #00D2FF;
+            --gradient: linear-gradient(135deg, #6C63FF, #00D2FF);
+        }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--navy);
+            color: var(--white-70);
+            line-height: 1.7;
+            -webkit-font-smoothing: antialiased;
+        }
+        .nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 100;
+            background: rgba(10,14,26,0.85);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-bottom: 1px solid var(--white-10);
+        }
+        .nav-inner {
+            max-width: 1140px;
+            margin: 0 auto;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .nav-logo {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: var(--white);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .nav-icon { width: 34px; height: 34px; border-radius: 10px; }
+        .nav-cta {
+            background: var(--gradient);
+            color: var(--white);
+            text-decoration: none;
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.88rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .nav-cta:hover { transform: scale(1.05); box-shadow: 0 4px 20px rgba(108,99,255,0.4); }
+
+        .container {
+            max-width: 740px;
+            margin: 0 auto;
+            padding: 120px 24px 80px;
+        }
+        h1 {
+            color: var(--white);
+            font-size: 2.4rem;
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            margin-bottom: 8px;
+        }
+        .gradient-text {
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .updated {
+            color: var(--white-50);
+            font-size: 0.85rem;
+            margin-bottom: 48px;
+        }
+        h2 {
+            color: var(--white);
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-top: 36px;
+            margin-bottom: 12px;
+        }
+        p, li {
+            margin-bottom: 10px;
+            font-size: 0.92rem;
+            line-height: 1.7;
+        }
+        ul {
+            padding-left: 20px;
+            margin-bottom: 16px;
+        }
+        li { padding: 2px 0; }
+        a { color: var(--accent2); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        strong { color: var(--white); font-weight: 600; }
+
+        .footer {
+            padding: 48px 0;
+            border-top: 1px solid var(--white-10);
+            text-align: center;
+        }
+        .footer-inner {
+            max-width: 1140px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+        .footer-brand { font-size: 1.2rem; font-weight: 800; color: var(--white); margin-bottom: 12px; }
+        .footer-links { display: flex; justify-content: center; gap: 28px; margin-bottom: 12px; }
+        .footer-links a { color: var(--white-50); font-size: 0.83rem; font-weight: 500; }
+        .footer-links a:hover { color: var(--white); text-decoration: none; }
+        .footer-copy { font-size: 0.78rem; color: rgba(255,255,255,0.3); }
+
+        @media (max-width: 480px) {
+            h1 { font-size: 1.8rem; }
+            .container { padding: 100px 16px 60px; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="nav">
+    <div class="nav-inner">
+        <a href="index.html" class="nav-logo"><img src="icon.png" alt="Breathe" class="nav-icon">Breathe</a>
+        <a href="index.html#download" class="nav-cta">Download Free</a>
+    </div>
+</nav>
+
+<div class="container">
+    <h1>Terms of <span class="gradient-text">Service</span></h1>
+    <p class="updated">Last Updated: January 2026</p>
+
+    <h2>1. Acceptance of Terms</h2>
+    <p>By downloading, installing, or using Breathe: Meditation and Sleep ("the App"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the App.</p>
+
+    <h2>2. Description of Service</h2>
+    <p>Breathe: Meditation and Sleep provides guided meditations, sleep stories, soundscapes, breathing exercises, body scan experiences, guided multi-day programs, a Pomodoro focus timer, mood tracking and insights, a sleep alarm, AI wellness chat, playlists, post-session reflections, playback speed control, AirPlay support, Siri Shortcuts, and mindfulness content designed to help users relax, sleep better, and improve their mental well-being. The App offers both free and premium subscription-based content, including an AI-powered wellness companion for personalized support.</p>
+
+    <h2>3. Subscription and Billing</h2>
+    <ul>
+        <li>Premium features require an active subscription</li>
+        <li>Subscriptions automatically renew unless canceled at least 24 hours before the end of the current period</li>
+        <li>Payment will be charged to your Apple ID account at confirmation of purchase</li>
+        <li>You can manage and cancel subscriptions in your App Store account settings</li>
+        <li>No refunds will be provided for partial subscription periods</li>
+    </ul>
+
+    <h2>4. Free Trial &amp; Preview</h2>
+    <p>We may offer free trial periods for premium subscriptions. If you do not cancel before the trial ends, you will be automatically charged for the subscription. Trial eligibility is determined by Apple and may be limited to one trial per Apple ID. Free users may preview premium content for a limited duration before being prompted to subscribe.</p>
+
+    <h2>5. User Conduct</h2>
+    <p>You agree not to:</p>
+    <ul>
+        <li>Share your account credentials with others</li>
+        <li>Attempt to reverse engineer or copy the App's content</li>
+        <li>Use the App for any unlawful purpose</li>
+        <li>Redistribute or commercially exploit the content</li>
+    </ul>
+
+    <h2>6. AI Wellness Chat</h2>
+    <p>The App includes an AI-powered wellness chat feature that provides conversational support for mental wellness. By using this feature, you acknowledge that:</p>
+    <ul>
+        <li>The AI is not a licensed therapist, counselor, or medical professional</li>
+        <li>Responses are generated by artificial intelligence and should not be considered professional advice</li>
+        <li>The AI chat is intended for general wellness support and is not a substitute for professional mental health care</li>
+        <li>If you are in crisis or experiencing a mental health emergency, please contact emergency services (911) or the Suicide &amp; Crisis Lifeline (988)</li>
+        <li>Chat messages are processed by our AI service to generate responses and are not stored on external servers</li>
+        <li>Free users are limited to 10 messages per day</li>
+    </ul>
+
+    <h2>7. Health &amp; Wellness Features</h2>
+    <p>The App includes wellness features such as breathing exercises, body scan meditations, a focus timer (Pomodoro), guided multi-day programs, mood tracking, post-session mood reflections, and a sleep alarm. These features are designed for general wellness and relaxation purposes only.</p>
+    <ul>
+        <li>Breathing exercises guide you through timed breathing patterns and are not medical respiratory therapy</li>
+        <li>The body scan feature provides guided relaxation and is not a diagnostic tool</li>
+        <li>The focus timer helps structure work sessions and is not a medical productivity treatment</li>
+        <li>Mood tracking and post-session reflections provide personal insights and are not clinical assessments</li>
+        <li>The sleep alarm and sleep timer use local notifications and require notification permissions to function</li>
+    </ul>
+
+    <h2>8. Apple Health Integration</h2>
+    <p>The App may optionally integrate with Apple Health to record your meditation sessions as Mindful Minutes. By enabling this feature, you acknowledge that:</p>
+    <ul>
+        <li>Health data is written to Apple Health on your device and governed by Apple's privacy policies</li>
+        <li>We only write mindful session data; we do not read or access other health data</li>
+        <li>You can disable this integration at any time in the App's settings</li>
+        <li>This feature requires your explicit permission via the Health app authorization prompt</li>
+    </ul>
+
+    <h2>9. Content &amp; Playback</h2>
+    <p>Audio and video content in the App is streamed from third-party sources. We do not host or own this content. Availability of specific content may change without notice. The App provides playback features including:</p>
+    <ul>
+        <li>Adjustable playback speed</li>
+        <li>Sleep timer with automatic fade-out</li>
+        <li>AirPlay streaming to external devices</li>
+        <li>Siri Shortcuts for hands-free access</li>
+        <li>Sharing content at specific timestamps</li>
+    </ul>
+
+    <h2>10. Health Disclaimer</h2>
+    <p>The App is designed for general wellness and relaxation purposes only, including its AI chat, breathing exercises, body scan, focus timer, mood tracking, and post-session reflection features. It is not intended to diagnose, treat, cure, or prevent any medical or psychological condition. Always consult with a qualified healthcare provider before starting any wellness program or if you have concerns about your mental health. Do not use the App while driving or operating machinery.</p>
+
+    <h2>11. Intellectual Property</h2>
+    <p>The App's software, design, and original content are the property of Breathe or its licensors and are protected by copyright and other intellectual property laws. Streamed media content is owned by its respective creators.</p>
+
+    <h2>12. Limitation of Liability</h2>
+    <p>To the maximum extent permitted by law, Breathe shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the App. Our total liability shall not exceed the amount you paid for the App in the twelve months preceding any claim.</p>
+
+    <h2>13. Modifications to Terms</h2>
+    <p>We reserve the right to modify these terms at any time. Continued use of the App after changes constitutes acceptance of the new terms. We will notify users of significant changes through the App.</p>
+
+    <h2>14. Termination</h2>
+    <p>We may terminate or suspend your access to the App at any time, without prior notice, for conduct that we believe violates these Terms or is harmful to other users, us, or third parties.</p>
+
+    <h2>15. Governing Law</h2>
+    <p>These Terms shall be governed by and construed in accordance with the laws of the United States, without regard to conflict of law principles.</p>
+
+    <h2>16. Contact Us</h2>
+    <p>If you have questions about these Terms, please contact us at:<br>
+    <a href="mailto:matsdegerstedt@gmail.com">matsdegerstedt@gmail.com</a></p>
+</div>
+
+<footer class="footer">
+    <div class="footer-inner">
+        <div class="footer-brand">Breathe</div>
+        <div class="footer-links">
+            <a href="privacy.html">Privacy Policy</a>
+            <a href="terms.html">Terms of Service</a>
+            <a href="mailto:matsdegerstedt@gmail.com">Contact</a>
+        </div>
+        <p class="footer-copy">&copy; 2026 Breathe. All rights reserved.</p>
+    </div>
+</footer>
+
+</body>
+</html>
