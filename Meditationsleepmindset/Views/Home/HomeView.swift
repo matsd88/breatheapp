@@ -241,7 +241,15 @@ struct HomeView: View {
     private var continueListeningData: (content: Content, session: MeditationSession)? {
         // Find most recent incomplete session from the last 7 days
         let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-        guard let unfinished = sessions.first(where: { !$0.wasCompleted && $0.startedAt >= cutoff }) else { return nil }
+        guard let unfinished = sessions.first(where: { session in
+            guard !session.wasCompleted, session.startedAt >= cutoff else { return false }
+            // Hide if user barely started (< 15 seconds) — they likely just previewed it
+            guard session.listenedSeconds >= 15 else { return false }
+            // Hide if user listened to 80%+ — effectively finished even if they closed early
+            guard session.durationSeconds > 0 else { return true }
+            let progress = Double(session.listenedSeconds) / Double(session.durationSeconds)
+            return progress < 0.8
+        }) else { return nil }
 
         // Match to content
         var content: Content?

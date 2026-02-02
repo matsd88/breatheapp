@@ -83,18 +83,20 @@ struct UnifiedContentCard: View {
             thumbnailImage(width: 100, height: 70, cornerRadius: 8)
 
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
+                HStack(spacing: 4) {
                     Text(content.contentType.rawValue)
                         .font(.caption)
                         .fontWeight(.medium)
                         .foregroundStyle(.white.opacity(0.7))
 
-                    Text("•")
-                        .foregroundStyle(Theme.textTertiary)
+                    if !content.durationFormatted.isEmpty {
+                        Text("•")
+                            .foregroundStyle(Theme.textTertiary)
 
-                    Text(content.durationFormatted)
-                        .font(.caption)
-                        .foregroundStyle(Theme.textSecondary)
+                        Text(content.durationFormatted)
+                            .font(.caption)
+                            .foregroundStyle(Theme.textSecondary)
+                    }
                 }
 
                 Text(content.title)

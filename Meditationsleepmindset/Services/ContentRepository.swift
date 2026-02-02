@@ -177,7 +177,7 @@ class ContentRepository {
         ("Waterfall Sounds", "Cascading calm", "8rTTEMdMh8Q", .soundscape, 3600, nil, ["Reduce Stress", "Reduce Anxiety"], false, "The soothing sound of a gentle waterfall."),
         ("Wind & Rain", "Gentle breeze", "8plwv25NYRo", .soundscape, 3600, nil, ["Reduce Stress"], false, "Wind and rain for peaceful relaxation."),
         ("River Stream", "Flowing water", "M0qWBKQ7ldY", .soundscape, 10826, nil, ["Better Sleep", "Reduce Anxiety"], false, "A peaceful river flowing through a quiet forest."),
-        ("Rainforest", "Tropical ambiance", "i5lOyGFhXdc", .soundscape, 3600, nil, ["Reduce Stress", "Better Sleep"], false, "Immerse yourself in the sounds of a lush rainforest."),
+        ("Rainforest", "Forest birdsong", "Qm846KdZN_c", .soundscape, 7200, nil, ["Reduce Stress", "Better Sleep"], false, "Immerse yourself in the sounds of a lush forest with birdsong."),
         ("Mountain Wind", "Alpine breeze", "bn9F19Hi1Lk", .soundscape, 3600, nil, ["Reduce Stress"], false, "Wind sweeping across mountain peaks."),
         ("Babbling Brook", "Stream sounds", "Gq2yioc5qjM", .soundscape, 10826, nil, ["Better Sleep", "Reduce Anxiety"], false, "A peaceful brook flowing through the woods."),
         ("City Rain", "Urban calm", "jFOnYloDzg4", .soundscape, 3600, nil, ["Better Sleep", "Reduce Stress"], false, "Rain on city streets at night."),
@@ -1006,7 +1006,7 @@ class ContentRepository {
     ]
 
     // Content version - increment this when video IDs change to force re-seed
-    private static let contentVersion = 30
+    private static let contentVersion = 31
     private static let contentVersionKey = "ContentRepositoryVersion"
 
     func seedContentIfNeeded(in context: ModelContext) {
