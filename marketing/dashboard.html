@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Marketer — Breathe App</title>
+    <link rel="icon" type="image/png" href="../icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0a0e1a;
+            --bg2: #111827;
+            --bg3: #1a2332;
+            --border: rgba(255,255,255,0.08);
+            --white: #fff;
+            --white-90: rgba(255,255,255,0.9);
+            --white-70: rgba(255,255,255,0.7);
+            --white-50: rgba(255,255,255,0.5);
+            --white-30: rgba(255,255,255,0.3);
+            --accent: #6C63FF;
+            --accent2: #00D2FF;
+            --green: #34D399;
+            --yellow: #FBBF24;
+            --red: #F87171;
+            --pink: #EC4899;
+            --orange: #FB923C;
+            --gradient: linear-gradient(135deg, #6C63FF, #00D2FF);
+        }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--white);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Layout */
+        .app { display: flex; min-height: 100vh; }
+        .sidebar {
+            width: 240px;
+            background: var(--bg2);
+            border-right: 1px solid var(--border);
+            padding: 24px 16px;
+            position: fixed;
+            top: 0; left: 0; bottom: 0;
+            overflow-y: auto;
+            z-index: 10;
+        }
+        .main {
+            flex: 1;
+            margin-left: 240px;
+            padding: 32px;
+            max-width: 1200px;
+        }
+
+        /* Sidebar */
+        .sidebar-brand {
+            font-size: 1.1rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .sidebar-sub {
+            font-size: 0.72rem;
+            color: var(--white-50);
+            margin-bottom: 32px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .nav-section {
+            font-size: 0.68rem;
+            color: var(--white-30);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin: 24px 0 8px;
+            font-weight: 600;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            color: var(--white-70);
+            text-decoration: none;
+            font-size: 0.88rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            margin-bottom: 2px;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.05); color: var(--white); }
+        .nav-item.active { background: rgba(108,99,255,0.15); color: var(--accent); }
+        .nav-item .icon { font-size: 1.1rem; width: 22px; text-align: center; }
+
+        /* Page header */
+        .page-header {
+            margin-bottom: 32px;
+        }
+        .page-title {
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 4px;
+        }
+        .page-desc {
+            color: var(--white-50);
+            font-size: 0.9rem;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .card-title {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        /* Stats row */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+        }
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--white-50);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+        }
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+        .stat-change {
+            font-size: 0.75rem;
+            margin-top: 4px;
+        }
+        .stat-change.up { color: var(--green); }
+        .stat-change.down { color: var(--red); }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 24px;
+            background: var(--bg2);
+            border-radius: 12px;
+            padding: 4px;
+            border: 1px solid var(--border);
+            width: fit-content;
+        }
+        .tab {
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--white-50);
+            transition: all 0.15s;
+            border: none;
+            background: none;
+        }
+        .tab:hover { color: var(--white-70); }
+        .tab.active { background: var(--accent); color: var(--white); }
+
+        /* Content generator */
+        .post-card {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+            margin-bottom: 12px;
+            position: relative;
+        }
+        .post-card:hover { border-color: rgba(108,99,255,0.3); }
+        .post-platform {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding: 4px 10px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+        .post-platform.reddit { background: rgba(255,69,0,0.15); color: #FF6B35; }
+        .post-platform.twitter { background: rgba(29,155,240,0.15); color: #1DA1F2; }
+        .post-platform.tiktok { background: rgba(255,0,80,0.15); color: #FF0050; }
+        .post-platform.instagram { background: rgba(225,48,108,0.15); color: #E1306C; }
+        .post-platform.facebook { background: rgba(24,119,242,0.15); color: #1877F2; }
+        .post-title {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .post-body {
+            font-size: 0.85rem;
+            color: var(--white-70);
+            line-height: 1.7;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow: hidden;
+            position: relative;
+        }
+        .post-body.expanded { max-height: none; }
+        .post-body::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 60px;
+            background: linear-gradient(transparent, var(--bg3));
+        }
+        .post-body.expanded::after { display: none; }
+        .post-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s;
+            font-family: inherit;
+        }
+        .btn-primary { background: var(--gradient); color: var(--white); }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(108,99,255,0.3); }
+        .btn-secondary { background: rgba(255,255,255,0.06); color: var(--white-70); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: rgba(255,255,255,0.1); color: var(--white); }
+        .btn-sm { padding: 6px 12px; font-size: 0.75rem; }
+        .btn-success { background: var(--green); color: #000; }
+
+        /* Calendar */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+        }
+        .cal-header {
+            text-align: center;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--white-50);
+            text-transform: uppercase;
+            padding: 8px 0;
+        }
+        .cal-day {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px;
+            min-height: 100px;
+        }
+        .cal-day-num {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--white-50);
+            margin-bottom: 6px;
+        }
+        .cal-day.today { border-color: var(--accent); }
+        .cal-task {
+            font-size: 0.68rem;
+            padding: 3px 6px;
+            border-radius: 4px;
+            margin-bottom: 3px;
+            font-weight: 500;
+        }
+        .cal-task.reddit { background: rgba(255,69,0,0.15); color: #FF6B35; }
+        .cal-task.tiktok { background: rgba(255,0,80,0.15); color: #FF0050; }
+        .cal-task.twitter { background: rgba(29,155,240,0.15); color: #1DA1F2; }
+        .cal-task.review { background: rgba(52,211,153,0.15); color: var(--green); }
+        .cal-task.ads { background: rgba(251,191,36,0.15); color: var(--yellow); }
+        .cal-task.analytics { background: rgba(108,99,255,0.15); color: var(--accent); }
+
+        /* Checklist */
+        .check-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .check-item:hover { background: rgba(255,255,255,0.03); }
+        .check-box {
+            width: 22px; height: 22px;
+            border: 2px solid var(--white-30);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.15s;
+            font-size: 0.7rem;
+        }
+        .check-item.done .check-box {
+            background: var(--green);
+            border-color: var(--green);
+        }
+        .check-item.done .check-text { color: var(--white-30); text-decoration: line-through; }
+        .check-text { font-size: 0.88rem; }
+        .check-meta { font-size: 0.72rem; color: var(--white-30); margin-left: auto; }
+
+        /* Image generator */
+        .image-preview {
+            width: 100%;
+            max-width: 400px;
+            aspect-ratio: 9/16;
+            background: var(--bg);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            text-align: center;
+        }
+        .image-preview .ig-headline {
+            font-size: 1.6rem;
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+            margin-bottom: 12px;
+        }
+        .image-preview .ig-sub {
+            font-size: 0.85rem;
+            color: var(--white-70);
+            margin-bottom: 24px;
+        }
+        .image-preview .ig-phone {
+            width: 160px;
+            height: 320px;
+            background: var(--bg2);
+            border-radius: 24px;
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+        }
+        .gradient-text {
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--green);
+            color: #000;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s;
+            z-index: 100;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+
+        /* Section containers */
+        .section { display: none; }
+        .section.active { display: block; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--white-30); border-radius: 3px; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; padding: 16px; }
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .calendar-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">AI Marketer</div>
+        <div class="sidebar-sub">Breathe App</div>
+
+        <div class="nav-section">Dashboard</div>
+        <div class="nav-item active" onclick="showSection('overview')">
+            <span class="icon">📊</span> Overview
+        </div>
+
+        <div class="nav-section">Content</div>
+        <div class="nav-item" onclick="showSection('generator')">
+            <span class="icon">✨</span> Content Generator
+        </div>
+        <div class="nav-item" onclick="showSection('calendar')">
+            <span class="icon">📅</span> Content Calendar
+        </div>
+        <div class="nav-item" onclick="showSection('images')">
+            <span class="icon">🖼️</span> Image Creator
+        </div>
+
+        <div class="nav-section">Tasks</div>
+        <div class="nav-item" onclick="showSection('tasks')">
+            <span class="icon">✅</span> Weekly Tasks
+        </div>
+
+        <div class="nav-section">ASO</div>
+        <div class="nav-item" onclick="showSection('keywords')">
+            <span class="icon">🔍</span> Keyword Tracker
+        </div>
+
+        <div style="margin-top:auto; padding-top:24px; border-top:1px solid var(--border); margin-top:40px;">
+            <div class="nav-item" onclick="window.open('https://apps.apple.com/app/id6758229420')">
+                <span class="icon">📱</span> App Store
+            </div>
+            <div class="nav-item" onclick="window.open('https://meditationandsleepapp.com')">
+                <span class="icon">🌐</span> Website
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main">
+
+        <!-- OVERVIEW -->
+        <div class="section active" id="sec-overview">
+            <div class="page-header">
+                <h1 class="page-title">Good morning 👋</h1>
+                <p class="page-desc">Here's your marketing overview for this week.</p>
+            </div>
+
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-label">Tasks This Week</div>
+                    <div class="stat-value" id="stat-tasks">0/13</div>
+                    <div class="stat-change up" id="stat-tasks-pct">0% complete</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Posts Generated</div>
+                    <div class="stat-value" id="stat-posts">0</div>
+                    <div class="stat-change">this session</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Images Created</div>
+                    <div class="stat-value" id="stat-images">0</div>
+                    <div class="stat-change">this session</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Week Streak</div>
+                    <div class="stat-value" id="stat-streak">0</div>
+                    <div class="stat-change">consecutive weeks</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Today's Tasks</div>
+                </div>
+                <div id="today-tasks"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Quick Actions</div>
+                </div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <button class="btn btn-primary" onclick="showSection('generator')">✨ Generate Content</button>
+                    <button class="btn btn-secondary" onclick="showSection('images')">🖼️ Create Images</button>
+                    <button class="btn btn-secondary" onclick="showSection('tasks')">✅ View All Tasks</button>
+                    <button class="btn btn-secondary" onclick="showSection('keywords')">🔍 Keyword Report</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTENT GENERATOR -->
+        <div class="section" id="sec-generator">
+            <div class="page-header">
+                <h1 class="page-title">Content Generator ✨</h1>
+                <p class="page-desc">Auto-generate ready-to-post content for every platform.</p>
+            </div>
+
+            <div style="display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap;">
+                <button class="btn btn-primary" onclick="generateAll()">🔄 Generate Full Week</button>
+                <button class="btn btn-secondary" onclick="generateForPlatform('reddit')">Reddit</button>
+                <button class="btn btn-secondary" onclick="generateForPlatform('twitter')">Twitter/X</button>
+                <button class="btn btn-secondary" onclick="generateForPlatform('tiktok')">TikTok</button>
+                <button class="btn btn-secondary" onclick="generateForPlatform('instagram')">Instagram</button>
+            </div>
+
+            <div id="generated-posts"></div>
+        </div>
+
+        <!-- CONTENT CALENDAR -->
+        <div class="section" id="sec-calendar">
+            <div class="page-header">
+                <h1 class="page-title">Content Calendar 📅</h1>
+                <p class="page-desc">Your weekly posting schedule at a glance.</p>
+            </div>
+            <div class="card">
+                <div class="calendar-grid" id="calendar-grid"></div>
+            </div>
+        </div>
+
+        <!-- IMAGE CREATOR -->
+        <div class="section" id="sec-images">
+            <div class="page-header">
+                <h1 class="page-title">Image Creator 🖼️</h1>
+                <p class="page-desc">Generate social media cards for your posts.</p>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+                <div class="card">
+                    <div class="card-title" style="margin-bottom:16px;">Configure</div>
+                    <div style="margin-bottom:16px;">
+                        <label style="font-size:0.8rem;color:var(--white-50);display:block;margin-bottom:6px;">Headline</label>
+                        <input type="text" id="img-headline" value="Sleep better. Stress less." style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg3);color:var(--white);font-family:inherit;font-size:0.9rem;" oninput="updateImagePreview()">
+                    </div>
+                    <div style="margin-bottom:16px;">
+                        <label style="font-size:0.8rem;color:var(--white-50);display:block;margin-bottom:6px;">Accent Word (gradient)</label>
+                        <input type="text" id="img-accent" value="Breathe." style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg3);color:var(--white);font-family:inherit;font-size:0.9rem;" oninput="updateImagePreview()">
+                    </div>
+                    <div style="margin-bottom:16px;">
+                        <label style="font-size:0.8rem;color:var(--white-50);display:block;margin-bottom:6px;">Subtitle</label>
+                        <input type="text" id="img-sub" value="760+ meditations, sleep stories & AI wellness chat" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg3);color:var(--white);font-family:inherit;font-size:0.9rem;" oninput="updateImagePreview()">
+                    </div>
+                    <div style="margin-bottom:16px;">
+                        <label style="font-size:0.8rem;color:var(--white-50);display:block;margin-bottom:6px;">Template</label>
+                        <select id="img-template" style="width:100%;padding:10px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg3);color:var(--white);font-family:inherit;font-size:0.9rem;" onchange="updateImagePreview()">
+                            <option value="story">Instagram Story (9:16)</option>
+                            <option value="square">Instagram Post (1:1)</option>
+                            <option value="landscape">Twitter/Facebook (16:9)</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="downloadImage()" style="width:100%;">📥 Download Image</button>
+                </div>
+
+                <div>
+                    <div class="card" style="display:flex;justify-content:center;">
+                        <div class="image-preview" id="image-preview">
+                            <div class="ig-headline">Sleep better. Stress less.<br><span class="gradient-text">Breathe.</span></div>
+                            <div class="ig-sub">760+ meditations, sleep stories & AI wellness chat</div>
+                            <div class="ig-phone">🧘</div>
+                        </div>
+                    </div>
+                    <p style="font-size:0.75rem;color:var(--white-30);text-align:center;">Right-click the preview to save, or use the download button.</p>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:20px;">
+                <div class="card-title" style="margin-bottom:16px;">Quick Templates</div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <button class="btn btn-secondary btn-sm" onclick="setImageTemplate('Sleep better tonight.','Breathe.','760+ guided meditations & sleep stories')">Sleep</button>
+                    <button class="btn btn-secondary btn-sm" onclick="setImageTemplate('Calm your mind in','60 seconds.','5 breathing techniques with animated guides')">Breathing</button>
+                    <button class="btn btn-secondary btn-sm" onclick="setImageTemplate('Your AI wellness','companion.','Mood-aware guidance, available 24/7')">AI Chat</button>
+                    <button class="btn btn-secondary btn-sm" onclick="setImageTemplate('Focus deeper.','Work smarter.','Pomodoro timer with ambient soundscapes')">Focus</button>
+                    <button class="btn btn-secondary btn-sm" onclick="setImageTemplate('Mix your own','calm.','Blend 3 ambient sounds with the soundscape mixer')">Soundscapes</button>
+                    <button class="btn btn-secondary btn-sm" onclick="setImageTemplate('Try free for','3 days.','760+ sessions. Cancel anytime. No commitment.')">CTA</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- WEEKLY TASKS -->
+        <div class="section" id="sec-tasks">
+            <div class="page-header">
+                <h1 class="page-title">Weekly Tasks ✅</h1>
+                <p class="page-desc">Your marketing checklist. ~4 hours total per week.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">This Week's Progress</div>
+                    <div style="font-size:0.85rem;color:var(--white-50);" id="task-progress">0/13 complete</div>
+                </div>
+                <div style="height:6px;background:var(--bg);border-radius:3px;margin-bottom:20px;overflow:hidden;">
+                    <div id="task-bar" style="height:100%;background:var(--gradient);border-radius:3px;transition:width 0.3s;width:0%;"></div>
+                </div>
+                <div id="task-list"></div>
+            </div>
+        </div>
+
+        <!-- KEYWORD TRACKER -->
+        <div class="section" id="sec-keywords">
+            <div class="page-header">
+                <h1 class="page-title">Keyword Tracker 🔍</h1>
+                <p class="page-desc">ASO keywords, competitor analysis, and opportunities.</p>
+            </div>
+
+            <div class="tabs">
+                <button class="tab active" onclick="showKeywordTab('opportunities')">Opportunities</button>
+                <button class="tab" onclick="showKeywordTab('competitors')">Competitors</button>
+                <button class="tab" onclick="showKeywordTab('searchads')">Search Ads</button>
+            </div>
+
+            <div class="card" id="kw-opportunities">
+                <div class="card-title" style="margin-bottom:16px;">Keyword Opportunity Matrix</div>
+                <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+                        <thead>
+                            <tr style="border-bottom:1px solid var(--border);">
+                                <th style="text-align:left;padding:10px 8px;color:var(--white-50);font-weight:600;">Keyword</th>
+                                <th style="text-align:center;padding:10px 8px;color:var(--white-50);font-weight:600;">Volume</th>
+                                <th style="text-align:center;padding:10px 8px;color:var(--white-50);font-weight:600;">Difficulty</th>
+                                <th style="text-align:center;padding:10px 8px;color:var(--white-50);font-weight:600;">Priority</th>
+                                <th style="text-align:center;padding:10px 8px;color:var(--white-50);font-weight:600;">Score</th>
+                            </tr>
+                        </thead>
+                        <tbody id="kw-table"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card" id="kw-competitors" style="display:none;">
+                <div class="card-title" style="margin-bottom:16px;">Competitor Pricing</div>
+                <div id="competitor-list"></div>
+            </div>
+
+            <div class="card" id="kw-searchads" style="display:none;">
+                <div class="card-title" style="margin-bottom:16px;">Apple Search Ads Recommendations</div>
+                <div id="searchads-list"></div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Data ───
+
+const APP_URL = "https://apps.apple.com/app/id6758229420";
+const WEBSITE = "https://meditationandsleepapp.com";
+
+const KEYWORDS = [
+    { kw: "meditation app", vol: 10, diff: 10, priority: "high" },
+    { kw: "sleep app", vol: 9, diff: 9, priority: "high" },
+    { kw: "guided meditation", vol: 8, diff: 8, priority: "high" },
+    { kw: "sleep stories", vol: 8, diff: 7, priority: "high" },
+    { kw: "breathing exercises", vol: 7, diff: 6, priority: "high" },
+    { kw: "anxiety relief app", vol: 7, diff: 7, priority: "high" },
+    { kw: "mindfulness app", vol: 7, diff: 8, priority: "medium" },
+    { kw: "sleep sounds app", vol: 6, diff: 5, priority: "medium" },
+    { kw: "box breathing", vol: 5, diff: 3, priority: "high" },
+    { kw: "4-7-8 breathing", vol: 4, diff: 2, priority: "high" },
+    { kw: "wim hof breathing app", vol: 4, diff: 2, priority: "high" },
+    { kw: "body scan meditation", vol: 4, diff: 3, priority: "medium" },
+    { kw: "ai meditation chat", vol: 3, diff: 1, priority: "high" },
+    { kw: "pomodoro meditation", vol: 3, diff: 1, priority: "medium" },
+    { kw: "mood tracking meditation", vol: 3, diff: 2, priority: "medium" },
+    { kw: "soundscape mixer", vol: 2, diff: 1, priority: "medium" },
+];
+
+const COMPETITORS = [
+    { name: "Breathe (You)", price: "$49.99/yr", you: true },
+    { name: "Calm", price: "$69.99/yr" },
+    { name: "Headspace", price: "$69.99/yr" },
+    { name: "Balance", price: "$69.99/yr" },
+    { name: "Insight Timer", price: "Free + $59.99/yr" },
+    { name: "Ten Percent Happier", price: "$99.99/yr" },
+];
+
+const REDDIT_POSTS = [
+    { sub: "r/sleep", title: "The 4-7-8 breathing technique changed my sleep completely", body: "I used to lie in bed for 1-2 hours every night, mind racing. A friend told me about 4-7-8 breathing:\n\n1. Breathe in through your nose for 4 seconds\n2. Hold your breath for 7 seconds\n3. Exhale slowly through your mouth for 8 seconds\n4. Repeat 3-4 times\n\nThe key is the long exhale — it activates your parasympathetic nervous system and literally tells your body \"it's safe to sleep.\"\n\nI've been doing this for 3 weeks and I'm usually asleep within 10-15 minutes now. Has anyone else tried this?" },
+    { sub: "r/Meditation", title: "Box Breathing: The technique Navy SEALs use to stay calm under pressure", body: "Box breathing is ridiculously simple but incredibly effective:\n\n- Inhale for 4 seconds\n- Hold for 4 seconds\n- Exhale for 4 seconds\n- Hold for 4 seconds\n\nRepeat for 3-5 minutes. Navy SEALs use it before high-stress operations.\n\nThe science: the equal inhale/exhale ratio balances your CO2 and O2 levels, which calms your autonomic nervous system.\n\nTry it right now — 3 cycles. How did that feel?" },
+    { sub: "r/Anxiety", title: "Something that actually helps during a panic attack", body: "I've had anxiety for years. Here's what actually works in the moment:\n\n**Breathing (4-7-8 technique):**\nInhale 4 seconds, hold 7, exhale 8. The long exhale forces your nervous system out of fight-or-flight.\n\n**Body scan:**\nStart at the top of your head. Notice tension. Move down to toes. Just notice — don't try to change anything.\n\n**Name 5 things:**\n5 things you see, 4 touch, 3 hear, 2 smell, 1 taste. Grounding that works fast.\n\nNone of these are cures. But they've gotten me through some really bad moments." },
+    { sub: "r/getdisciplined", title: "I replaced phone doomscrolling before bed with a 10-minute meditation — here's what happened after 30 days", body: "Rules:\n- Phone on DND at 9:30 PM\n- 10 min guided meditation or breathing\n- Sleep story or calming sounds until I drift off\n\nWeek 1: Felt weird. Kept reaching for phone.\nWeek 2: Falling asleep faster. 30min → 15min.\nWeek 3: Started looking forward to it.\nWeek 4: Waking up before my alarm. Energy levels completely different.\n\nBiggest surprise: morning anxiety basically disappeared. The doomscrolling was spiking cortisol right before sleep." },
+    { sub: "r/productivity", title: "The Pomodoro technique works 10x better with ambient sounds", body: "My setup:\n- 25 min focus blocks\n- Rain + fireplace sounds (low volume)\n- 5 min break with breathing exercises\n- Every 4 blocks, longer 15 min break\n\nThe ambient sounds mask distracting noises AND create a Pavlovian \"focus trigger\" — my brain now associates rain sounds with deep work.\n\nFor breaks, I do box breathing instead of checking my phone. Actually recharges you.\n\nAfter 2 weeks: ~2 more hours of productive work per day." },
+    { sub: "r/selfimprovement", title: "Mood tracking changed how I understand myself", body: "3 months of tracking my mood every morning. Key findings:\n\n1. Anxiety peaks on Sundays/Mondays — I had no idea.\n2. Exercise + meditation > meditation alone for my mood.\n3. Sleep quality predicts next-day mood with ~80% accuracy.\n4. Specific gratitude works; generic doesn't.\n\nYou don't need a fancy app. Even a 1-10 rating in your notes works. But do it for 30 days minimum before looking for patterns." }
+];
+
+const TWITTER_POSTS = [
+    "The 4-7-8 breathing technique:\n\n- Inhale 4 seconds\n- Hold 7 seconds\n- Exhale 8 seconds\n\nRepeat 3x. You'll feel calmer within 60 seconds.\n\nThe long exhale activates your parasympathetic nervous system. It's a cheat code for your brain.",
+    "Most people doomscroll for 45 minutes before bed then wonder why they can't sleep.\n\nReplace the last 20 minutes with:\n- A breathing exercise (2 min)\n- A sleep story or rain sounds\n\nYou'll fall asleep faster than you have in years.",
+    "Meditation doesn't have to be 30 minutes of sitting in silence.\n\n3 minutes of focused breathing counts.\nA sleep story counts.\nA quick body scan at your desk counts.\n\nConsistency > duration.",
+    "Box breathing (4-4-4-4) is used by:\n- Navy SEALs\n- First responders\n- Surgeons\n- Athletes\n\nThe simplest stress management tool that actually works. 4 cycles takes under 2 minutes.",
+    "Your evening routine matters more than your morning routine.\n\nThe last 30 minutes before sleep determine:\n- How fast you fall asleep\n- Sleep quality\n- Tomorrow's energy\n- Tomorrow's mood\n\nProtect those 30 minutes.",
+    "Unpopular opinion: most meditation apps are overcomplicated.\n\nYou don't need a 47-step onboarding flow.\nYou don't need 17 subscription tiers.\n\nYou need a play button and something calming."
+];
+
+const TIKTOK_POSTS = [
+    { hook: "Try this 60-second breathing exercise right now", content: "Guide viewer through 4-7-8 breathing with calm background. Count on screen. End with 'Did you feel that? Save this for tonight.'", tags: "#breathingexercise #sleep #anxietyrelief #478breathing #meditation #sleephack #mentalhealth" },
+    { hook: "The Navy SEAL technique for instant calm", content: "Explain box breathing with visual timer. Show 4-4-4-4 pattern.", tags: "#boxbreathing #navyseal #stressrelief #calm #anxiety #breathwork #mindfulness" },
+    { hook: "POV: You finally found a meditation app that isn't annoying", content: "Quick aesthetic walkthrough of Breathe app. Show home screen, breathing, soundscape mixer, sleep stories.", tags: "#meditationapp #sleepapp #wellness #selfcare #meditation #calm" },
+    { hook: "3 sounds that will knock you out in 10 minutes", content: "Demo the soundscape mixer. Layer rain + fireplace + ocean. Show independent volume controls.", tags: "#sleepsounds #rainsounds #sleephack #insomnia #asmr #relaxation" },
+    { hook: "I asked an AI to help with my anxiety and this happened", content: "Show AI wellness chat conversation. Thoughtful, personalized response.", tags: "#ai #mentalhealth #anxiety #wellness #aichat #selfcare" },
+    { hook: "Wim Hof breathing but make it aesthetic", content: "Guided Wim Hof session with app visuals. Fast breaths, hold, recovery.", tags: "#wimhof #breathwork #wimhofmethod #energy #breathingexercise" }
+];
+
+const INSTAGRAM_POSTS = [
+    { type: "Carousel", caption: "5 Breathing Techniques That Actually Work\n\nSwipe to learn each one →\n\n1. Box Breathing (4-4-4-4) — Focus & calm\n2. 4-7-8 Relaxing Breath — Fall asleep fast\n3. Wim Hof Method — Energy & clarity\n4. Alternate Nostril — Balance & anxiety\n5. Energizing Breath — Morning wake-up\n\nSave this post and try one tonight.\n\n#breathingexercises #meditation #sleep #anxiety #mindfulness #wellness" },
+    { type: "Reel", caption: "This 60-second breathing exercise will change your night ✨\n\nThe 4-7-8 technique activates your parasympathetic nervous system — switching your body from alert to rest.\n\nTry it tonight.\n\n#478breathing #sleephack #breathingexercise #meditation #sleep #calm #relaxation #mentalhealth" }
+];
+
+const WEEKLY_TASKS = [
+    { task: "Create & post TikTok/Reel #1 (breathing technique)", cat: "Content", day: "Tuesday", time: 30 },
+    { task: "Create & post TikTok/Reel #2 (app feature demo)", cat: "Content", day: "Thursday", time: 30 },
+    { task: "Create & post TikTok/Reel #3 (sleep/relaxation)", cat: "Content", day: "Saturday", time: 30 },
+    { task: "Write & post Reddit value post #1", cat: "Reddit", day: "Monday", time: 20 },
+    { task: "Write & post Reddit value post #2", cat: "Reddit", day: "Wednesday", time: 20 },
+    { task: "Engage in 10+ Reddit comments", cat: "Reddit", day: "Friday", time: 30 },
+    { task: "Post 2 tweets/threads", cat: "Twitter", day: "Wed+Fri", time: 15 },
+    { task: "Respond to all App Store reviews", cat: "ASO", day: "Wednesday", time: 15 },
+    { task: "Check App Store Connect analytics", cat: "ASO", day: "Sunday", time: 10 },
+    { task: "Review Apple Search Ads performance", cat: "Ads", day: "Wednesday", time: 15 },
+    { task: "Review weekly metrics", cat: "Analytics", day: "Sunday", time: 15 },
+    { task: "Plan next week's content", cat: "Planning", day: "Sunday", time: 20 },
+    { task: "Post Instagram carousel or reel", cat: "Content", day: "Friday", time: 25 },
+];
+
+
+// ─── State ───
+
+let postsGenerated = 0;
+let imagesCreated = 0;
+
+function getWeekKey() {
+    const d = new Date();
+    const start = new Date(d.getFullYear(), 0, 1);
+    const weekNum = Math.ceil(((d - start) / 86400000 + start.getDay() + 1) / 7);
+    return `${d.getFullYear()}-W${weekNum}`;
+}
+
+function getTaskState() {
+    const key = `tasks_${getWeekKey()}`;
+    return JSON.parse(localStorage.getItem(key) || '[]');
+}
+
+function setTaskState(completed) {
+    const key = `tasks_${getWeekKey()}`;
+    localStorage.setItem(key, JSON.stringify(completed));
+}
+
+
+// ─── Navigation ───
+
+function showSection(id) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.getElementById(`sec-${id}`).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+
+    if (id === 'tasks') renderTasks();
+    if (id === 'calendar') renderCalendar();
+    if (id === 'keywords') renderKeywords();
+    if (id === 'overview') renderOverview();
+}
+
+
+// ─── Toast ───
+
+function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => toast('Copied to clipboard!'));
+}
+
+
+// ─── Overview ───
+
+function renderOverview() {
+    const completed = getTaskState();
+    const total = WEEKLY_TASKS.length;
+    const done = completed.length;
+    document.getElementById('stat-tasks').textContent = `${done}/${total}`;
+    document.getElementById('stat-tasks-pct').textContent = `${Math.round(done/total*100)}% complete`;
+    document.getElementById('stat-posts').textContent = postsGenerated;
+    document.getElementById('stat-images').textContent = imagesCreated;
+
+    const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const today = days[new Date().getDay()];
+    const todayTasks = WEEKLY_TASKS.filter(t => t.day.includes(today.slice(0,3)) || t.day === today);
+
+    const container = document.getElementById('today-tasks');
+    if (todayTasks.length === 0) {
+        container.innerHTML = '<p style="color:var(--white-50);font-size:0.9rem;">No tasks scheduled for today. Enjoy your day off! 🎉</p>';
+    } else {
+        container.innerHTML = todayTasks.map(t => {
+            const isDone = completed.includes(t.task);
+            return `<div class="check-item ${isDone ? 'done' : ''}" onclick="toggleTaskFromOverview('${t.task.replace(/'/g,"\\'")}')">
+                <div class="check-box">${isDone ? '✓' : ''}</div>
+                <span class="check-text">${t.task}</span>
+                <span class="check-meta">${t.time}min</span>
+            </div>`;
+        }).join('');
+    }
+}
+
+function toggleTaskFromOverview(task) {
+    let completed = getTaskState();
+    if (completed.includes(task)) {
+        completed = completed.filter(t => t !== task);
+    } else {
+        completed.push(task);
+    }
+    setTaskState(completed);
+    renderOverview();
+}
+
+
+// ─── Content Generator ───
+
+function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
+
+function generateAll() {
+    generateForPlatform('all');
+}
+
+function generateForPlatform(platform) {
+    const container = document.getElementById('generated-posts');
+    let html = '';
+    let count = 0;
+
+    if (platform === 'all' || platform === 'reddit') {
+        const picks = shuffle(REDDIT_POSTS).slice(0, 3);
+        picks.forEach(p => {
+            html += renderPost('reddit', p.sub, p.title, p.body);
+            count++;
+        });
+    }
+
+    if (platform === 'all' || platform === 'twitter') {
+        const picks = shuffle(TWITTER_POSTS).slice(0, 3);
+        picks.forEach(p => {
+            html += renderPost('twitter', 'Twitter/X', '', p);
+            count++;
+        });
+    }
+
+    if (platform === 'all' || platform === 'tiktok') {
+        const picks = shuffle(TIKTOK_POSTS).slice(0, 2);
+        picks.forEach(p => {
+            html += renderPost('tiktok', 'TikTok', p.hook, p.content + '\n\n' + p.tags);
+            count++;
+        });
+    }
+
+    if (platform === 'all' || platform === 'instagram') {
+        INSTAGRAM_POSTS.forEach(p => {
+            html += renderPost('instagram', `Instagram ${p.type}`, '', p.caption);
+            count++;
+        });
+    }
+
+    container.innerHTML = html;
+    postsGenerated += count;
+    document.getElementById('stat-posts').textContent = postsGenerated;
+    toast(`Generated ${count} posts!`);
+}
+
+function renderPost(platform, label, title, body) {
+    const id = Math.random().toString(36).slice(2, 8);
+    const fullText = title ? `${title}\n\n${body}` : body;
+    return `<div class="post-card">
+        <div class="post-platform ${platform}">${platform.toUpperCase()} · ${label}</div>
+        ${title ? `<div class="post-title">${title}</div>` : ''}
+        <div class="post-body" id="body-${id}">${body}</div>
+        <div class="post-actions">
+            <button class="btn btn-primary btn-sm" onclick="copyToClipboard(\`${fullText.replace(/`/g, '\\`').replace(/\\/g, '\\\\')}\`)">📋 Copy</button>
+            <button class="btn btn-secondary btn-sm" onclick="toggleExpand('body-${id}')">Expand</button>
+        </div>
+    </div>`;
+}
+
+function toggleExpand(id) {
+    document.getElementById(id).classList.toggle('expanded');
+}
+
+
+// ─── Calendar ───
+
+function renderCalendar() {
+    const grid = document.getElementById('calendar-grid');
+    const now = new Date();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+
+    const schedule = {
+        0: [{ text: 'Reddit post #1', cls: 'reddit' }],
+        1: [{ text: 'TikTok/Reel #1', cls: 'tiktok' }],
+        2: [{ text: 'Reddit post #2', cls: 'reddit' }, { text: 'Tweets', cls: 'twitter' }, { text: 'Review ASA', cls: 'ads' }, { text: 'App Store reviews', cls: 'review' }],
+        3: [{ text: 'TikTok/Reel #2', cls: 'tiktok' }],
+        4: [{ text: 'Reddit engage', cls: 'reddit' }, { text: 'Tweets', cls: 'twitter' }, { text: 'IG post/reel', cls: 'tiktok' }],
+        5: [{ text: 'TikTok/Reel #3', cls: 'tiktok' }],
+        6: [{ text: 'Analytics review', cls: 'analytics' }, { text: 'Plan next week', cls: 'analytics' }],
+    };
+
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    let html = days.map(d => `<div class="cal-header">${d}</div>`).join('');
+
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        const isToday = d.toDateString() === now.toDateString();
+        const tasks = schedule[i] || [];
+        html += `<div class="cal-day ${isToday ? 'today' : ''}">
+            <div class="cal-day-num">${d.getDate()}</div>
+            ${tasks.map(t => `<div class="cal-task ${t.cls}">${t.text}</div>`).join('')}
+        </div>`;
+    }
+
+    grid.innerHTML = html;
+}
+
+
+// ─── Tasks ───
+
+function renderTasks() {
+    const completed = getTaskState();
+    const container = document.getElementById('task-list');
+    const total = WEEKLY_TASKS.length;
+    const done = completed.length;
+
+    document.getElementById('task-progress').textContent = `${done}/${total} complete`;
+    document.getElementById('task-bar').style.width = `${done/total*100}%`;
+
+    const daysOrder = ['Monday','Tuesday','Wednesday','Wed+Fri','Thursday','Friday','Saturday','Sunday'];
+    let html = '';
+    let lastDay = '';
+
+    daysOrder.forEach(day => {
+        const tasks = WEEKLY_TASKS.filter(t => t.day === day);
+        if (!tasks.length) return;
+        if (day !== lastDay) {
+            html += `<div style="font-size:0.75rem;font-weight:600;color:var(--white-30);text-transform:uppercase;margin:16px 0 4px 12px;">${day}</div>`;
+            lastDay = day;
+        }
+        tasks.forEach(t => {
+            const isDone = completed.includes(t.task);
+            html += `<div class="check-item ${isDone ? 'done' : ''}" onclick="toggleTask('${t.task.replace(/'/g,"\\'")}')">
+                <div class="check-box">${isDone ? '✓' : ''}</div>
+                <span class="check-text">${t.task}</span>
+                <span class="check-meta">${t.cat} · ${t.time}min</span>
+            </div>`;
+        });
+    });
+
+    container.innerHTML = html;
+}
+
+function toggleTask(task) {
+    let completed = getTaskState();
+    if (completed.includes(task)) {
+        completed = completed.filter(t => t !== task);
+    } else {
+        completed.push(task);
+        toast('Task complete! ✅');
+    }
+    setTaskState(completed);
+    renderTasks();
+    renderOverview();
+}
+
+
+// ─── Keywords ───
+
+function renderKeywords() {
+    const tbody = document.getElementById('kw-table');
+    const sorted = [...KEYWORDS].sort((a, b) => {
+        const scoreA = a.vol * (10 - a.diff);
+        const scoreB = b.vol * (10 - b.diff);
+        return scoreB - scoreA;
+    });
+
+    tbody.innerHTML = sorted.map(k => {
+        const score = Math.round(k.vol * (10 - k.diff) / 10 * 10);
+        const volBar = '█'.repeat(k.vol) + '░'.repeat(10 - k.vol);
+        const diffColor = k.diff <= 3 ? 'var(--green)' : k.diff <= 6 ? 'var(--yellow)' : 'var(--red)';
+        const priColor = k.priority === 'high' ? 'var(--green)' : 'var(--white-50)';
+        return `<tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:10px 8px;font-weight:500;">${k.kw}</td>
+            <td style="padding:10px 8px;text-align:center;font-size:0.75rem;font-family:monospace;color:var(--accent2);">${volBar}</td>
+            <td style="padding:10px 8px;text-align:center;"><span style="color:${diffColor};font-weight:600;">${k.diff}/10</span></td>
+            <td style="padding:10px 8px;text-align:center;"><span style="color:${priColor};font-weight:600;text-transform:uppercase;font-size:0.72rem;">${k.priority}</span></td>
+            <td style="padding:10px 8px;text-align:center;font-weight:700;font-size:1rem;">${score}</td>
+        </tr>`;
+    }).join('');
+
+    // Competitors
+    const compList = document.getElementById('competitor-list');
+    compList.innerHTML = COMPETITORS.map(c => {
+        return `<div style="display:flex;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);${c.you ? 'background:rgba(108,99,255,0.08);border-radius:10px;border:1px solid rgba(108,99,255,0.2);margin-bottom:4px;' : ''}">
+            <span style="font-weight:${c.you ? '700' : '500'};${c.you ? 'color:var(--accent);' : ''}">${c.name}</span>
+            <span style="color:${c.you ? 'var(--green)' : 'var(--white-50)'};font-weight:600;">${c.price}</span>
+        </div>`;
+    }).join('');
+
+    // Search Ads
+    const adsContainer = document.getElementById('searchads-list');
+    const exactKws = KEYWORDS.filter(k => k.priority === 'high' && k.diff <= 6);
+    const broadKws = KEYWORDS.filter(k => k.priority === 'high' && k.diff > 6);
+
+    adsContainer.innerHTML = `
+        <div style="margin-bottom:16px;">
+            <div style="font-size:0.8rem;font-weight:600;color:var(--green);margin-bottom:8px;">EXACT MATCH (start here)</div>
+            ${exactKws.map(k => `<div style="padding:6px 0;font-size:0.88rem;color:var(--white-70);">  [${k.kw}] — bid: $0.50-1.50</div>`).join('')}
+        </div>
+        <div>
+            <div style="font-size:0.8rem;font-weight:600;color:var(--yellow);margin-bottom:8px;">BROAD MATCH (scale later)</div>
+            ${broadKws.map(k => `<div style="padding:6px 0;font-size:0.88rem;color:var(--white-70);">  ${k.kw} — bid: $1.00-3.00</div>`).join('')}
+        </div>
+    `;
+}
+
+function showKeywordTab(tab) {
+    document.querySelectorAll('#sec-keywords .card').forEach(c => c.style.display = 'none');
+    document.getElementById(`kw-${tab}`).style.display = 'block';
+    document.querySelectorAll('#sec-keywords .tab').forEach(t => t.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+}
+
+
+// ─── Image Creator ───
+
+function updateImagePreview() {
+    const headline = document.getElementById('img-headline').value;
+    const accent = document.getElementById('img-accent').value;
+    const sub = document.getElementById('img-sub').value;
+    const template = document.getElementById('img-template').value;
+
+    const preview = document.getElementById('image-preview');
+    const ratios = { story: '9/16', square: '1/1', landscape: '16/9' };
+    preview.style.aspectRatio = ratios[template];
+
+    preview.innerHTML = `
+        <div class="ig-headline">${headline}<br><span class="gradient-text">${accent}</span></div>
+        <div class="ig-sub">${sub}</div>
+        <div class="ig-phone">🧘</div>
+    `;
+}
+
+function setImageTemplate(headline, accent, sub) {
+    document.getElementById('img-headline').value = headline;
+    document.getElementById('img-accent').value = accent;
+    document.getElementById('img-sub').value = sub;
+    updateImagePreview();
+}
+
+function downloadImage() {
+    imagesCreated++;
+    document.getElementById('stat-images').textContent = imagesCreated;
+    toast('Right-click the preview and "Save Image As" to download.');
+}
+
+
+// ─── Init ───
+
+document.addEventListener('DOMContentLoaded', () => {
+    renderOverview();
+    renderCalendar();
+    renderKeywords();
+
+    // Update greeting based on time
+    const hour = new Date().getHours();
+    let greeting = 'Good morning';
+    if (hour >= 12 && hour < 17) greeting = 'Good afternoon';
+    if (hour >= 17) greeting = 'Good evening';
+    document.querySelector('.page-title').textContent = `${greeting} 👋`;
+});
+</script>
+</body>
+</html>
