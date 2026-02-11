@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wellness Blog — Breathe Meditation & Sleep App</title>
+    <meta name="description" content="Expert guides on meditation, sleep, breathing exercises, ASMR, and mental wellness. Learn techniques to sleep better, reduce stress, and improve focus.">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://meditationandsleepapp.com/blog/">
+    <meta property="og:title" content="Wellness Blog — Breathe App">
+    <meta property="og:description" content="Expert guides on meditation, sleep, breathing exercises, and mental wellness.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://meditationandsleepapp.com/blog/">
+    <meta property="og:image" content="https://meditationandsleepapp.com/icon.png">
+    <link rel="icon" type="image/png" href="../icon.png">
+    <link rel="apple-touch-icon" href="../icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --navy: #0a0e1a;
+            --white: #fff;
+            --white-70: rgba(255,255,255,0.7);
+            --white-50: rgba(255,255,255,0.5);
+            --white-10: rgba(255,255,255,0.08);
+            --accent: #6C63FF;
+            --accent2: #00D2FF;
+            --gradient: linear-gradient(135deg, #6C63FF, #00D2FF);
+        }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--navy);
+            color: var(--white-70);
+            line-height: 1.7;
+            -webkit-font-smoothing: antialiased;
+        }
+        .nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 100;
+            background: rgba(10,14,26,0.85);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-bottom: 1px solid var(--white-10);
+        }
+        .nav-inner {
+            max-width: 1140px;
+            margin: 0 auto;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .nav-logo {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: var(--white);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .nav-icon { width: 34px; height: 34px; border-radius: 10px; }
+        .nav-cta {
+            background: var(--gradient);
+            color: var(--white);
+            text-decoration: none;
+            padding: 10px 24px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.88rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .nav-cta:hover { transform: scale(1.05); box-shadow: 0 4px 20px rgba(108,99,255,0.4); }
+
+        .container {
+            max-width: 1140px;
+            margin: 0 auto;
+            padding: 120px 24px 80px;
+        }
+        h1 {
+            color: var(--white);
+            font-size: 2.8rem;
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        .gradient-text {
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .blog-intro {
+            text-align: center;
+            max-width: 600px;
+            margin: 0 auto 60px;
+            font-size: 1.1rem;
+        }
+        .blog-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 28px;
+        }
+        .blog-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--white-10);
+            border-radius: 16px;
+            padding: 28px;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .blog-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(108,99,255,0.4);
+        }
+        .blog-card-tag {
+            display: inline-block;
+            background: var(--gradient);
+            color: var(--white);
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            margin-bottom: 14px;
+        }
+        .blog-card h2 {
+            color: var(--white);
+            font-size: 1.35rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            line-height: 1.3;
+        }
+        .blog-card h2 a {
+            color: inherit;
+            text-decoration: none;
+        }
+        .blog-card h2 a:hover {
+            color: var(--accent2);
+        }
+        .blog-card p {
+            font-size: 0.92rem;
+            margin-bottom: 16px;
+            color: var(--white-70);
+        }
+        .blog-card-meta {
+            font-size: 0.8rem;
+            color: var(--white-50);
+        }
+        .read-more {
+            color: var(--accent2);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.88rem;
+        }
+        .read-more:hover { text-decoration: underline; }
+
+        .footer {
+            padding: 48px 0;
+            border-top: 1px solid var(--white-10);
+            text-align: center;
+        }
+        .footer-inner {
+            max-width: 1140px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+        .footer-brand { font-size: 1.2rem; font-weight: 800; color: var(--white); margin-bottom: 12px; }
+        .footer-links { display: flex; justify-content: center; gap: 28px; margin-bottom: 12px; flex-wrap: wrap; }
+        .footer-links a { color: var(--white-50); font-size: 0.83rem; font-weight: 500; text-decoration: none; }
+        .footer-links a:hover { color: var(--white); }
+        .footer-copy { font-size: 0.78rem; color: rgba(255,255,255,0.3); }
+
+        @media (max-width: 480px) {
+            h1 { font-size: 2rem; }
+            .container { padding: 100px 16px 60px; }
+            .blog-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="nav">
+    <div class="nav-inner">
+        <a href="../index.html" class="nav-logo"><img src="../icon.png" alt="Breathe" class="nav-icon">Breathe</a>
+        <a href="https://apps.apple.com/us/app/breathe-meditation-sleep/id6758229420" class="nav-cta">Download Free</a>
+    </div>
+</nav>
+
+<div class="container">
+    <h1>Wellness <span class="gradient-text">Blog</span></h1>
+    <p class="blog-intro">Expert guides on meditation, breathing techniques, sleep science, and mental wellness to help you live a calmer, more focused life.</p>
+
+    <div class="blog-grid">
+        <article class="blog-card">
+            <span class="blog-card-tag">Sleep</span>
+            <h2><a href="how-to-fall-asleep-faster.html">How to Fall Asleep Faster: 12 Science-Backed Tips</a></h2>
+            <p>Struggling to fall asleep? Discover proven techniques including the military sleep method, 4-7-8 breathing, and sleep hygiene tips that actually work.</p>
+            <div class="blog-card-meta">8 min read</div>
+        </article>
+
+        <article class="blog-card">
+            <span class="blog-card-tag">Breathing</span>
+            <h2><a href="box-breathing-guide.html">Box Breathing: The Navy SEAL Technique for Calm and Focus</a></h2>
+            <p>Learn the box breathing technique used by Navy SEALs, first responders, and athletes to reduce stress, improve focus, and stay calm under pressure.</p>
+            <div class="blog-card-meta">6 min read</div>
+        </article>
+
+        <article class="blog-card">
+            <span class="blog-card-tag">Breathing</span>
+            <h2><a href="4-7-8-breathing-technique.html">4-7-8 Breathing: The Natural Tranquilizer for Your Nervous System</a></h2>
+            <p>Dr. Andrew Weil's 4-7-8 breathing technique can help you fall asleep in minutes. Learn the science behind it and how to practice correctly.</p>
+            <div class="blog-card-meta">5 min read</div>
+        </article>
+
+        <article class="blog-card">
+            <span class="blog-card-tag">Meditation</span>
+            <h2><a href="benefits-of-meditation.html">15 Science-Backed Benefits of Meditation for Mind and Body</a></h2>
+            <p>From reduced anxiety to improved sleep, discover the proven benefits of meditation and why millions of people practice daily.</p>
+            <div class="blog-card-meta">10 min read</div>
+        </article>
+
+        <article class="blog-card">
+            <span class="blog-card-tag">ASMR</span>
+            <h2><a href="asmr-for-sleep.html">ASMR for Sleep: What It Is and How It Helps You Relax</a></h2>
+            <p>Discover what ASMR is, the science behind those pleasant tingles, and how to use ASMR content to fall asleep faster and sleep deeper.</p>
+            <div class="blog-card-meta">7 min read</div>
+        </article>
+    </div>
+</div>
+
+<footer class="footer">
+    <div class="footer-inner">
+        <div class="footer-brand">Breathe</div>
+        <div class="footer-links">
+            <a href="../index.html">Home</a>
+            <a href="../privacy.html">Privacy Policy</a>
+            <a href="../terms.html">Terms of Service</a>
+            <a href="mailto:matsdegerstedt@gmail.com">Contact</a>
+        </div>
+        <p class="footer-copy">&copy; 2026 Breathe. All rights reserved.</p>
+    </div>
+</footer>
+
+</body>
+</html>
