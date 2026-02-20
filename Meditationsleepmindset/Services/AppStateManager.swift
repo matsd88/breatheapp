@@ -26,6 +26,9 @@ class AppStateManager: ObservableObject {
     @Published var freeSessionsUsed: Int
     @Published var hasPlayedVideo: Bool
 
+    // MARK: - Reinstall Detection
+    @Published var isReinstall: Bool = false
+
     // MARK: - Deep Linking
     @Published var pendingDeepLinkVideoID: String?
 
@@ -85,8 +88,8 @@ class AppStateManager: ObservableObject {
     private func checkEngagementTriggers() {
         // On 2nd app open, show notification prompt if user skipped during onboarding
         if appOpenCount == 2 && skippedNotificationsDuringOnboarding && !hasRequestedNotifications {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                self.shouldShowNotificationPrompt = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                self?.shouldShowNotificationPrompt = true
             }
         }
 
@@ -221,6 +224,7 @@ class AppStateManager: ObservableObject {
         guard !hasPlayedVideo else { return }
         hasPlayedVideo = true
         UserDefaults.standard.set(true, forKey: Keys.hasPlayedVideo)
+        AppsFlyerService.shared.logTutorialCompletion()
     }
 
     // MARK: - Session Completed Trigger
@@ -235,24 +239,43 @@ class AppStateManager: ObservableObject {
 
         // After 5th completed session, show share prompt
         if count == 5 && !hasShownSharePrompt {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                guard !self.hasShownSharePrompt else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                guard let self, !self.hasShownSharePrompt else { return }
                 self.shouldShowShareSheet = true
             }
         }
 
         // After 8th completed session, request App Store rating
         if count == 8 && !hasShownRatingPrompt {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                self.requestAppRating()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                self?.requestAppRating()
             }
         }
+
+        // Check if we should prompt for account sign-in
+        AccountService.shared.checkSessionMilestone(sessions: count)
     }
 
     // MARK: - Favorite Content Trigger
     func onContentFavorited() {
         // Favoriting is a lightweight action — no engagement popups.
         // Share and rating prompts are tied to session milestones only.
+    }
+
+    // MARK: - Reinstall Detection
+
+    /// Called by AppDelegate when Keychain indicates a reinstall.
+    /// Restores onboarding/subscription state so AppsFlyer doesn't misattribute returning users.
+    func markAsReinstall() {
+        isReinstall = true
+        // Skip onboarding for reinstalls — they've already completed it
+        if !hasCompletedOnboarding {
+            hasCompletedOnboarding = true
+            UserDefaults.standard.set(true, forKey: Keys.hasCompletedOnboarding)
+        }
+        #if DEBUG
+        print("[AppStateManager] Reinstall detected — skipping onboarding")
+        #endif
     }
 
     // MARK: - Deep Link Handling
@@ -272,6 +295,35 @@ class AppStateManager: ObservableObject {
                 #endif
                 pendingDeepLinkVideoID = videoID
                 return true
+            }
+        }
+
+        // Handle player control deep links from Live Activity
+        if url.host == "player" {
+            let action = url.lastPathComponent
+            let playerManager = AudioPlayerManager.shared
+
+            switch action {
+            case "toggle":
+                playerManager.togglePlayPause()
+                #if DEBUG
+                print("[DeepLink] Toggle play/pause")
+                #endif
+                return true
+            case "skipForward":
+                playerManager.skipForward(seconds: 15)
+                #if DEBUG
+                print("[DeepLink] Skip forward 15s")
+                #endif
+                return true
+            case "skipBack":
+                playerManager.skipBackward(seconds: 15)
+                #if DEBUG
+                print("[DeepLink] Skip backward 15s")
+                #endif
+                return true
+            default:
+                break
             }
         }
 

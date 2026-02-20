@@ -27,6 +27,8 @@
     <true/>
 
     <!-- Privacy Descriptions -->
+    <key>NSUserTrackingUsageDescription</key>
+    <string>This helps us understand which channels bring you to our app so we can continue creating free meditation content.</string>
     <key>NSHealthShareUsageDescription</key>
     <string>We read your mindfulness data to show your meditation progress alongside Apple Health.</string>
     <key>NSHealthUpdateUsageDescription</key>
@@ -78,6 +80,10 @@
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
 
+    <!-- Live Activities Support -->
+    <key>NSSupportsLiveActivities</key>
+    <true/>
+
     <!-- URL Schemes for Deep Linking -->
     <key>CFBundleURLTypes</key>
     <array>
@@ -128,6 +134,60 @@
         <key>UIApplicationSupportsMultipleScenes</key>
         <true/>
     </dict>
+
+    <!-- SKAdNetwork IDs for attribution (AppsFlyer, Google, Meta, Apple Search Ads, TikTok, Snap, X/Twitter, Unity, ironSource) -->
+    <key>SKAdNetworkItems</key>
+    <array>
+        <!-- AppsFlyer -->
+        <dict>
+            <key>SKAdNetworkIdentifier</key>
+            <string>master.cmpnyfcqe8.skadnetwork</string>
+        </dict>
+        <!-- Google -->
+        <dict>
+            <key>SKAdNetworkIdentifier</key>
+            <string>cstr6suwn9.skadnetwork</string>
+        </dict>
+        <!-- Meta (Facebook) -->
+        <dict>
+            <key>SKAdNetworkIdentifier</key>
+            <string>v9wttpbfk9.skadnetwork</string>
+        </dict>
+        <dict>
+            <key>SKAdNetworkIdentifier</key>
+            <string>n38lu8286q.skadnetwork</string>
+        </dict>
+        <!-- Apple Search Ads -->
+        <dict>
+            <key>SKAdNetworkIdentifier</key>
+            <string>su67r6k2v3.skadnetwork</string>
+        </dict>
+        <!-- TikTok -->
+        <dict>
+            <key>SKAdNetworkIdentifier</key>
+            <string>22mmun2rn5.skadnetwork</string>
+        </dict>
+        <!-- Snap -->
+        <dict>
+            <key>SKAdNetworkIdentifier</key>
+            <string>424m5254lk.skadnetwork</string>
+        </dict>
+        <!-- X (Twitter) -->
+        <dict>
+            <key>SKAdNetworkIdentifier</key>
+            <string>9rd848q77k.skadnetwork</string>
+        </dict>
+        <!-- Unity Ads -->
+        <dict>
+            <key>SKAdNetworkIdentifier</key>
+            <string>4dzt52r2t5.skadnetwork</string>
+        </dict>
+        <!-- ironSource -->
+        <dict>
+            <key>SKAdNetworkIdentifier</key>
+            <string>su67r6k2v3.skadnetwork</string>
+        </dict>
+    </array>
 
     <!-- Quick Actions (Home Screen Shortcuts) - Static Definition -->
     <key>UIApplicationShortcutItems</key>

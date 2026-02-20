@@ -28,6 +28,7 @@ class StoreManager: ObservableObject {
     @Published var isRestoring = false
 
     private var updateListenerTask: Task<Void, Error>?
+    private var reportedTransactionIDs: Set<UInt64> = []
 
     init() {
         updateListenerTask = listenForTransactions()
@@ -74,6 +75,7 @@ class StoreManager: ObservableObject {
             case .success(let verification):
                 let transaction = try checkVerified(verification)
                 await updatePurchasedProducts()
+                trackAppsFlyerEvent(for: transaction)
                 await transaction.finish()
 
             case .userCancelled:
@@ -140,6 +142,7 @@ class StoreManager: ObservableObject {
                 do {
                     let transaction = try await self.checkVerified(result)
                     await self.updatePurchasedProducts()
+                    await self.trackAppsFlyerEvent(for: transaction)
                     await transaction.finish()
                 } catch {
                     #if DEBUG
@@ -157,6 +160,34 @@ class StoreManager: ObservableObject {
         case .verified(let safe):
             return safe
         }
+    }
+
+    private func trackAppsFlyerEvent(for transaction: Transaction) {
+        // Skip restores and family sharing
+        guard transaction.ownershipType == .purchased else { return }
+
+        // Deduplicate — don't fire the same event twice for the same transaction
+        guard !reportedTransactionIDs.contains(transaction.id) else { return }
+        reportedTransactionIDs.insert(transaction.id)
+
+        // Find the matching product to get price and currency
+        guard let product = subscriptions.first(where: { $0.id == transaction.productID }) else { return }
+
+        let price = product.price
+        let currencyCode = product.priceFormatStyle.currencyCode
+
+        // Initial purchase: transaction.id == transaction.originalID
+        // Renewal: transaction.id != transaction.originalID
+        if transaction.id == transaction.originalID {
+            AppsFlyerService.shared.logPurchase(price: price, currencyCode: currencyCode, productID: product.id)
+        } else {
+            AppsFlyerService.shared.logRenewal(price: price, currencyCode: currencyCode, productID: product.id)
+        }
+    }
+
+    /// Re-check subscription status. Called on launch and when app returns to foreground.
+    func refreshSubscriptionStatus() async {
+        await updatePurchasedProducts()
     }
 
     private func updatePurchasedProducts() async {

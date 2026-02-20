@@ -21,8 +21,8 @@ struct OnboardingView: View {
     @State private var selectedPainPoint: PainPoint?
     @State private var selectedGoals: Set<OnboardingGoal> = []
 
-    // 6 steps: Welcome(0), Goals(1), Breathing(2), Notifications(3),
-    //          Testimonials(4), Paywall(5)
+    // 6 steps: Welcome(0), Goals(1), Breathing(2), Testimonials(3),
+    //          Notifications(4), Paywall(5)
     private let totalSteps = 6
 
     var body: some View {
@@ -65,7 +65,8 @@ struct OnboardingView: View {
                     ))
 
                 case 3:
-                    NotificationPermissionView(
+                    // Social proof first - builds trust before asking for notification permission
+                    OnboardingTestimonialsView(
                         onContinue: { advanceStep() },
                         onBack: { goBack() },
                         onSkip: { advanceStep() }
@@ -76,7 +77,8 @@ struct OnboardingView: View {
                     ))
 
                 case 4:
-                    OnboardingTestimonialsView(
+                    // Notifications after social proof - users more likely to say yes
+                    NotificationPermissionView(
                         onContinue: { advanceStep() },
                         onBack: { goBack() },
                         onSkip: { advanceStep() }
@@ -132,6 +134,9 @@ struct OnboardingView: View {
     private func completeOnboarding() {
         // Save user preferences
         saveUserProfile()
+
+        // Track attribution event
+        AppsFlyerService.shared.logCompleteRegistration()
 
         // Mark onboarding complete
         appState.completeOnboarding()

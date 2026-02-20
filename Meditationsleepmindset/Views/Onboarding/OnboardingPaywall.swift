@@ -61,6 +61,9 @@ struct OnboardingPaywall: View {
     let onRestore: () -> Void
     let onDismiss: () -> Void
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    private var isRegular: Bool { sizeClass == .regular }
+
     @StateObject private var storeManager = StoreManager.shared
     @State private var selectedPlan: OnboardingSubscriptionPlan = .annual
     @State private var showingPrivacyPolicy = false
@@ -89,10 +92,12 @@ struct OnboardingPaywall: View {
 
     // Feature preview cards
     private let previewCards: [(image: String, title: String, description: String)] = [
-        ("moon.stars.fill", "100+ Sleep Stories", "Drift off with narrated stories designed for deep sleep"),
-        ("waveform.path.ecg", "Guided Meditations", "Sessions from 3 to 60 minutes for every mood"),
-        ("music.note.list", "Calming Soundscapes", "Rain, ocean waves, forest — mix your own"),
-        ("brain.head.profile", "Mindset Coaching", "Daily coaching to build resilience and positivity")
+        ("moon.stars.fill", "100+ Sleep Stories & Soundscapes", "Drift off with narrated stories, ASMR, rain, ocean waves & more"),
+        ("sparkles", "AI-Personalized Meditations", "Custom meditations generated just for you — any mood, any length"),
+        ("bolt.heart.fill", "Micro-Moments & Breathing", "Quick 1-3 minute resets, body scans & guided breathing exercises"),
+        ("arrow.down.circle.fill", "Offline Packs & Watch App", "Download content for offline use and meditate from your wrist"),
+        ("brain.head.profile", "Mindset Coaching & Programs", "Multi-day guided programs and daily mindset coaching"),
+        ("bubble.left.and.text.bubble.right.fill", "AI Wellness Companion", "Chat with Breathe AI for personalized emotional support 24/7")
     ]
 
     // Before/after metrics
@@ -100,6 +105,7 @@ struct OnboardingPaywall: View {
         ("Sleep Quality", "Poor", "Great", "moon.fill"),
         ("Stress Level", "High", "Low", "heart.fill"),
         ("Daily Streak", "0 days", "30 days", "flame.fill"),
+        ("Focus", "Scattered", "Sharp", "target"),
         ("Mindfulness", "Never", "Daily", "brain.head.profile")
     ]
 
@@ -120,12 +126,12 @@ struct OnboardingPaywall: View {
                         // Header text
                         VStack(spacing: 10) {
                             Text("Unlock Your Full Potential")
-                                .font(.title2)
+                                .font(isRegular ? .title : .title2)
                                 .fontWeight(.bold)
                                 .foregroundStyle(.white)
 
                             Text(personalizedHeadline)
-                                .font(.subheadline)
+                                .font(isRegular ? .body : .subheadline)
                                 .foregroundStyle(.white.opacity(0.7))
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 24)
@@ -152,6 +158,7 @@ struct OnboardingPaywall: View {
                             ForEach(OnboardingSubscriptionPlan.allCases) { plan in
                                 OnboardingPlanOptionView(
                                     plan: plan,
+                                    product: storeKitProduct(for: plan),
                                     isSelected: selectedPlan == plan
                                 ) {
                                     withAnimation(.spring(response: 0.2)) {
@@ -165,20 +172,7 @@ struct OnboardingPaywall: View {
                         // Subscribe button
                         Button {
                             Task {
-                                // Try to find matching product from store
-                                let products = storeManager.subscriptions
-                                let selectedProduct: Product?
-
-                                switch selectedPlan {
-                                case .annual:
-                                    selectedProduct = products.first { $0.subscription?.subscriptionPeriod.unit == .year }
-                                case .monthly:
-                                    selectedProduct = products.first { $0.subscription?.subscriptionPeriod.unit == .month }
-                                case .weekly:
-                                    selectedProduct = products.first { $0.subscription?.subscriptionPeriod.unit == .week }
-                                }
-
-                                if let product = selectedProduct ?? products.first {
+                                if let product = storeKitProduct(for: selectedPlan) ?? storeManager.subscriptions.first {
                                     await storeManager.purchase(product)
                                 }
                                 onSubscribe()
@@ -192,7 +186,7 @@ struct OnboardingPaywall: View {
                                     VStack(spacing: 2) {
                                         Text("Start My 3-Day Free Trial")
                                             .fontWeight(.semibold)
-                                        Text("then auto-renews")
+                                        Text(selectedPlanPriceDescription)
                                             .font(.caption)
                                             .opacity(0.8)
                                     }
@@ -206,6 +200,13 @@ struct OnboardingPaywall: View {
                         }
                         .disabled(storeManager.isPurchasing)
                         .padding(.horizontal, 24)
+
+                        // Auto-renewal terms (Apple requirement)
+                        Text(subscriptionTermsText)
+                            .font(.caption2)
+                            .foregroundStyle(.white.opacity(0.4))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
 
                         // Trust signals
                         VStack(spacing: 12) {
@@ -240,7 +241,7 @@ struct OnboardingPaywall: View {
                         .foregroundStyle(.white.opacity(0.4))
                         .padding(.top, 20)
                     }
-                    .frame(maxWidth: 500)
+                    .frame(maxWidth: isRegular ? 800 : 500)
                 }
                 .onAppear {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
@@ -250,6 +251,7 @@ struct OnboardingPaywall: View {
                 }
                 .onDisappear {
                     countdownTimer?.invalidate()
+                    countdownTimer = nil
                 }
             }
             .toolbar {
@@ -333,6 +335,10 @@ struct OnboardingPaywall: View {
     }
 
     private func startCountdown() {
+        // Invalidate any existing timer first to prevent duplicates
+        countdownTimer?.invalidate()
+        countdownTimer = nil
+
         // Use a stored expiry so it persists across views
         let key = "paywallCountdownExpiry"
         let now = Date()
@@ -345,10 +351,54 @@ struct OnboardingPaywall: View {
         }
 
         countdownTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            if countdownSeconds > 0 {
-                countdownSeconds -= 1
+            Task { @MainActor in
+                if countdownSeconds > 0 {
+                    countdownSeconds -= 1
+                }
             }
         }
+    }
+
+    // MARK: - StoreKit Price Helpers
+
+    private func storeKitProduct(for plan: OnboardingSubscriptionPlan) -> Product? {
+        let products = storeManager.subscriptions
+        switch plan {
+        case .annual:
+            return products.first { $0.subscription?.subscriptionPeriod.unit == .year }
+        case .monthly:
+            return products.first { $0.subscription?.subscriptionPeriod.unit == .month }
+        case .weekly:
+            return products.first { $0.subscription?.subscriptionPeriod.unit == .week }
+        }
+    }
+
+    private var selectedPlanPriceDescription: String {
+        if let product = storeKitProduct(for: selectedPlan) {
+            let period: String
+            switch product.subscription?.subscriptionPeriod.unit {
+            case .year: period = "year"
+            case .month: period = "month"
+            case .week: period = "week"
+            default: period = "period"
+            }
+            return "then \(product.displayPrice)/\(period), auto-renews"
+        }
+        return "then \(selectedPlan.price), auto-renews"
+    }
+
+    private var subscriptionTermsText: String {
+        if let product = storeKitProduct(for: selectedPlan) {
+            let period: String
+            switch product.subscription?.subscriptionPeriod.unit {
+            case .year: period = "year"
+            case .month: period = "month"
+            case .week: period = "week"
+            default: period = "period"
+            }
+            return "After the 3-day free trial, you will be charged \(product.displayPrice)/\(period). Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account."
+        }
+        return "Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account."
     }
 
     // MARK: - Feature Preview Cards
@@ -356,14 +406,14 @@ struct OnboardingPaywall: View {
     private var featurePreviewSection: some View {
         TabView(selection: $previewIndex) {
             ForEach(Array(previewCards.enumerated()), id: \.offset) { index, card in
-                VStack(spacing: 12) {
+                VStack(spacing: isRegular ? 16 : 12) {
                     ZStack {
                         Circle()
                             .fill(Theme.profileAccent.opacity(0.2))
-                            .frame(width: 64, height: 64)
+                            .frame(width: isRegular ? 80 : 64, height: isRegular ? 80 : 64)
 
                         Image(systemName: card.image)
-                            .font(.system(size: 28))
+                            .font(.system(size: isRegular ? 36 : 28))
                             .foregroundStyle(Theme.profileAccent)
                     }
                     .scaleEffect(animateFeatures ? 1.0 : 0.7)
@@ -375,12 +425,12 @@ struct OnboardingPaywall: View {
                     )
 
                     Text(card.title)
-                        .font(.headline)
+                        .font(isRegular ? .title3 : .headline)
                         .fontWeight(.bold)
                         .foregroundStyle(.white)
 
                     Text(card.description)
-                        .font(.subheadline)
+                        .font(isRegular ? .body : .subheadline)
                         .foregroundStyle(.white.opacity(0.6))
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
@@ -400,31 +450,35 @@ struct OnboardingPaywall: View {
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .always))
-        .frame(height: 190)
+        .frame(height: isRegular ? 260 : 200)
     }
 
     // MARK: - Before / After Comparison
 
     private var beforeAfterSection: some View {
-        VStack(spacing: 12) {
+        // Adaptive widths for iPad
+        let labelWidth: CGFloat = isRegular ? 160 : 120
+        let valueWidth: CGFloat = isRegular ? 90 : 70
+
+        return VStack(spacing: 12) {
             // Header row
             HStack {
                 Text("")
-                    .frame(width: 120, alignment: .leading)
+                    .frame(width: labelWidth, alignment: .leading)
                 Spacer()
                 Text("Day 1")
-                    .font(.caption)
+                    .font(isRegular ? .subheadline : .caption)
                     .fontWeight(.semibold)
                     .foregroundStyle(.white.opacity(0.5))
-                    .frame(width: 70)
+                    .frame(width: valueWidth)
                 Image(systemName: "arrow.right")
-                    .font(.caption)
+                    .font(isRegular ? .subheadline : .caption)
                     .foregroundStyle(.white.opacity(0.3))
                 Text("Day 30")
-                    .font(.caption)
+                    .font(isRegular ? .subheadline : .caption)
                     .fontWeight(.semibold)
                     .foregroundStyle(.green)
-                    .frame(width: 70)
+                    .frame(width: valueWidth)
             }
             .padding(.horizontal, 24)
 
@@ -432,30 +486,30 @@ struct OnboardingPaywall: View {
                 HStack {
                     HStack(spacing: 8) {
                         Image(systemName: item.icon)
-                            .font(.caption)
+                            .font(isRegular ? .subheadline : .caption)
                             .foregroundStyle(.white.opacity(0.6))
                         Text(item.label)
-                            .font(.subheadline)
+                            .font(isRegular ? .body : .subheadline)
                             .foregroundStyle(.white)
                     }
-                    .frame(width: 120, alignment: .leading)
+                    .frame(width: labelWidth, alignment: .leading)
 
                     Spacer()
 
                     Text(item.before)
-                        .font(.caption)
+                        .font(isRegular ? .subheadline : .caption)
                         .foregroundStyle(.white.opacity(0.4))
-                        .frame(width: 70)
+                        .frame(width: valueWidth)
 
                     Image(systemName: "arrow.right")
-                        .font(.caption2)
+                        .font(isRegular ? .caption : .caption2)
                         .foregroundStyle(.white.opacity(0.2))
 
                     Text(item.after)
-                        .font(.caption)
+                        .font(isRegular ? .subheadline : .caption)
                         .fontWeight(.semibold)
                         .foregroundStyle(.green)
-                        .frame(width: 70)
+                        .frame(width: valueWidth)
                 }
                 .padding(.horizontal, 24)
                 .opacity(animateFeatures ? 1 : 0)
@@ -478,8 +532,30 @@ struct OnboardingPaywall: View {
 
 struct OnboardingPlanOptionView: View {
     let plan: OnboardingSubscriptionPlan
+    var product: Product? = nil
     let isSelected: Bool
     let action: () -> Void
+
+    private var displayPrice: String {
+        guard let product else { return plan.price }
+        let period: String
+        switch product.subscription?.subscriptionPeriod.unit {
+        case .year: period = "year"
+        case .month: period = "month"
+        case .week: period = "week"
+        default: period = "period"
+        }
+        return "\(product.displayPrice)/\(period)"
+    }
+
+    private var displaySubtitle: String? {
+        if plan == .annual, let product {
+            let weeklyPrice = product.price / 52
+            let formatted = weeklyPrice.formatted(.currency(code: product.priceFormatStyle.currencyCode))
+            return "Just \(formatted)/week"
+        }
+        return plan.subtitle
+    }
 
     var body: some View {
         Button(action: action) {
@@ -512,7 +588,7 @@ struct OnboardingPlanOptionView: View {
                         }
                     }
 
-                    if let subtitle = plan.subtitle {
+                    if let subtitle = displaySubtitle {
                         Text(subtitle)
                             .font(.caption)
                             .foregroundStyle(.white.opacity(0.6))
@@ -522,7 +598,7 @@ struct OnboardingPlanOptionView: View {
                 Spacer()
 
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(plan.price)
+                    Text(displayPrice)
                         .fontWeight(.medium)
                         .foregroundStyle(.white)
 

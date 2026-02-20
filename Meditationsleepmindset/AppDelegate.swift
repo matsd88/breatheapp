@@ -9,6 +9,9 @@ import SwiftUI
 import FirebaseCore
 import FirebaseCrashlytics
 #endif
+#if canImport(AppsFlyerLib)
+import AppsFlyerLib
+#endif
 
 class AppDelegate: NSObject, UIApplicationDelegate {
 
@@ -86,6 +89,15 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        // Detect reinstall via Keychain (survives uninstall, unlike UserDefaults)
+        let isReinstall = KeychainService.checkAndMarkInstall()
+        if isReinstall {
+            AppStateManager.shared.markAsReinstall()
+        }
+
+        // Configure AppsFlyer (attribution tracking) — before Firebase
+        AppsFlyerService.shared.configure()
+
         // Configure Firebase (Crashlytics + Analytics)
         FirebaseService.shared.configure()
 
@@ -123,6 +135,30 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
             UIApplication.shared.shortcutItems = shortcuts
         }
+    }
+
+    // MARK: - AppsFlyer Deep Link Attribution
+
+    func application(
+        _ application: UIApplication,
+        continue userActivity: NSUserActivity,
+        restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
+    ) -> Bool {
+        #if canImport(AppsFlyerLib)
+        AppsFlyerLib.shared().continue(userActivity, restorationHandler: nil)
+        #endif
+        return true
+    }
+
+    func application(
+        _ app: UIApplication,
+        open url: URL,
+        options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+    ) -> Bool {
+        #if canImport(AppsFlyerLib)
+        AppsFlyerLib.shared().handleOpen(url, options: options)
+        #endif
+        return true
     }
 
     // MARK: - Handle Quick Action

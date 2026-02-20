@@ -15,6 +15,7 @@ struct Meditation_Sleep_MindsetApp: App {
     @StateObject private var appState = AppStateManager.shared
     @StateObject private var notificationService = NotificationService.shared
     @StateObject private var streakService = StreakService.shared
+    @StateObject private var accountService = AccountService.shared
     @Environment(\.scenePhase) private var scenePhase
 
     var sharedModelContainer: ModelContainer = {
@@ -30,6 +31,7 @@ struct Meditation_Sleep_MindsetApp: App {
             Program.self,
             ProgramDay.self,
             ProgramProgress.self,
+            AIGeneratedMeditation.self,
         ])
 
         let modelConfiguration = ModelConfiguration(
@@ -66,6 +68,7 @@ struct Meditation_Sleep_MindsetApp: App {
             RootView()
                 .statusBarHidden()
                 .environmentObject(appState)
+                .environmentObject(accountService)
                 .onAppear {
                     // Seed content on first launch
                     ContentRepository.shared.seedContentIfNeeded(in: sharedModelContainer.mainContext)
@@ -73,11 +76,26 @@ struct Meditation_Sleep_MindsetApp: App {
                     // Seed programs
                     ProgramRepository.shared.seedIfNeeded(in: sharedModelContainer.mainContext)
 
+                    // Seed demo data for App Store screenshots
+                    if Constants.isDemoMode {
+                        DemoDataSeeder.seed(in: sharedModelContainer.mainContext, streakService: streakService)
+                    }
+
                     // Restore data from iCloud after reinstall
                     let syncService = iCloudSyncService.shared
                     syncService.restoreFavoritesIfNeeded(in: sharedModelContainer.mainContext)
                     syncService.restorePlaylistsIfNeeded(in: sharedModelContainer.mainContext)
                     syncService.restoreSessionsIfNeeded(in: sharedModelContainer.mainContext)
+
+                    // One-time cache purge after YouTubeKit update (stale URLs from old version)
+                    let cacheVersion = UserDefaults.standard.integer(forKey: "StreamCacheVersion")
+                    if cacheVersion < 2 {
+                        Task {
+                            await YouTubeService.shared.clearCache()
+                            await VideoCache.shared.clearCache()
+                        }
+                        UserDefaults.standard.set(2, forKey: "StreamCacheVersion")
+                    }
 
                     // Fetch real video durations from YouTube Data API
                     Task {
@@ -101,6 +119,12 @@ struct Meditation_Sleep_MindsetApp: App {
                     Task {
                         await preloadAllContent()
                     }
+
+                    // Verify Apple ID credential state on launch
+                    accountService.checkCredentialState()
+
+                    // Check if another device exists (multi-device prompt)
+                    accountService.checkSecondDevice()
                 }
                 .onOpenURL { url in
                     // Handle deep links
@@ -108,8 +132,10 @@ struct Meditation_Sleep_MindsetApp: App {
                 }
                 .onContinueUserActivity(CSSearchableItemActionType) { activity in
                     // Handle Spotlight search result taps
-                    if let videoID = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String {
-                        appState.handleDeepLink(URL(string: "meditation://content/\(videoID)")!)
+                    if let videoID = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+                       let encodedID = videoID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+                       let url = URL(string: "meditation://content/\(encodedID)") {
+                        appState.handleDeepLink(url)
                     }
                 }
         }
@@ -119,6 +145,8 @@ struct Meditation_Sleep_MindsetApp: App {
                 appState.handleAppOpen()
                 // Update quick actions when app becomes active
                 appDelegate.updateQuickActions()
+                // Re-check subscription status (Apple reviewers test lapsed subscriptions)
+                Task { await StoreManager.shared.refreshSubscriptionStatus() }
                 // Reset re-engagement notifications and clear badge
                 notificationService.resetReengagementOnAppOpen()
                 notificationService.clearBadge()
@@ -130,6 +158,13 @@ struct Meditation_Sleep_MindsetApp: App {
                 syncService.syncFavorites(from: context)
                 syncService.syncPlaylists(from: context)
                 syncService.syncSessions(from: context)
+
+                // Sync to CloudKit if signed in
+                if accountService.isSignedIn {
+                    Task {
+                        await CloudKitSyncService.shared.syncAll()
+                    }
+                }
             }
         }
     }
@@ -137,17 +172,27 @@ struct Meditation_Sleep_MindsetApp: App {
     /// Preload thumbnails and videos for all content
     private func preloadAllContent() async {
         let context = sharedModelContainer.mainContext
-        let descriptor = FetchDescriptor<Content>()
+        let contentDescriptor = FetchDescriptor<Content>()
 
-        guard let allContent = try? context.fetch(descriptor) else { return }
+        guard let allContent = try? context.fetch(contentDescriptor) else { return }
 
         // Preload all thumbnails first (fast, small files)
         await CacheManager.shared.preloadThumbnails(for: allContent)
 
-        // Preload featured content videos (limit to save storage)
-        let featured = allContent.filter { $0.isFeatured }
+        // Get favorited video IDs
+        let favoritesDescriptor = FetchDescriptor<FavoriteContent>()
+        let favoriteVideoIDs = Set((try? context.fetch(favoritesDescriptor))?.map { $0.youtubeVideoID } ?? [])
+
+        // Preload favorites first (user's most important content)
+        let favorites = allContent.filter { favoriteVideoIDs.contains($0.youtubeVideoID) }
+        if !favorites.isEmpty {
+            await CacheManager.shared.preloadVideos(for: Array(favorites.prefix(5)), limit: 5)
+        }
+
+        // Then preload featured content videos (excluding already preloaded favorites)
+        let featured = allContent.filter { $0.isFeatured && !favoriteVideoIDs.contains($0.youtubeVideoID) }
         if !featured.isEmpty {
-            await CacheManager.shared.preloadVideos(for: featured, limit: 10)
+            await CacheManager.shared.preloadVideos(for: Array(featured.prefix(5)), limit: 5)
         }
     }
 }
@@ -178,6 +223,9 @@ struct RootView: View {
             handleQuickAction(action)
         }
         .onAppear {
+            // Request ATT permission and start AppsFlyer SDK (requires visible UI)
+            AppsFlyerService.shared.requestTrackingAndStart()
+
             // Handle pending quick action if app was launched from one
             if let action = AppDelegate.pendingQuickAction {
                 handleQuickAction(action)
@@ -213,6 +261,8 @@ struct MainTabViewWithQuickActions: View {
     @EnvironmentObject var appState: AppStateManager
     @StateObject private var storeManager = StoreManager.shared
     @StateObject private var playerManager = AudioPlayerManager.shared
+    @StateObject private var morningCheckIn = MorningCheckInManager.shared
+    @Query(sort: \MeditationSession.startedAt, order: .reverse) private var sessions: [MeditationSession]
     @State private var showFullPlayer = false
     @State private var deepLinkContent: Content?
     @State private var isKeyboardVisible = false
@@ -255,7 +305,6 @@ struct MainTabViewWithQuickActions: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-
             if !shouldHideTabBar {
                 // Bottom fade gradient to hide content behind tab bar
                 VStack {
@@ -270,9 +319,9 @@ struct MainTabViewWithQuickActions: View {
                         endPoint: .bottom
                     )
                     .frame(height: 160)
-                    .allowsHitTesting(false)
                 }
                 .ignoresSafeArea()
+                .allowsHitTesting(false)
 
                 // Solid background color below tab bar to match app theme
                 VStack {
@@ -302,7 +351,8 @@ struct MainTabViewWithQuickActions: View {
                 }
             }
 
-            // Toast notification overlay
+        }
+        .overlay(alignment: .top) {
             ToastOverlay()
         }
         .sheet(isPresented: $appState.shouldShowNotificationPrompt, onDismiss: {
@@ -327,14 +377,31 @@ struct MainTabViewWithQuickActions: View {
         .fullScreenCover(item: $deepLinkContent) { content in
             MeditationPlayerView(content: content)
         }
+        .onChange(of: playerManager.shouldPresentPlayer) { _, shouldPresent in
+            if shouldPresent {
+                playerManager.shouldPresentPlayer = false
+                showFullPlayer = true
+            }
+        }
         .onChange(of: appState.pendingDeepLinkVideoID) { _, videoID in
             handleDeepLink(videoID: videoID)
         }
         .onAppear {
-            // Handle any pending deep link when view appears
             if let videoID = appState.pendingDeepLinkVideoID {
                 handleDeepLink(videoID: videoID)
             }
+            // Check for morning check-in prompt
+            morningCheckIn.checkForMorningPrompt(sessions: sessions)
+        }
+        .sheet(isPresented: $morningCheckIn.shouldShowCheckIn) {
+            MorningCheckInView(
+                lastSleepContent: morningCheckIn.lastSleepContentTitle,
+                onRate: { rating in morningCheckIn.recordRating(rating) },
+                onDismiss: { morningCheckIn.dismissCheckIn() }
+            )
+            .presentationDetents([.fraction(0.45)])
+            .presentationBackground(.clear)
+            .presentationDragIndicator(.hidden)
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             isKeyboardVisible = true
@@ -346,23 +413,26 @@ struct MainTabViewWithQuickActions: View {
             actionSheetData = ActionSheetManager.shared.sheetData
         }
         .overlay {
-            if let data = actionSheetData {
-                ContentActionSheet(
-                    content: data.content,
-                    isFavorite: data.isFavorite,
-                    onToggleFavorite: data.onToggleFavorite,
-                    onAddToPlaylist: data.onAddToPlaylist,
-                    onShare: data.onShare,
-                    isPresented: Binding(
-                        get: { actionSheetData != nil },
-                        set: { if !$0 {
-                            actionSheetData = nil
-                            ActionSheetManager.shared.dismiss()
-                        }}
+            Group {
+                if let data = actionSheetData {
+                    ContentActionSheet(
+                        content: data.content,
+                        isFavorite: data.isFavorite,
+                        onToggleFavorite: data.onToggleFavorite,
+                        onAddToPlaylist: data.onAddToPlaylist,
+                        onShare: data.onShare,
+                        isPresented: Binding(
+                            get: { actionSheetData != nil },
+                            set: { if !$0 {
+                                actionSheetData = nil
+                                ActionSheetManager.shared.dismiss()
+                            }}
+                        )
                     )
-                )
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
+            .allowsHitTesting(actionSheetData != nil)
         }
         .animation(.easeInOut(duration: 0.25), value: actionSheetData?.id)
     }
@@ -391,6 +461,17 @@ struct MainTabViewWithQuickActions: View {
 struct DiscountedPaywallView: View {
     @Environment(\.dismiss) var dismiss
     @StateObject private var storeManager = StoreManager.shared
+
+    private var annualProduct: Product? {
+        storeManager.subscriptions.first { $0.subscription?.subscriptionPeriod.unit == .year }
+    }
+
+    private var priceText: String {
+        if let product = annualProduct {
+            return "Then \(product.displayPrice)/year"
+        }
+        return "Then $49.99/year"
+    }
 
     var body: some View {
         NavigationStack {
@@ -431,7 +512,7 @@ struct DiscountedPaywallView: View {
                                 .font(.system(size: 48, weight: .bold))
                                 .foregroundStyle(.white)
 
-                            Text("Then $49.99/year")
+                            Text(priceText)
                                 .font(.title3)
                                 .foregroundStyle(.white.opacity(0.7))
 
@@ -454,10 +535,9 @@ struct DiscountedPaywallView: View {
 
                         // CTA Button
                         Button {
-                            // Purchase annual with free trial
                             Task {
-                                if let annualProduct = storeManager.subscriptions.first(where: { $0.subscription?.subscriptionPeriod.unit == .year }) {
-                                    await storeManager.purchase(annualProduct)
+                                if let product = annualProduct {
+                                    await storeManager.purchase(product)
                                 }
                                 dismiss()
                             }
@@ -477,8 +557,8 @@ struct DiscountedPaywallView: View {
                         }
                         .foregroundStyle(.white.opacity(0.6))
 
-                        // Fine print
-                        Text("Payment will be charged to your Apple ID account at confirmation of purchase. Subscription automatically renews unless it is canceled at least 24 hours before the end of the current period.")
+                        // Fine print (Apple requirement: price, duration, auto-renewal terms)
+                        Text("After the 3-day free trial, you will be charged \(annualProduct?.displayPrice ?? "$49.99")/year. Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account.")
                             .font(.caption2)
                             .foregroundStyle(.white.opacity(0.4))
                             .multilineTextAlignment(.center)
@@ -625,6 +705,8 @@ struct NotificationPromptSheet: View {
                     .padding(.horizontal, 24)
                     .padding(.bottom, 40)
                 }
+                .frame(maxWidth: 500)
+                .frame(maxWidth: .infinity)
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -638,6 +720,6 @@ struct NotificationPromptSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
     }
 }
