@@ -143,3 +143,93 @@ extension View {
         }
     }
 }
+
+// MARK: - Reusable Sheet Components
+
+/// Premium styled close button for sheets
+struct SheetCloseButton: View {
+    let action: () -> Void
+    var style: CloseButtonStyle = .circle
+
+    enum CloseButtonStyle {
+        case circle      // Circle with X icon
+        case pill        // Pill with "Done" text
+        case minimal     // Just the X icon
+    }
+
+    var body: some View {
+        Button(action: {
+            HapticManager.light()
+            action()
+        }) {
+            switch style {
+            case .circle:
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .frame(width: 30, height: 30)
+                    .background(Color.white.opacity(0.12))
+                    .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
+
+            case .pill:
+                Text("Done")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.8))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color.white.opacity(0.12))
+                    .clipShape(Capsule())
+
+            case .minimal:
+                Image(systemName: "xmark")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+        }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+    }
+}
+
+/// Premium styled drag indicator for sheets
+struct SheetDragIndicator: View {
+    var body: some View {
+        Capsule()
+            .fill(Color.white.opacity(0.4))
+            .frame(width: 36, height: 5)
+            .padding(.top, 12)
+    }
+}
+
+/// Consistent sheet header with title and close button
+struct SheetHeader: View {
+    let title: String
+    var subtitle: String? = nil
+    let onClose: () -> Void
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(.white)
+
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+            }
+
+            Spacer()
+
+            SheetCloseButton(action: onClose)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+    }
+}

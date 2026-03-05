@@ -114,7 +114,9 @@ actor YouTubeDurationService {
     /// Returns [videoID: durationInSeconds].
     private func fetchDurationBatch(videoIDs: [String]) async throws -> [String: Int] {
         let ids = videoIDs.joined(separator: ",")
-        var components = URLComponents(string: "https://www.googleapis.com/youtube/v3/videos")!
+        guard var components = URLComponents(string: "https://www.googleapis.com/youtube/v3/videos") else {
+            throw DurationError.invalidURL
+        }
         components.queryItems = [
             URLQueryItem(name: "part", value: "contentDetails"),
             URLQueryItem(name: "id", value: ids),

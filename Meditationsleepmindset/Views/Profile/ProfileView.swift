@@ -8,6 +8,7 @@ import SwiftData
 
 struct ProfileView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @Query private var userProfiles: [UserProfile]
     @Query(sort: \MeditationSession.startedAt, order: .reverse) private var sessions: [MeditationSession]
     @Query private var favorites: [FavoriteContent]
@@ -17,13 +18,33 @@ struct ProfileView: View {
     @StateObject private var streakService = StreakService.shared
     @State private var showingSettings = false
     @State private var showingShareStats = false
-    @State private var showingRecentlyPlayedList = false
+    @State private var activeProfileSheet: ProfileSheetType?
     @State private var selectedContent: Content?
-    @State private var selectedPlaylist: Playlist?
-    @State private var showCreatePlaylist = false
     @State private var newPlaylistName = ""
-    @State private var contentForPlaylistAdd: Content?
     @State private var showingMoodInsights = false
+
+    enum ProfileSheetType: Identifiable {
+        case recentlyPlayed
+        case sessionLimit
+        case playlist(Playlist)
+        case addToPlaylist(Content)
+        case createPlaylist
+        var id: String {
+            switch self {
+            case .recentlyPlayed: return "recentlyPlayed"
+            case .sessionLimit: return "sessionLimit"
+            case .playlist(let p): return "playlist-\(p.id)"
+            case .addToPlaylist(let c): return "playlist-\(c.youtubeVideoID)"
+            case .createPlaylist: return "createPlaylist"
+            }
+        }
+    }
+    @State private var showingBadges = false
+    @State private var showingChallenges = false
+    @StateObject private var accountService = AccountService.shared
+    @StateObject private var badgeService = BadgeService.shared
+    @StateObject private var challengeService = ChallengeService.shared
+    @StateObject private var healthKitService = HealthKitService.shared
 
     private var userProfile: UserProfile? {
         userProfiles.first
@@ -111,12 +132,26 @@ struct ProfileView: View {
                         }
                         .buttonStyle(.plain)
 
-                        // Achievements
-                        AchievementsCard(
-                            streakService: streakService,
-                            playlistCount: playlists.count,
-                            favoriteCount: favoriteContents.count
-                        )
+                        // Badges/Achievements
+                        Button {
+                            HapticManager.light()
+                            showingBadges = true
+                        } label: {
+                            BadgesPreviewCard(badgeService: badgeService)
+                        }
+                        .buttonStyle(.plain)
+
+                        // Weekly Challenges
+                        Button {
+                            HapticManager.light()
+                            showingChallenges = true
+                        } label: {
+                            ChallengesPreviewCard(challengeService: challengeService)
+                        }
+                        .buttonStyle(.plain)
+
+                        // Apple Health - Mindful Minutes
+                        MindfulMinutesCard(healthKitService: healthKitService)
 
                         // Visual separator between stats and content sections
                         HStack(spacing: 16) {
@@ -141,13 +176,13 @@ struct ProfileView: View {
                             isEmpty: recentlyPlayedContent.isEmpty,
                             emptyMessage: "Start listening to see your history here",
                             itemCount: recentlyPlayedContent.count,
-                            onSeeAll: { showingRecentlyPlayedList = true }
+                            onSeeAll: { activeProfileSheet = .recentlyPlayed }
                         ) {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(alignment: .top, spacing: 12) {
                                     ForEach(recentlyPlayedContent.prefix(6)) { content in
                                         RecentlyPlayedCardCompact(content: content) {
-                                            selectedContent = content
+                                            playContent(content)
                                         }
                                     }
                                 }
@@ -167,9 +202,9 @@ struct ProfileView: View {
                                     ForEach(favoriteContents.prefix(10)) { content in
                                         FavoriteCardCompact(
                                             content: content,
-                                            onTap: { selectedContent = content },
+                                            onTap: { playContent(content) },
                                             onRemove: { removeFavorite(content) },
-                                            onAddToPlaylist: { contentForPlaylistAdd = content },
+                                            onAddToPlaylist: { activeProfileSheet = .addToPlaylist(content) },
                                             onShare: { shareContent(content) }
                                         )
                                     }
@@ -190,13 +225,13 @@ struct ProfileView: View {
                                     // Create Playlist card (always visible)
                                     Button {
                                         HapticManager.medium()
-                                        showCreatePlaylist = true
+                                        activeProfileSheet = .createPlaylist
                                     } label: {
                                         VStack(alignment: .leading, spacing: 8) {
                                             ZStack {
                                                 RoundedRectangle(cornerRadius: 10)
                                                     .fill(Theme.cardBackground)
-                                                    .frame(width: 140, height: 100)
+                                                    .frame(width: sizeClass == .regular ? 180 : 140, height: sizeClass == .regular ? 130 : 100)
 
                                                 Image(systemName: "plus")
                                                     .font(.title)
@@ -204,14 +239,14 @@ struct ProfileView: View {
                                             }
 
                                             Text("Create Playlist")
-                                                .font(.caption)
+                                                .font(sizeClass == .regular ? .subheadline : .caption)
                                                 .fontWeight(.medium)
                                                 .foregroundStyle(Theme.textPrimary)
 
                                             Text(" ")
-                                                .font(.caption2)
+                                                .font(sizeClass == .regular ? .caption : .caption2)
                                         }
-                                        .frame(width: 140)
+                                        .frame(width: sizeClass == .regular ? 180 : 140)
                                     }
                                     .buttonStyle(.plain)
 
@@ -222,7 +257,7 @@ struct ProfileView: View {
                                             itemCount: playlistItems.filter { $0.playlistID == playlist.id }.count,
                                             thumbnailURLs: playlistItems.filter { $0.playlistID == playlist.id }.prefix(4).map(\.thumbnailURL),
                                             onTap: {
-                                                selectedPlaylist = playlist
+                                                activeProfileSheet = .playlist(playlist)
                                             },
                                             onDelete: {
                                                 deletePlaylist(playlist)
@@ -284,41 +319,64 @@ struct ProfileView: View {
                         .ignoresSafeArea(edges: .top)
                 )
             }
-            .sheet(isPresented: $showingSettings) {
+            .fullScreenCover(isPresented: $showingSettings) {
                 SettingsView()
                     .environmentObject(AppStateManager.shared)
             }
             .fullScreenCover(isPresented: $showingShareStats) {
                 ShareStatsView(streakService: streakService, sessions: sessions)
             }
-            .sheet(isPresented: $showingRecentlyPlayedList) {
-                RecentlyPlayedListView(
-                    recentlyPlayed: recentlyPlayedContent,
-                    onContentTap: { content in
-                        showingRecentlyPlayedList = false
-                        selectedContent = content
-                    }
-                )
+            .sheet(item: $activeProfileSheet) { sheet in
+                switch sheet {
+                case .recentlyPlayed:
+                    RecentlyPlayedListView(
+                        recentlyPlayed: recentlyPlayedContent,
+                        onContentTap: { content in
+                            activeProfileSheet = nil
+                            playContent(content)
+                        }
+                    )
+                case .sessionLimit:
+                    PremiumPaywallView(
+                        storeManager: StoreManager.shared,
+                        sessionLimitMessage: "This is a premium meditation. Subscribe to unlock the full library.",
+                        onSubscribed: { activeProfileSheet = nil }
+                    )
+                case .playlist(let playlist):
+                    PlaylistDetailView(playlist: playlist)
+                case .addToPlaylist(let content):
+                    AddToPlaylistSheet(content: content)
+                case .createPlaylist:
+                    CreatePlaylistSheet(
+                        playlistName: $newPlaylistName,
+                        onCreate: createPlaylist
+                    )
+                }
+            }
+            .sheet(isPresented: $accountService.shouldShowSignInSheet) {
+                SignInWithAppleSheet(accountService: accountService)
             }
             .fullScreenCover(item: $selectedContent) { content in
                 MeditationPlayerView(content: content)
             }
-            .sheet(item: $selectedPlaylist) { playlist in
-                PlaylistDetailView(playlist: playlist)
-            }
-            .sheet(item: $contentForPlaylistAdd) { content in
-                AddToPlaylistSheet(content: content)
-            }
-            .sheet(isPresented: $showingMoodInsights) {
+            .fullScreenCover(isPresented: $showingMoodInsights) {
                 MoodInsightsView()
             }
-            .sheet(isPresented: $showCreatePlaylist) {
-                CreatePlaylistSheet(
-                    playlistName: $newPlaylistName,
-                    onCreate: createPlaylist
-                )
+            .fullScreenCover(isPresented: $showingBadges) {
+                BadgesView()
+            }
+            .fullScreenCover(isPresented: $showingChallenges) {
+                ChallengesView()
             }
         }
+    }
+
+    private func playContent(_ content: Content) {
+        if !StoreManager.shared.isSubscribed && AppStateManager.shared.hasReachedFreeSessionLimit {
+            activeProfileSheet = .sessionLimit
+            return
+        }
+        selectedContent = content
     }
 
     private func removeFavorite(_ content: Content) {
@@ -416,6 +474,12 @@ struct FavoriteCardCompact: View {
     var onAddToPlaylist: (() -> Void)? = nil
     var onShare: (() -> Void)? = nil
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    // Adaptive sizes for iPad
+    private var cardWidth: CGFloat { sizeClass == .regular ? 180 : 140 }
+    private var cardHeight: CGFloat { sizeClass == .regular ? 130 : 100 }
+
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 8) {
@@ -434,29 +498,29 @@ struct FavoriteCardCompact: View {
                                 .fill(Theme.cardBackground)
                         }
                     )
-                    .frame(width: 140, height: 100)
+                    .frame(width: cardWidth, height: cardHeight)
                     .clipped()
                     .clipShape(RoundedRectangle(cornerRadius: 10))
 
                     Image(systemName: "play.circle.fill")
-                        .font(.title2)
+                        .font(sizeClass == .regular ? .title : .title2)
                         .foregroundStyle(.white)
                         .shadow(radius: 2)
                         .padding(8)
                 }
 
                 Text(content.title)
-                    .font(.caption)
+                    .font(sizeClass == .regular ? .subheadline : .caption)
                     .fontWeight(.medium)
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
 
                 Text(content.durationFormatted)
-                    .font(.caption2)
+                    .font(sizeClass == .regular ? .caption : .caption2)
                     .foregroundStyle(Theme.textSecondary)
             }
-            .frame(width: 140)
+            .frame(width: cardWidth)
         }
         .buttonStyle(.plain)
         .contextMenu {
@@ -492,6 +556,12 @@ struct HistoryCardCompact: View {
     let session: MeditationSession
     let content: Content?
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    // Adaptive sizes for iPad
+    private var cardWidth: CGFloat { sizeClass == .regular ? 180 : 140 }
+    private var cardHeight: CGFloat { sizeClass == .regular ? 130 : 100 }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack {
@@ -520,12 +590,12 @@ struct HistoryCardCompact: View {
                         }
                 }
             }
-            .frame(width: 140, height: 100)
+            .frame(width: cardWidth, height: cardHeight)
             .clipped()
             .clipShape(RoundedRectangle(cornerRadius: 10))
 
             Text(content?.title ?? "Unguided Session")
-                .font(.caption)
+                .font(sizeClass == .regular ? .subheadline : .caption)
                 .fontWeight(.medium)
                 .foregroundStyle(Theme.textPrimary)
                 .lineLimit(2)
@@ -536,10 +606,10 @@ struct HistoryCardCompact: View {
                 Text("•")
                 Text(session.startedAt.timeAgo)
             }
-            .font(.caption2)
+            .font(sizeClass == .regular ? .caption : .caption2)
             .foregroundStyle(Theme.textSecondary)
         }
-        .frame(width: 140)
+        .frame(width: cardWidth)
     }
 }
 
@@ -547,6 +617,12 @@ struct HistoryCardCompact: View {
 struct RecentlyPlayedCardCompact: View {
     let content: Content
     let onTap: () -> Void
+
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    // Adaptive sizes for iPad
+    private var cardWidth: CGFloat { sizeClass == .regular ? 180 : 140 }
+    private var cardHeight: CGFloat { sizeClass == .regular ? 130 : 100 }
 
     var body: some View {
         Button(action: onTap) {
@@ -566,29 +642,29 @@ struct RecentlyPlayedCardCompact: View {
                                 .fill(Theme.cardBackground)
                         }
                     )
-                    .frame(width: 140, height: 100)
+                    .frame(width: cardWidth, height: cardHeight)
                     .clipped()
                     .clipShape(RoundedRectangle(cornerRadius: 10))
 
                     Image(systemName: "play.circle.fill")
-                        .font(.title2)
+                        .font(sizeClass == .regular ? .title : .title2)
                         .foregroundStyle(.white)
                         .shadow(radius: 2)
                         .padding(8)
                 }
 
                 Text(content.title)
-                    .font(.caption)
+                    .font(sizeClass == .regular ? .subheadline : .caption)
                     .fontWeight(.medium)
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
 
                 Text(content.durationFormatted)
-                    .font(.caption2)
+                    .font(sizeClass == .regular ? .caption : .caption2)
                     .foregroundStyle(Theme.textSecondary)
             }
-            .frame(width: 140)
+            .frame(width: cardWidth)
         }
         .buttonStyle(.plain)
     }
@@ -809,78 +885,54 @@ struct MoodHistoryCard: View {
         .padding(.horizontal)
     }
 
+    private static let dayAbbrevFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE"
+        return f
+    }()
+
     private func dayAbbreviation(for date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEE"
-        let abbrev = formatter.string(from: date)
         if Calendar.current.isDateInToday(date) {
             return "Today"
         }
-        return abbrev
+        return Self.dayAbbrevFormatter.string(from: date)
     }
 }
 
-// MARK: - Achievements Card
-struct AchievementsCard: View {
-    let streakService: StreakService
-    let playlistCount: Int
-    let favoriteCount: Int
+// MARK: - Badges Preview Card
+struct BadgesPreviewCard: View {
+    @ObservedObject var badgeService: BadgeService
 
-    private var achievements: [Achievement] {
-        [
-            Achievement(
-                name: "First Session",
-                icon: "figure.mind.and.body",
-                color: .green,
-                isUnlocked: streakService.totalSessions >= 1
-            ),
-            Achievement(
-                name: "7-Day Streak",
-                icon: "flame.fill",
-                color: .orange,
-                isUnlocked: streakService.longestStreak >= 7
-            ),
-            Achievement(
-                name: "30-Day Streak",
-                icon: "flame.circle.fill",
-                color: .red,
-                isUnlocked: streakService.longestStreak >= 30
-            ),
-            Achievement(
-                name: "100 Sessions",
-                icon: "star.fill",
-                color: .yellow,
-                isUnlocked: streakService.totalSessions >= 100
-            ),
-            Achievement(
-                name: "10 Hours",
-                icon: "clock.fill",
-                color: .blue,
-                isUnlocked: streakService.totalMinutes >= 600
-            ),
-            Achievement(
-                name: "Playlist Creator",
-                icon: "rectangle.stack.fill",
-                color: .purple,
-                isUnlocked: playlistCount >= 1
-            ),
-            Achievement(
-                name: "Curator",
-                icon: "heart.fill",
-                color: .pink,
-                isUnlocked: favoriteCount >= 10
-            ),
-            Achievement(
-                name: "Night Owl",
-                icon: "moon.stars.fill",
-                color: .indigo,
-                isUnlocked: streakService.totalSessions >= 50
-            ),
-        ]
+    private var earnedCount: Int {
+        badgeService.earnedBadges.count
     }
 
-    private var unlockedCount: Int {
-        achievements.filter(\.isUnlocked).count
+    private var totalCount: Int {
+        Badge.allBadges.count
+    }
+
+    /// Get a mix of earned and upcoming badges to display
+    private var displayBadges: [Badge] {
+        let allBadges = badgeService.allBadgesWithStatus
+
+        // Start with recently earned badges
+        var display: [Badge] = badgeService.recentlyEarnedBadges.prefix(3).map { $0 }
+
+        // Add other earned badges
+        let otherEarned = badgeService.earnedBadges
+            .filter { earned in !display.contains { $0.id == earned.id } }
+            .prefix(5 - display.count)
+        display.append(contentsOf: otherEarned)
+
+        // Fill remaining with unearned badges (sorted by progress)
+        if display.count < 8 {
+            let unearned = allBadges
+                .filter { !$0.isEarned }
+                .prefix(8 - display.count)
+            display.append(contentsOf: unearned)
+        }
+
+        return Array(display.prefix(8))
     }
 
     var body: some View {
@@ -888,22 +940,28 @@ struct AchievementsCard: View {
             HStack(spacing: 8) {
                 Image(systemName: "trophy.fill")
                     .foregroundStyle(.yellow)
-                Text("Achievements")
+                Text("Badges")
                     .font(.headline)
                     .foregroundStyle(Theme.textPrimary)
 
                 Spacer()
 
-                Text("\(unlockedCount)/\(achievements.count)")
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.textSecondary)
+                HStack(spacing: 4) {
+                    Text("\(earnedCount)/\(totalCount)")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.textSecondary)
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(Theme.textTertiary)
+                }
             }
             .padding(.horizontal)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
-                    ForEach(achievements) { achievement in
-                        AchievementBadge(achievement: achievement)
+                    ForEach(displayBadges) { badge in
+                        BadgePreviewItem(badge: badge)
                     }
                 }
                 .padding(.horizontal)
@@ -916,34 +974,169 @@ struct AchievementsCard: View {
     }
 }
 
-struct Achievement: Identifiable {
-    let name: String
-    let icon: String
-    let color: Color
-    let isUnlocked: Bool
-    var id: String { name }
-}
-
-struct AchievementBadge: View {
-    let achievement: Achievement
+struct BadgePreviewItem: View {
+    let badge: Badge
 
     var body: some View {
         VStack(spacing: 6) {
             ZStack {
                 Circle()
-                    .fill(achievement.isUnlocked ? achievement.color.opacity(0.2) : Color.white.opacity(0.06))
+                    .fill(badge.isEarned ? badge.color.opacity(0.2) : Color.white.opacity(0.06))
                     .frame(width: 56, height: 56)
 
-                Image(systemName: achievement.isUnlocked ? achievement.icon : "lock.fill")
-                    .font(.title2)
-                    .foregroundStyle(achievement.isUnlocked ? achievement.color : Color.white.opacity(0.2))
+                if badge.isEarned {
+                    Image(systemName: badge.iconName)
+                        .font(.title2)
+                        .foregroundStyle(badge.color)
+                } else {
+                    Image(systemName: "lock.fill")
+                        .font(.title2)
+                        .foregroundStyle(Color.white.opacity(0.2))
+                }
             }
 
-            Text(achievement.name)
+            Text(badge.name)
                 .font(.caption2)
-                .foregroundStyle(achievement.isUnlocked ? Theme.textSecondary : Theme.textTertiary)
+                .foregroundStyle(badge.isEarned ? Theme.textSecondary : Theme.textTertiary)
                 .multilineTextAlignment(.center)
                 .frame(width: 64)
+        }
+    }
+}
+
+// MARK: - Challenges Preview Card
+struct ChallengesPreviewCard: View {
+    @ObservedObject var challengeService: ChallengeService
+
+    private var activeChallenges: [Challenge] {
+        challengeService.activeChallenges.filter { !$0.isCompleted }.prefix(4).map { $0 }
+    }
+
+    private var completedCount: Int {
+        challengeService.activeChallenges.filter { $0.isCompleted }.count
+    }
+
+    private var totalCount: Int {
+        challengeService.activeChallenges.count
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "flag.checkered")
+                    .foregroundStyle(.green)
+                Text("Weekly Challenges")
+                    .font(.headline)
+                    .foregroundStyle(Theme.textPrimary)
+
+                Spacer()
+
+                HStack(spacing: 4) {
+                    Text("\(completedCount)/\(totalCount)")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.textSecondary)
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(Theme.textTertiary)
+                }
+            }
+            .padding(.horizontal)
+
+            if challengeService.activeChallenges.isEmpty {
+                HStack {
+                    Spacer()
+                    Text("Challenges reset every Monday")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.textSecondary)
+                        .multilineTextAlignment(.center)
+                    Spacer()
+                }
+                .padding(.vertical, 16)
+            } else {
+                // Featured challenge or first active challenge
+                if let featured = challengeService.featuredChallenge ?? activeChallenges.first {
+                    HStack(spacing: 12) {
+                        // Icon
+                        ZStack {
+                            Circle()
+                                .fill(featured.color.opacity(0.2))
+                                .frame(width: 44, height: 44)
+
+                            Image(systemName: featured.iconName)
+                                .font(.body)
+                                .foregroundStyle(featured.color)
+                        }
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                if featured.isFeatured {
+                                    Image(systemName: "star.fill")
+                                        .font(.caption2)
+                                        .foregroundStyle(.yellow)
+                                }
+                                Text(featured.title)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.white)
+                            }
+
+                            // Progress bar
+                            GeometryReader { geometry in
+                                ZStack(alignment: .leading) {
+                                    Capsule()
+                                        .fill(Color.white.opacity(0.1))
+                                        .frame(height: 6)
+
+                                    Capsule()
+                                        .fill(featured.color)
+                                        .frame(width: geometry.size.width * featured.progressPercentage, height: 6)
+                                }
+                            }
+                            .frame(height: 6)
+                        }
+
+                        Spacer()
+
+                        // Progress text
+                        Text("\(featured.progress)/\(featured.target)")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                    .padding(.horizontal)
+                }
+
+                // Time remaining
+                if let firstChallenge = challengeService.activeChallenges.first {
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                        Text(firstChallenge.timeRemaining)
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+
+                        Spacer()
+
+                        // XP earned
+                        HStack(spacing: 2) {
+                            Image(systemName: "star.fill")
+                                .font(.caption2)
+                                .foregroundStyle(.yellow)
+                            Text("\(challengeService.totalXPEarned) XP")
+                                .font(.caption)
+                                .foregroundStyle(.yellow)
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+            }
+        }
+        .padding(.vertical, 16)
+        .background(Theme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(.horizontal)
+        .onAppear {
+            challengeService.checkAndRotateChallenges()
         }
     }
 }
@@ -1003,7 +1196,7 @@ struct GoalSettingsView: View {
                                     .foregroundStyle(.white.opacity(0.8))
                                     .frame(width: 32)
 
-                                Text(goal.rawValue)
+                                Text(goal.displayName)
                                     .foregroundStyle(Theme.textPrimary)
 
                                 Spacer()
@@ -1165,7 +1358,7 @@ struct ShareStatsView: View {
 
         UIPasteboard.general.setItems(pasteboardItems, options: pasteboardOptions)
 
-        if let url = URL(string: "instagram-stories://share?source_application=com.app.meditation") {
+        if let url = URL(string: "instagram-stories://share?source_application=com.meditation.Meditation-Sleep-Mindset") {
             UIApplication.shared.open(url)
         }
     }
@@ -1331,6 +1524,162 @@ struct ShareOptionButton: View {
             .background(.white)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
+    }
+}
+
+// MARK: - Mindful Minutes Card (Apple Health)
+struct MindfulMinutesCard: View {
+    @ObservedObject var healthKitService: HealthKitService
+
+    private var weekTotal: Int {
+        healthKitService.weeklyMindfulMinutes.reduce(0) { $0 + $1.minutes }
+    }
+
+    private var maxDayMinutes: Int {
+        max(healthKitService.weeklyMindfulMinutes.map(\.minutes).max() ?? 1, 1)
+    }
+
+    private static let dayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE"
+        return f
+    }()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header
+            HStack(spacing: 8) {
+                Image(systemName: "heart.fill")
+                    .foregroundStyle(.red)
+                Text("Apple Health")
+                    .font(.headline)
+                    .foregroundStyle(Theme.textPrimary)
+
+                Spacer()
+
+                if healthKitService.isEnabled {
+                    Text("\(weekTotal) min this week")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.textSecondary)
+                }
+            }
+            .padding(.horizontal)
+
+            if !HealthKitService.isAvailable {
+                // Device doesn't support HealthKit
+                HStack {
+                    Spacer()
+                    Text("HealthKit is not available on this device")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.textSecondary)
+                    Spacer()
+                }
+                .padding(.vertical, 16)
+            } else if !healthKitService.isEnabled {
+                // Not enabled — show enable prompt
+                VStack(spacing: 12) {
+                    Text("Sync your meditation sessions as Mindful Minutes in Apple Health")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.textSecondary)
+                        .multilineTextAlignment(.center)
+
+                    Button {
+                        HapticManager.medium()
+                        healthKitService.isEnabled = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "heart.circle.fill")
+                            Text("Enable Apple Health")
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(Color.red.opacity(0.8))
+                        .clipShape(Capsule())
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+            } else {
+                // Enabled — show today + weekly chart
+                VStack(spacing: 16) {
+                    // Today's minutes highlight
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.green.opacity(0.2))
+                                .frame(width: 48, height: 48)
+
+                            Image(systemName: "figure.mind.and.body")
+                                .font(.title3)
+                                .foregroundStyle(.green)
+                        }
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(healthKitService.todayMindfulMinutes) min")
+                                .font(.title3.weight(.bold))
+                                .foregroundStyle(Theme.textPrimary)
+                            Text("Mindful minutes today")
+                                .font(.caption)
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+
+                        Spacer()
+                    }
+                    .padding(.horizontal)
+
+                    // Weekly bar chart
+                    if !healthKitService.weeklyMindfulMinutes.isEmpty {
+                        HStack(alignment: .bottom, spacing: 0) {
+                            ForEach(healthKitService.weeklyMindfulMinutes) { day in
+                                VStack(spacing: 4) {
+                                    if day.minutes > 0 {
+                                        Text("\(day.minutes)")
+                                            .font(.system(size: 9))
+                                            .foregroundStyle(Theme.textTertiary)
+                                    }
+
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(
+                                            Calendar.current.isDateInToday(day.date)
+                                                ? Color.green
+                                                : Color.green.opacity(0.4)
+                                        )
+                                        .frame(height: max(4, CGFloat(day.minutes) / CGFloat(maxDayMinutes) * 40))
+
+                                    Text(dayLabel(for: day.date))
+                                        .font(.caption2)
+                                        .foregroundStyle(
+                                            Calendar.current.isDateInToday(day.date)
+                                                ? Theme.textPrimary
+                                                : Theme.textTertiary
+                                        )
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 16)
+        .background(Theme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(.horizontal)
+        .onAppear {
+            if healthKitService.isEnabled {
+                Task { await healthKitService.loadWeeklyMindfulMinutes() }
+            }
+        }
+    }
+
+    private func dayLabel(for date: Date) -> String {
+        if Calendar.current.isDateInToday(date) {
+            return "Today"
+        }
+        return Self.dayFormatter.string(from: date)
     }
 }
 

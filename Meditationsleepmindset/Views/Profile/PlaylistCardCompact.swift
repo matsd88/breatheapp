@@ -11,6 +11,14 @@ struct PlaylistCardCompact: View {
     let thumbnailURLs: [String]
     let onTap: () -> Void
     let onDelete: () -> Void
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    // Adaptive sizing for iPad
+    private var cardWidth: CGFloat { sizeClass == .regular ? 180 : 140 }
+    private var cardHeight: CGFloat { sizeClass == .regular ? 130 : 100 }
+    private var gridCellWidth: CGFloat { sizeClass == .regular ? 89 : 69 }
+    private var gridCellHeightFull: CGFloat { sizeClass == .regular ? 64 : 49 }
+    private var gridCellHeightSingle: CGFloat { sizeClass == .regular ? 130 : 100 }
 
     var body: some View {
         Button(action: onTap) {
@@ -39,18 +47,18 @@ struct PlaylistCardCompact: View {
                                                     Rectangle().fill(Theme.cardBackground)
                                                 }
                                             )
-                                            .frame(width: 69, height: rows == 1 ? 100 : 49)
+                                            .frame(width: gridCellWidth, height: rows == 1 ? gridCellHeightSingle : gridCellHeightFull)
                                             .clipped()
                                         } else {
                                             Rectangle()
                                                 .fill(Theme.cardBackground)
-                                                .frame(width: 69, height: 49)
+                                                .frame(width: gridCellWidth, height: gridCellHeightFull)
                                         }
                                     }
                                 }
                             }
                         }
-                        .frame(width: 140, height: 100)
+                        .frame(width: cardWidth, height: cardHeight)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                     } else if let url = thumbnailURLs.first {
                         CachedAsyncImage(
@@ -66,7 +74,7 @@ struct PlaylistCardCompact: View {
                                 Rectangle().fill(Theme.cardBackground)
                             }
                         )
-                        .frame(width: 140, height: 100)
+                        .frame(width: cardWidth, height: cardHeight)
                         .clipped()
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                     } else if let url = playlist.coverThumbnailURL {
@@ -83,13 +91,13 @@ struct PlaylistCardCompact: View {
                                 Rectangle().fill(Theme.cardBackground)
                             }
                         )
-                        .frame(width: 140, height: 100)
+                        .frame(width: cardWidth, height: cardHeight)
                         .clipped()
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                     } else {
                         RoundedRectangle(cornerRadius: 10)
                             .fill(Theme.cardBackground)
-                            .frame(width: 140, height: 100)
+                            .frame(width: cardWidth, height: cardHeight)
                             .overlay(
                                 Image(systemName: "rectangle.stack")
                                     .font(.title2)
@@ -99,17 +107,17 @@ struct PlaylistCardCompact: View {
                 }
 
                 Text(playlist.name)
-                    .font(.caption)
+                    .font(sizeClass == .regular ? .subheadline : .caption)
                     .fontWeight(.medium)
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
 
                 Text("\(itemCount) item\(itemCount == 1 ? "" : "s")")
-                    .font(.caption2)
+                    .font(sizeClass == .regular ? .caption : .caption2)
                     .foregroundStyle(Theme.textSecondary)
             }
-            .frame(width: 140)
+            .frame(width: cardWidth)
         }
         .buttonStyle(.plain)
         .contextMenu {

@@ -106,32 +106,75 @@ struct OpenAIProxyService {
         return content
     }
 
+    // MARK: - Text-to-Speech
+
+    struct TTSRequest: Codable {
+        let model: String
+        let input: String
+        let voice: String
+        let response_format: String
+        let speed: Double
+    }
+
+    /// Generate speech audio via OpenAI TTS through the proxy.
+    /// Returns raw MP3 data.
+    static func generateSpeech(
+        text: String,
+        voice: String,
+        speed: Double = 1.0,
+        model: String = Constants.AIMeditation.ttsModel
+    ) async throws -> Data {
+        guard let url = URL(string: Constants.Chat.proxyBaseURL + "/tts") else {
+            throw ProxyError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 120
+
+        let body = TTSRequest(
+            model: model,
+            input: text,
+            voice: voice,
+            response_format: "mp3",
+            speed: speed
+        )
+        request.httpBody = try JSONEncoder().encode(body)
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            throw ProxyError.networkError(error)
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw ProxyError.noResponse
+        }
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw ProxyError.serverError(httpResponse.statusCode)
+        }
+
+        guard !data.isEmpty else {
+            throw ProxyError.noResponse
+        }
+
+        return data
+    }
+
     // MARK: - System Prompt Builder
 
     static func buildSystemPrompt(moodLevel: MoodLevel?, userName: String? = nil) -> String {
         var prompt = """
-        You are Breathe AI, a warm and supportive AI wellness assistant in a meditation and sleep app.
+        You are Breathe AI, a warm wellness assistant in the Breathe meditation app.
 
-        YOUR ROLE:
-        - Provide empathetic emotional support and active listening
-        - Suggest evidence-based coping techniques (CBT, mindfulness, grounding)
-        - Recommend breathing exercises, meditations, or sleep content when appropriate
-        - Help users process emotions without judgment
+        ROLE: Empathetic support, evidence-based coping (CBT, mindfulness, grounding), recommend app features naturally. Not a therapist — no diagnoses or medical advice. For self-harm/suicide, express concern and share 988 Suicide & Crisis Lifeline.
 
-        YOUR BOUNDARIES:
-        - You are NOT a therapist and cannot diagnose or treat conditions
-        - Never provide medical advice or medication recommendations
-        - For serious mental health concerns, gently suggest professional support
-        - If someone mentions self-harm or suicide, express concern and provide crisis resources (988 Suicide & Crisis Lifeline)
+        APP FEATURES: Guided Meditations (100+ sessions, 3-60 min), AI-Generated Meditations, Sleep Stories, Soundscapes, ASMR, Breathing Exercises, Body Scan, Micro-Moments (1-3 min resets), Programs, Yoga/Movement, Mindset Coaching, Focus Timer, Mood Tracking, Offline Packs, Apple Watch, Sleep Alarm, Playlists.
 
-        YOUR STYLE:
-        - Warm, calm, and conversational (not clinical)
-        - Use short paragraphs (2-3 sentences max)
-        - Ask thoughtful follow-up questions
-        - Validate feelings before offering suggestions
-        - Occasionally suggest trying a meditation or breathing exercise from the app
-
-        Keep responses concise (under 100 words typically).
+        STYLE: Warm, calm, conversational. Short paragraphs (2-3 sentences). Validate feelings first. Under 100 words typically.
         """
 
         if let mood = moodLevel {

@@ -10,6 +10,7 @@ struct AddToPlaylistSheet: View {
     let content: Content
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @Query(sort: \Playlist.updatedAt, order: .reverse) private var playlists: [Playlist]
     @Query private var playlistItems: [PlaylistItem]
     @State private var showNewPlaylistField = false
@@ -106,6 +107,8 @@ struct AddToPlaylistSheet: View {
                     }
                 }
                 .padding()
+                .frame(maxWidth: sizeClass == .regular ? 700 : 600)
+                .frame(maxWidth: .infinity)
             }
             .background(sheetBackground)
             .navigationTitle("Add to Playlist")
@@ -115,16 +118,7 @@ struct AddToPlaylistSheet: View {
             .toolbarBackground(sheetBackground, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(.white.opacity(0.7))
-                            .frame(width: 32, height: 32)
-                            .background(Color.white.opacity(0.15))
-                            .clipShape(Circle())
-                    }
+                    SheetCloseButton { dismiss() }
                 }
             }
         }

@@ -8,6 +8,15 @@ import SwiftUI
 struct ThemeSettingsView: View {
     @ObservedObject var themeManager = ThemeManager.shared
     @Environment(\.dismiss) var dismiss
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    // Adaptive grid columns for iPad
+    private var themeColumns: [GridItem] {
+        sizeClass == .regular ? [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())] : [GridItem(.flexible()), GridItem(.flexible())]
+    }
+    private var backgroundColumns: [GridItem] {
+        sizeClass == .regular ? [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())] : [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
+    }
 
     var body: some View {
         NavigationStack {
@@ -31,10 +40,7 @@ struct ThemeSettingsView: View {
                                 .foregroundStyle(.white)
                                 .padding(.horizontal)
 
-                            LazyVGrid(columns: [
-                                GridItem(.flexible()),
-                                GridItem(.flexible())
-                            ], spacing: 12) {
+                            LazyVGrid(columns: themeColumns, spacing: 12) {
                                 ForEach(PlayerTheme.all) { theme in
                                     ThemeOptionCard(
                                         theme: theme,
@@ -54,11 +60,7 @@ struct ThemeSettingsView: View {
                                 .foregroundStyle(.white)
                                 .padding(.horizontal)
 
-                            LazyVGrid(columns: [
-                                GridItem(.flexible()),
-                                GridItem(.flexible()),
-                                GridItem(.flexible())
-                            ], spacing: 12) {
+                            LazyVGrid(columns: backgroundColumns, spacing: 12) {
                                 ForEach(AnimatedBackgroundID.allCases) { bg in
                                     BackgroundOptionCard(
                                         background: bg,
@@ -75,6 +77,8 @@ struct ThemeSettingsView: View {
                         Spacer(minLength: 40)
                     }
                     .padding(.top, 24)
+                    .frame(maxWidth: 600)
+                    .frame(maxWidth: .infinity)
                 }
             }
             .navigationTitle("Player Theme")
@@ -91,7 +95,7 @@ struct ThemeSettingsView: View {
                 }
             }
         }
-        .presentationBackground(themeManager.currentTheme.gradient)
+        .preferredColorScheme(.dark)
     }
 }
 
@@ -148,27 +152,29 @@ struct BackgroundOptionCard: View {
     let accentColor: Color
     let isSelected: Bool
     let action: () -> Void
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    private var isRegular: Bool { sizeClass == .regular }
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 6) {
-                // Icon
+            VStack(spacing: isRegular ? 8 : 6) {
+                // Icon - larger on iPad
                 Image(systemName: background.icon)
-                    .font(.title2)
+                    .font(isRegular ? .title : .title2)
                     .foregroundStyle(isSelected ? accentColor : .white)
-                    .frame(width: 50, height: 50)
+                    .frame(width: isRegular ? 70 : 50, height: isRegular ? 70 : 50)
                     .background(
                         Circle()
                             .fill(isSelected ? accentColor.opacity(0.2) : Color.white.opacity(0.1))
                     )
                     .overlay(
                         Circle()
-                            .stroke(isSelected ? accentColor : Color.clear, lineWidth: 2)
+                            .stroke(isSelected ? accentColor : Color.clear, lineWidth: isRegular ? 3 : 2)
                     )
 
                 // Name
                 Text(background.name)
-                    .font(.caption2)
+                    .font(isRegular ? .caption : .caption2)
                     .lineLimit(1)
                     .foregroundStyle(isSelected ? accentColor : .white)
             }

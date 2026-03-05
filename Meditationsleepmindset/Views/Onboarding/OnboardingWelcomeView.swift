@@ -12,6 +12,16 @@ enum PainPoint: String, CaseIterable {
     case calm = "I want to feel calmer"
     case other = "Just exploring"
 
+    var displayName: String {
+        switch self {
+        case .sleep: return String(localized: "I can't sleep")
+        case .anxiety: return String(localized: "I feel anxious")
+        case .racing: return String(localized: "My mind won't stop")
+        case .calm: return String(localized: "I want to feel calmer")
+        case .other: return String(localized: "Just exploring")
+        }
+    }
+
     var emoji: String {
         switch self {
         case .sleep: return "😴"
@@ -24,11 +34,11 @@ enum PainPoint: String, CaseIterable {
 
     var headline: String {
         switch self {
-        case .sleep: return "Better sleep starts tonight"
-        case .anxiety: return "Find your calm in minutes"
-        case .racing: return "Quiet the mental chatter"
-        case .calm: return "Peace is closer than you think"
-        case .other: return "Discover what works for you"
+        case .sleep: return String(localized: "Better sleep starts tonight")
+        case .anxiety: return String(localized: "Find your calm in minutes")
+        case .racing: return String(localized: "Quiet the mental chatter")
+        case .calm: return String(localized: "Peace is closer than you think")
+        case .other: return String(localized: "Discover what works for you")
         }
     }
 }
@@ -37,10 +47,13 @@ struct OnboardingWelcomeView: View {
     @Binding var selectedPainPoint: PainPoint?
     let onContinue: () -> Void
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var breatheScale: CGFloat = 1.0
     @State private var showContent = false
     @State private var glowOpacity: Double = 0.3
     @State private var particleOffset: CGFloat = 0
+
+    private var isRegular: Bool { sizeClass == .regular }
 
     var body: some View {
         ZStack {
@@ -82,7 +95,7 @@ struct OnboardingWelcomeView: View {
                 .opacity(glowOpacity)
                 .offset(y: -100)
 
-            VStack(spacing: 24) {
+            VStack(spacing: isRegular ? 36 : 24) {
                 Spacer()
 
                 // Logo with glow effect
@@ -90,12 +103,12 @@ struct OnboardingWelcomeView: View {
                     // Outer glow rings
                     Circle()
                         .stroke(Theme.profileAccent.opacity(0.2), lineWidth: 2)
-                        .frame(width: 140, height: 140)
+                        .frame(width: isRegular ? 180 : 140, height: isRegular ? 180 : 140)
                         .scaleEffect(breatheScale)
 
                     Circle()
                         .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                        .frame(width: 180, height: 180)
+                        .frame(width: isRegular ? 220 : 180, height: isRegular ? 220 : 180)
                         .scaleEffect(breatheScale * 0.95)
 
                     // Inner glowing circle
@@ -109,27 +122,27 @@ struct OnboardingWelcomeView: View {
                                 ],
                                 center: .center,
                                 startRadius: 10,
-                                endRadius: 60
+                                endRadius: isRegular ? 80 : 60
                             )
                         )
-                        .frame(width: 120, height: 120)
+                        .frame(width: isRegular ? 160 : 120, height: isRegular ? 160 : 120)
 
                 }
                 .opacity(showContent ? 1 : 0)
                 .scaleEffect(showContent ? 1 : 0.8)
 
                 // Welcome text
-                VStack(spacing: 4) {
+                VStack(spacing: isRegular ? 8 : 4) {
                     Text("Welcome to")
-                        .font(.title3)
+                        .font(isRegular ? .title2 : .title3)
                         .foregroundStyle(.white.opacity(0.7))
 
                     Text("Breathe")
-                        .font(.system(size: 42, weight: .bold))
+                        .font(.system(size: isRegular ? 54 : 42, weight: .bold))
                         .foregroundStyle(.white)
 
                     Text("Take a deep breath....")
-                        .font(.body)
+                        .font(isRegular ? .title3 : .body)
                         .foregroundStyle(.white.opacity(0.6))
                         .padding(.top, 2)
                 }
@@ -137,9 +150,9 @@ struct OnboardingWelcomeView: View {
                 .offset(y: showContent ? 0 : 20)
 
                 // Pain point question
-                VStack(spacing: 12) {
+                VStack(spacing: isRegular ? 16 : 12) {
                     Text("What brings you here today?")
-                        .font(.headline)
+                        .font(isRegular ? .title3 : .headline)
                         .foregroundStyle(.white)
                         .padding(.bottom, 4)
 
@@ -153,12 +166,12 @@ struct OnboardingWelcomeView: View {
                                 onContinue()
                             }
                         } label: {
-                            HStack(spacing: 12) {
+                            HStack(spacing: isRegular ? 16 : 12) {
                                 Text(painPoint.emoji)
-                                    .font(.title2)
+                                    .font(isRegular ? .title : .title2)
 
-                                Text(painPoint.rawValue)
-                                    .font(.body)
+                                Text(painPoint.displayName)
+                                    .font(isRegular ? .title3 : .body)
                                     .fontWeight(.medium)
                                     .foregroundStyle(.white)
 
@@ -167,17 +180,18 @@ struct OnboardingWelcomeView: View {
                                 if selectedPainPoint == painPoint {
                                     Image(systemName: "checkmark.circle.fill")
                                         .foregroundStyle(.white)
+                                        .font(isRegular ? .title2 : .body)
                                 }
                             }
-                            .padding()
+                            .padding(isRegular ? 18 : 16)
                             .background(
-                                RoundedRectangle(cornerRadius: 12)
+                                RoundedRectangle(cornerRadius: isRegular ? 16 : 12)
                                     .fill(selectedPainPoint == painPoint ?
                                           Color.white.opacity(0.15) :
                                           Theme.cardBackground)
                             )
                             .overlay(
-                                RoundedRectangle(cornerRadius: 12)
+                                RoundedRectangle(cornerRadius: isRegular ? 16 : 12)
                                     .stroke(selectedPainPoint == painPoint ?
                                             Color.white.opacity(0.5) : Color.clear,
                                             lineWidth: 2)
@@ -186,14 +200,14 @@ struct OnboardingWelcomeView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, isRegular ? 32 : 24)
                 .padding(.top, 15)
                 .opacity(showContent ? 1 : 0)
                 .offset(y: showContent ? 0 : 20)
 
                 Spacer()
             }
-            .frame(maxWidth: 500)
+            .frame(maxWidth: isRegular ? 800 : 500)
         }
         .onAppear {
             // Start breathing animation

@@ -18,7 +18,7 @@ class ContentRepository {
         // Meditation - Popular verified channels
         ("5-Minute Meditation", "For beginners", "qJPyuTQOkfk", .meditation, 316, "Goodful", ["Reduce Stress", "Build Self Esteem"], false, "A simple 5-minute guided meditation perfect for beginners."),
         ("Deep Sleep Meditation", "Release all tension", "U6Ay9v7gK9w", .meditation, 900, "Michael Sealey", ["Reduce Stress", "Reduce Anxiety"], false, "Let go of stress and anxiety with this calming guided meditation."),
-        ("10-Minute Anxiety Relief", "Calm your worried mind", "d1BewJ25zds", .meditation, 600, "Goodful", ["Reduce Anxiety"], false, "Find relief from anxious thoughts and cultivate inner peace."),
+        ("10-Minute Anxiety Relief", "Calm your worried mind", "c0aqDu8Dmvo", .meditation, 600, "Goodful", ["Reduce Anxiety"], false, "Find relief from anxious thoughts and cultivate inner peace."),
         ("Daily Calm", "10-minute mindfulness", "yg3CJ7Zb55o", .meditation, 600, "Calm", ["Build Self Esteem", "Increase Happiness"], false, "A nurturing meditation to develop self-compassion and acceptance."),
         ("Focus & Concentration", "Sharpen your mind", "Jyy0ra2WcQQ", .meditation, 600, "Headspace", ["Improve Performance"], false, "Enhance your focus and mental clarity with this guided session."),
         ("Morning Meditation", "Start fresh", "1vx8iUvfyCY", .meditation, 300, "Goodful", ["Develop Gratitude", "Increase Happiness"], false, "A quick meditation you can do anywhere."),
@@ -37,7 +37,7 @@ class ContentRepository {
         ("Gratitude Meditation", "Thankfulness", "3RxXiFgkxGc", .meditation, 600, "Goodful", ["Develop Gratitude", "Increase Happiness"], false, "Cultivate a grateful heart."),
         ("Confidence Boost", "Inner strength", "3SutlEy_MT8", .meditation, 720, "Goodful", ["Build Self Esteem", "Improve Performance"], false, "Build unshakeable inner confidence."),
         ("Deep Sleep Journey", "Drift away", "4BWgI64GM4A", .meditation, 1200, "Jason Stephenson", ["Better Sleep", "Reduce Stress"], false, "A guided journey into deep sleep."),
-        ("Morning Intention", "Set your day", "4jNV1FV-_Os", .meditation, 480, "Headspace", ["Improve Performance", "Increase Happiness"], false, "Set powerful intentions for the day."),
+        ("Morning Intention", "Start your day right with an uplifting morning meditation", "4jNV1FV-_Os", .meditation, 480, "Hay House", ["Improve Performance", "Increase Happiness"], false, "An uplifting morning meditation by Louise Hay to set powerful intentions for the day."),
         ("Anxiety Calm", "Find peace", "4jiMhmGInJ8", .meditation, 600, "The Honest Guys", ["Reduce Anxiety", "Reduce Stress"], false, "Calm anxious thoughts and feelings."),
         ("Energy Meditation", "Recharge", "4vpQNYthrIc", .meditation, 480, "Goodful", ["Improve Performance", "Increase Happiness"], false, "Recharge your energy levels."),
         ("Peaceful Mind", "Mental clarity", "5FLEs8UirNA", .meditation, 720, "Calm", ["Reduce Stress", "Improve Performance"], false, "Clear your mind of clutter."),
@@ -58,7 +58,7 @@ class ContentRepository {
         ("Compassion Practice", "Loving kindness", "DbDoBzGY3vo", .meditation, 720, "The Honest Guys", ["Increase Happiness", "Develop Gratitude"], false, "Practice compassion for all."),
         ("Visualization Journey", "Mental imagery", "DzCKFDB3pvk", .meditation, 900, "The Honest Guys", ["Improve Performance", "Build Self Esteem"], false, "Visualize your best self."),
         ("Morning Gratitude", "Thankful start", "E5NsiC7OaQ8", .meditation, 480, "Goodful", ["Develop Gratitude", "Increase Happiness"], false, "Start with gratitude."),
-        ("Letting Go", "Release", "EiCtay59kNQ", .meditation, 720, "Michael Sealey", ["Reduce Stress", "Reduce Anxiety"], false, "Let go of what doesn't serve you."),
+        ("Letting Go", "Release stress and tension", "-40Tgg07J9A", .meditation, 600, "Goodful", ["Reduce Stress", "Reduce Anxiety"], false, "Let go of stress and what doesn't serve you."),
         ("Present Moment", "Now awareness", "FGO8IWiusJo", .meditation, 600, "Goodful", ["Reduce Anxiety", "Reduce Stress"], false, "Be fully present now."),
         ("Peaceful Sleep", "Drift off", "FU8E7GeGs1Y", .meditation, 1200, "Jason Stephenson", ["Better Sleep", "Reduce Stress"], false, "Drift into peaceful sleep."),
         ("Calm Mind", "Mental peace", "Fn10PJ_hj3g", .meditation, 600, "Headspace", ["Reduce Stress", "Reduce Anxiety"], false, "Achieve a calm mind."),
@@ -90,7 +90,7 @@ class ContentRepository {
         ("5-Minute Stress Relief", "Quick calm", "inpok4MKVLM", .meditation, 318, "Goodful", ["Reduce Stress", "Reduce Anxiety"], false, "A quick 5-minute meditation to release stress and find calm whenever you need it."),
         ("Morning Energy Boost", "Energizing start", "O-6f5wQXSu8", .meditation, 612, "Great Meditation", ["Increase Happiness", "Improve Performance"], false, "Start your day with this energizing 10-minute morning meditation to boost focus and positivity."),
         ("Box Breathing", "One minute reset", "n6RbW2LtdFs", .meditation, 60, "Conscious Works", ["Reduce Stress", "Reduce Anxiety"], false, "A guided one-minute box breathing exercise to quickly calm your nervous system."),
-        ("Melting Meditation", "Release and let go", "O29e4rRMrV4", .meditation, 120, "Tamalpais Mindfulness", ["Reduce Stress", "Better Sleep"], false, "A gentle two-minute meditation that guides you to melt away tension and find stillness."),
+        ("Mindfulness Meditation", "Release and let go", "6p_yaNFSYao", .meditation, 300, "Mindfulness", ["Reduce Stress", "Better Sleep"], false, "A gentle five-minute meditation that guides you to melt away tension and find stillness."),
         ("Focus Meditation", "Sharpen your mind", "BhQ_ISSPbpM", .meditation, 180, "Mallory Grimste", ["Improve Performance", "Reduce Stress"], false, "A three-minute guided meditation to clear mental fog and sharpen your focus."),
 
         // Sleep Stories - Verified popular sleep content with unique video IDs
@@ -109,22 +109,22 @@ class ContentRepository {
         ("Desert Night", "Endless sky", "oMwbXCdMhXc", .sleepStory, 3000, "Sleep Tube", ["Better Sleep"], false, "Watch stars under the desert sky."),
         ("English Garden", "Peaceful bloom", "R7bV4hF9A7Q", .sleepStory, 2400, "Relaxing Sounds", ["Better Sleep"], false, "Stroll through an English garden."),
         ("Snow Falling", "Winter peace", "gisytJ0n2jI", .sleepStory, 2700, nil, ["Better Sleep"], false, "Watch snow fall on a quiet night."),
-        ("Beach Waves", "Coastal calm", "f5IgT5BsL9o", .sleepStory, 3000, "Calm", ["Better Sleep"], false, "Walk along a peaceful coastline."),
-        ("Autumn Leaves", "Fall colors", "55DScz0y3Bc", .sleepStory, 2700, "Relaxing Sounds", ["Better Sleep"], false, "Wander through autumn leaves."),
+        // Removed: ("Beach Waves", "f5IgT5BsL9o") - video unavailable
+        // Removed: ("Autumn Leaves", "Fall colors", "55DScz0y3Bc") - video unavailable
         ("River Cabin", "Waterside calm", "kGz5Y_RFr7Y", .sleepStory, 2400, nil, ["Better Sleep"], false, "Relax in a cabin by the river."),
-        ("Spring Meadow", "New beginnings", "FFcDEljYirw", .sleepStory, 2700, "Relaxing Sounds", ["Better Sleep"], false, "Rest in a blooming meadow."),
-        ("Old Library", "Ancient wisdom", "BVupSeAWIaw", .sleepStory, 3000, "Soothing Pod", ["Better Sleep"], false, "Explore a quiet old library."),
+        // Removed: ("Spring Meadow", "FFcDEljYirw") - video unavailable
+        // Removed: ("Old Library", "Ancient wisdom", "BVupSeAWIaw") - video unavailable
         ("Lighthouse Night", "Ocean guardian", "sL_ikbzKaJ4", .sleepStory, 2700, "Sleepy Sounds", ["Better Sleep"], false, "Keep watch at a peaceful lighthouse."),
-        ("Bamboo Rain", "Eastern serenity", "jFl6Fx4-cig", .sleepStory, 2400, nil, ["Better Sleep"], false, "Rain falling on bamboo."),
-        ("Country Inn", "Rural retreat", "KJ2j2yJ-6JE", .sleepStory, 3000, "Calm", ["Better Sleep"], false, "Stay at a cozy countryside inn."),
-        ("Aurora Dreams", "Northern lights", "j6LWFLrtvyI", .sleepStory, 2700, "Sleep Tube", ["Better Sleep"], false, "Watch the northern lights dance."),
+        // Removed: ("Bamboo Rain", "jFl6Fx4-cig") - video unavailable
+        // Removed: ("Country Inn", "KJ2j2yJ-6JE") - video unavailable
+        // Removed: ("Aurora Dreams", "j6LWFLrtvyI") - video unavailable
         ("Vineyard Evening", "Golden hour", "yaE8KiTWvh0", .sleepStory, 2400, "Calm", ["Better Sleep"], false, "Watch sunset over a vineyard."),
-        ("Village Night", "Quiet town", "jqHlflq4adg", .sleepStory, 2700, "Relaxing Sounds", ["Better Sleep"], false, "Explore a sleepy village."),
-        ("Hidden Waterfall", "Secret sanctuary", "WqdEsz3lwxg", .sleepStory, 3000, nil, ["Better Sleep"], false, "Discover a peaceful waterfall."),
+        // Removed: ("Village Night", "jqHlflq4adg") - video unavailable
+        // Removed: ("Hidden Waterfall", "WqdEsz3lwxg") - video unavailable
         ("Zen Garden", "Japanese tranquility", "OyUoskE7Ogk", .sleepStory, 2700, nil, ["Better Sleep"], false, "Find peace in a Japanese garden."),
-        ("Sunset Sail", "Ocean voyage", "ABEykxJAMGA", .sleepStory, 2400, "Calm", ["Better Sleep"], false, "Sail into the sunset."),
+        // Removed: ("Sunset Sail", "Ocean voyage", "ABEykxJAMGA") - video unavailable
         ("Forest Home", "Woodland peace", "1RcVIuZ8Wdk", .sleepStory, 3000, "Calm", ["Better Sleep"], false, "Stay in a forest cottage."),
-        ("Moonlit Shore", "Nighttime beach", "Of59snU2_1Y", .sleepStory, 2700, "Relaxing White Noise", ["Better Sleep"], false, "Walk a beach by moonlight."),
+        // Removed: ("Moonlit Shore", "Of59snU2_1Y") - video unavailable
         ("Treehouse Night", "Above the world", "VLfPUJCPDqY", .sleepStory, 2400, "Relaxing Sounds", ["Better Sleep"], false, "Sleep in a peaceful treehouse."),
         ("Castle Night", "Ancient walls", "05ODEPeN50o", .sleepStory, 3000, "Soothing Pod", ["Better Sleep"], false, "Dream in an old castle."),
         ("Savanna Sunset", "African plains", "gKnG2WKtvgc", .sleepStory, 2700, "Sleep Tube", ["Better Sleep"], false, "Watch sunset on the savanna."),
@@ -141,7 +141,7 @@ class ContentRepository {
         ("Space Dreams", "Starship journey", "UgHKb_7884o", .sleepStory, 2700, "Sleep Tube", ["Better Sleep"], false, "Journey through the stars."),
         ("Morning Mist", "Fog and dew", "mSX3OyW9Rao", .sleepStory, 2400, "Relaxing Sounds", ["Better Sleep"], false, "Wake to a misty morning."),
         ("Magic Forest", "Enchanted woods", "SKaIkbgyhU8", .sleepStory, 3000, nil, ["Better Sleep"], false, "Explore an enchanted forest."),
-        ("Farm Night", "Country living", "9xFr2HRttck", .sleepStory, 2700, "Calm", ["Better Sleep"], false, "Spend time on a quiet farm."),
+        // Removed: ("Farm Night", "Country living", "9xFr2HRttck") - video unavailable
         ("Misty Harbor", "Fog and boats", "MtOrlJYt5VA", .sleepStory, 3000, "Relaxing Sounds", ["Better Sleep"], false, "Watch boats drift through a misty harbor."),
         ("Snowfall Village", "White winter", "ShKat31CfAo", .sleepStory, 2700, nil, ["Better Sleep"], false, "Snow blankets a quiet mountain village."),
         ("Mountain Stream", "Alpine water", "RaoaYuHH95Q", .sleepStory, 2400, nil, ["Better Sleep"], false, "Rest by a snowy mountain stream."),
@@ -157,7 +157,7 @@ class ContentRepository {
         ("Enchanted Forest", "Mossy wonderland", "KlRK-eF_QY8", .sleepStory, 2700, "Relaxing Sounds", ["Better Sleep"], false, "Wander through a moss-covered forest."),
         ("Peaceful Kelp Forest", "Underwater garden", "lnP38P34_vw", .sleepStory, 2400, "Sleep Tube", ["Better Sleep"], false, "Float through a peaceful underwater garden."),
         ("Rainy Forest Walk", "Stream in rain", "Lvp0oXWWU6w", .sleepStory, 3000, nil, ["Better Sleep"], false, "Walk through a rainy forest by a stream."),
-        ("Mountain Grotto", "Waterfall cave", "_GUVcWffjjo", .sleepStory, 2700, nil, ["Better Sleep"], false, "Rest in a grotto behind a waterfall."),
+        // Removed: ("Mountain Grotto", "_GUVcWffjjo") - video unavailable
         ("Rainy Reading Nook", "Tea and pages", "kmOR25fOWc4", .sleepStory, 2400, "Soothing Pod", ["Better Sleep"], false, "Read by a window on a rainy day."),
         ("River Stones", "Smooth water", "bi2uftU-SSI", .sleepStory, 2700, nil, ["Better Sleep"], false, "Listen to water flow over smooth river stones."),
         ("Hot Springs Evening", "Warm waters", "ybX6OLo9UMU", .sleepStory, 3000, nil, ["Better Sleep"], false, "Relax in natural hot springs at dusk."),
@@ -168,29 +168,29 @@ class ContentRepository {
         ("Twilight Waterfall", "Dusk cascade", "DO9O9Ry6cYc", .sleepStory, 2700, nil, ["Better Sleep"], false, "A waterfall at dusk by a mountain lake."),
 
         // Soundscapes - Verified ambient videos
-        ("Gentle Rain", "Nature's lullaby", "Dfm2rB-nQ9Y", .soundscape, 3600, nil, ["Better Sleep", "Reduce Stress"], false, "Continuous gentle rainfall for deep relaxation."),
+        // Removed: ("Gentle Rain", "Dfm2rB-nQ9Y") - video unavailable; use "Light Rain" HchoJcYNYlU instead
         ("Forest Birds", "Morning ambiance", "eTeD8DAta4c", .soundscape, 3600, nil, ["Reduce Stress"], false, "Immerse yourself in peaceful forest sounds."),
         ("Ocean Waves", "Seaside serenity", "lP4wSXSH9nM", .soundscape, 3600, nil, ["Better Sleep", "Reduce Anxiety"], false, "Rhythmic waves washing over a sandy shore."),
         ("Crackling Fireplace", "Warm and cozy", "o8GrqUSdzi0", .soundscape, 3600, nil, ["Reduce Stress", "Better Sleep"], false, "A warm fireplace crackling on a quiet evening."),
         ("Thunderstorm", "Distant rumbles", "yIQd2Ya0Ziw", .soundscape, 3600, nil, ["Better Sleep"], false, "Distant thunder and rain for deep sleep."),
         ("Night Crickets", "Summer evening", "F8WxB_scXOc", .soundscape, 3600, nil, ["Better Sleep", "Reduce Stress"], false, "Peaceful cricket sounds on a warm summer night."),
-        ("Waterfall Sounds", "Cascading calm", "8rTTEMdMh8Q", .soundscape, 3600, nil, ["Reduce Stress", "Reduce Anxiety"], false, "The soothing sound of a gentle waterfall."),
+        // Removed: ("Waterfall Sounds", "8rTTEMdMh8Q") - video unavailable; use "Waterfall Pool" sa2JCQ1Dils instead
         ("Wind & Rain", "Gentle breeze", "8plwv25NYRo", .soundscape, 3600, nil, ["Reduce Stress"], false, "Wind and rain for peaceful relaxation."),
         ("River Stream", "Flowing water", "M0qWBKQ7ldY", .soundscape, 10826, nil, ["Better Sleep", "Reduce Anxiety"], false, "A peaceful river flowing through a quiet forest."),
-        ("Rainforest", "Forest birdsong", "Qm846KdZN_c", .soundscape, 7200, nil, ["Reduce Stress", "Better Sleep"], false, "Immerse yourself in the sounds of a lush forest with birdsong."),
+        ("Rainforest", "Forest birdsong", "OnQtuOlJBoY", .soundscape, 7200, nil, ["Reduce Stress", "Better Sleep"], false, "Immerse yourself in the sounds of a lush forest with birdsong."),
         ("Mountain Wind", "Alpine breeze", "bn9F19Hi1Lk", .soundscape, 3600, nil, ["Reduce Stress"], false, "Wind sweeping across mountain peaks."),
-        ("Babbling Brook", "Stream sounds", "Gq2yioc5qjM", .soundscape, 10826, nil, ["Better Sleep", "Reduce Anxiety"], false, "A peaceful brook flowing through the woods."),
+        // Removed: ("Babbling Brook", "Gq2yioc5qjM") - video unavailable
         ("City Rain", "Urban calm", "jFOnYloDzg4", .soundscape, 3600, nil, ["Better Sleep", "Reduce Stress"], false, "Rain on city streets at night."),
-        ("Seaside Cliff", "Coastal winds", "LnD-XEQ2hzQ", .soundscape, 3600, nil, ["Reduce Stress"], false, "Wind and waves at a seaside cliff."),
+        // Removed: ("Seaside Cliff", "LnD-XEQ2hzQ") - video unavailable
         ("Spring Rain", "Gentle showers", "AMNyQds2ABQ", .soundscape, 3600, nil, ["Better Sleep", "Reduce Anxiety"], false, "Light spring rain on fresh leaves."),
         ("Cabin Fire", "Indoor warmth", "Pn7Lek_b6Qg", .soundscape, 3600, nil, ["Reduce Stress", "Better Sleep"], false, "A cozy fire in a cabin."),
         ("Desert Wind", "Arid breeze", "-THE-zblZ9o", .soundscape, 3600, nil, ["Reduce Stress"], false, "Wind across desert sands."),
         ("Lake Shore", "Water lapping", "JekUNGo-RVk", .soundscape, 10826, nil, ["Better Sleep", "Reduce Stress"], false, "Gentle waves on a lake shore."),
-        ("Heavy Rain", "Storm sounds", "4rS8_sBRAAE", .soundscape, 3600, nil, ["Better Sleep"], false, "Heavy rain for deep sleep."),
-        ("Owl Night", "Forest evening", "PfQWMrLO3hQ", .soundscape, 3600, nil, ["Better Sleep", "Reduce Stress"], false, "Owls and night sounds."),
+        // Removed: ("Heavy Rain", "4rS8_sBRAAE") - video unavailable; use "Heavy Rain on Road" 0fO7ZOvupQU instead
+        // Removed: ("Night Forest", "Dfm2rB-nQ9Y") - duplicate video ID, also unavailable
         ("Snow Falling", "Winter silence", "2G8LAiHSCAs", .soundscape, 3600, nil, ["Reduce Stress", "Better Sleep"], false, "The quiet of falling snow."),
         ("Campfire", "Outdoor fire", "Qm846KdZN_c", .soundscape, 3600, nil, ["Reduce Stress"], false, "A campfire under the stars."),
-        ("Tropical Beach", "Island waves", "SNap3hBScJI", .soundscape, 3600, nil, ["Better Sleep", "Reduce Anxiety"], false, "Waves on a tropical beach."),
+        // Removed: ("Tropical Beach", "SNap3hBScJI") - video unavailable
         ("Cave Drips", "Underground", "XxP8kxUn5bc", .soundscape, 3600, nil, ["Reduce Stress"], false, "Water dripping in a cave."),
         ("Frog Pond", "Night chorus", "1wn-OSiNVjE", .soundscape, 3600, nil, ["Better Sleep"], false, "Frogs singing at night."),
         ("Morning Birds", "Dawn chorus", "91AcVUR0O8I", .soundscape, 3600, nil, ["Reduce Stress", "Increase Happiness"], false, "Birds welcoming the morning."),
@@ -201,13 +201,13 @@ class ContentRepository {
         ("Gentle Waves", "Calm seas", "nDq6TstdEi8", .soundscape, 3600, nil, ["Better Sleep", "Reduce Anxiety"], false, "Gentle ocean waves."),
         ("Wind in Pines", "Forest breeze", "gVKEM4K8J8A", .soundscape, 3600, nil, ["Reduce Stress"], false, "Wind rustling through pine trees."),
         ("Rain on Window", "Indoor comfort", "yMRoNNKWuqQ", .soundscape, 3600, nil, ["Better Sleep", "Reduce Stress"], false, "Rain on the window pane."),
-        ("Meadow Sounds", "Grassland", "0V0SKiiFZMs", .soundscape, 3600, nil, ["Reduce Stress"], false, "Sounds of a peaceful meadow."),
+        // Removed: ("Meadow Sounds", "0V0SKiiFZMs") - video unavailable
         ("Deep Ocean", "Underwater calm", "hsBfbFiWjQM", .soundscape, 10826, nil, ["Better Sleep", "Reduce Anxiety"], false, "Deep underwater sounds."),
         ("Light Breeze", "Soft wind", "mPZkdNFkNps", .soundscape, 3600, nil, ["Reduce Stress"], false, "A light breeze on a warm day."),
         ("Storm Night", "Rain and thunder", "yPSshiEsYh0", .soundscape, 3600, nil, ["Better Sleep"], false, "A stormy night for sleep."),
         ("Bird Song", "Avian melodies", "jVKEcUPEF8M", .soundscape, 3600, nil, ["Reduce Stress", "Increase Happiness"], false, "Beautiful bird songs."),
         ("Creek Flow", "Running water", "MoltZlGwkAk", .soundscape, 10826, nil, ["Better Sleep", "Reduce Stress"], false, "A creek flowing through nature."),
-        ("Night Forest", "After dark", "ZXDJ51-NYuM", .soundscape, 3600, nil, ["Better Sleep"], false, "Forest sounds after dark."),
+        // Removed: ("Night Forest", "ZXDJ51-NYuM") - video unavailable
         ("Rain Meditation", "Focused rain", "ja8pA2B0RR4", .soundscape, 3600, nil, ["Reduce Stress", "Reduce Anxiety"], false, "Rain sounds for meditation."),
         ("Waves Crashing", "Powerful ocean", "V1RPi2MYptM", .soundscape, 3600, nil, ["Reduce Stress"], false, "Waves crashing on rocks."),
         ("Summer Night", "Warm evening", "lE6RYpe9IT0", .soundscape, 3600, nil, ["Better Sleep", "Reduce Stress"], false, "A warm summer night."),
@@ -215,9 +215,9 @@ class ContentRepository {
         ("Light Rain", "Soft drizzle", "HchoJcYNYlU", .soundscape, 3600, nil, ["Better Sleep"], false, "Light rain for relaxation."),
         ("River Rapids", "Flowing fast", "F4waBOxXCcg", .soundscape, 10826, nil, ["Reduce Stress"], false, "Fast-flowing river sounds."),
         ("Evening Crickets", "Twilight sounds", "7zzk-8Id8O8", .soundscape, 3600, nil, ["Better Sleep", "Reduce Stress"], false, "Crickets at twilight."),
-        ("Coastal Storm", "Ocean thunder", "4BrvMGznLTo", .soundscape, 3600, nil, ["Better Sleep"], false, "A storm over the ocean."),
+        // Removed: ("Coastal Storm", "4BrvMGznLTo") - video unavailable; use "Storm Night" yPSshiEsYh0 instead
         ("Peaceful Rain", "Steady rhythm", "E8fiyj1hNwk", .soundscape, 3600, nil, ["Better Sleep", "Reduce Anxiety"], false, "Steady rain for peace."),
-        ("Window Rain Night", "Indoor comfort", "_ZVVAFYxG4A", .soundscape, 3600, nil, ["Better Sleep", "Reduce Stress"], false, "Rain on the window at night for deep sleep."),
+        // Removed: ("Window Rain Night", "_ZVVAFYxG4A") - video unavailable
         ("City Apartment Rain", "Urban ambiance", "gRSbV4SNhOQ", .soundscape, 3600, nil, ["Better Sleep", "Reduce Stress"], false, "Rain sounds from a city apartment."),
         ("Zen Water Fountain", "Garden calm", "_kJLUU8-X2A", .soundscape, 3600, nil, ["Reduce Stress", "Reduce Anxiety"], false, "Zen garden water fountain sounds."),
         ("Norwegian Snowfall", "Nordic peace", "-SMKVJO_wGo", .soundscape, 3600, nil, ["Better Sleep", "Reduce Stress"], false, "Snowfall in the Norwegian islands."),
@@ -242,9 +242,9 @@ class ContentRepository {
         ("Dream Away", "Drift off", "EbnH3VHzhu8", .music, 2700, "Peder B. Helland", ["Reduce Stress", "Better Sleep"], false, "Gentle music to help you dream."),
         ("Peaceful Sleep", "Nighttime calm", "zoK1swTBKXc", .music, 3600, "Peder B. Helland", ["Reduce Anxiety", "Better Sleep"], false, "Soothing music for a peaceful night's sleep."),
         ("Morning Light", "Gentle awakening", "OeHLHNKQCXA", .music, 2400, "Peder B. Helland", ["Reduce Stress", "Increase Happiness"], false, "Soft music for a calm morning."),
-        ("Serenity", "Pure relaxation", "77ZozI0rw7w", .music, 3000, "Peder B. Helland", ["Better Sleep"], false, "Music to bring you complete serenity."),
+        ("Serenity", "Pure relaxation", "7heIFvaVu-Y", .music, 3000, "Peder B. Helland", ["Better Sleep"], false, "Music to bring you complete serenity."),
         ("Calm Waters", "Flowing peace", "Sg-ucNFd_0s", .music, 2700, "Peder B. Helland", ["Reduce Stress", "Better Sleep"], false, "Peaceful music like gentle flowing water."),
-        ("Piano & Rain", "Rainy day", "-5ajVJ1Yxlg", .music, 2400, "Relaxing Records", ["Better Sleep", "Reduce Stress"], false, "Piano music mixed with gentle rain sounds."),
+        // Removed: ("Piano & Rain", "-5ajVJ1Yxlg") - video unavailable; use "Gentle Rain" piano 5dhxKwr6G5c instead
         ("Meditation Music", "Inner peace", "857bt64SomQ", .music, 1800, "Peder B. Helland", ["Reduce Stress", "Improve Performance"], false, "Music for deep meditation practice."),
         ("Celestial Dreams", "Heavenly sounds", "DIcprRA3B24", .music, 2700, "Peder B. Helland", ["Better Sleep", "Reduce Anxiety"], false, "Ethereal music for peaceful dreams."),
         ("Floating", "Weightless calm", "NSa--qEc594", .music, 3000, "Peder B. Helland", ["Reduce Stress", "Better Sleep"], false, "Weightless ambient music for floating sensation."),
@@ -252,7 +252,7 @@ class ContentRepository {
         ("Soft Embrace", "Comforting", "loO-KqvSZ6U", .music, 2700, "Peder B. Helland", ["Reduce Stress"], false, "Warm and comforting melodies."),
         ("Night Sky", "Starlit dreams", "2x2CDVKD9RA", .music, 3600, "Peder B. Helland", ["Reduce Anxiety", "Better Sleep"], false, "Music inspired by the peaceful night sky."),
         ("Gentle Touch", "Soft melodies", "eKO9BGdQ7Wk", .music, 2400, "Peder B. Helland", ["Reduce Stress", "Better Sleep"], false, "Delicate piano pieces for relaxation."),
-        ("Ambient Dreams", "Ethereal sounds", "u3papaX85MA", .music, 3000, "Peder B. Helland", ["Better Sleep", "Reduce Anxiety"], false, "Ambient music for dreaming."),
+        // Removed: ("Ambient Dreams", "u3papaX85MA") - video unavailable
         ("Soft Guitar", "Gentle strings", "1ZYbU82GVz4", .music, 2400, "Peder B. Helland", ["Reduce Stress"], false, "Soft guitar for relaxation."),
         ("Sleep Waves", "Ocean tones", "79kpoGF8KWU", .music, 3600, "Peder B. Helland", ["Better Sleep"], false, "Musical waves for sleep."),
         ("Calm Strings", "Orchestral peace", "KwM772f7_AI", .music, 2700, "Peder B. Helland", ["Reduce Stress", "Reduce Anxiety"], false, "Calm string arrangements."),
@@ -288,7 +288,7 @@ class ContentRepository {
         ("Soft Morning", "Sunrise sounds", "kKJvGtqcnno", .music, 2400, "Relaxing Records", ["Increase Happiness", "Reduce Stress"], false, "Gentle music for a soft morning awakening."),
         ("Lavender Fields", "Purple calm", "Ccrsl309utM", .music, 3000, "Peder B. Helland", ["Reduce Stress", "Better Sleep"], false, "Music evoking fields of lavender."),
         ("Ocean Whispers", "Sea melodies", "Wqx06DtYIZs", .music, 3600, "Peder B. Helland", ["Better Sleep", "Reduce Anxiety"], false, "Music inspired by ocean whispers."),
-        ("Lullaby Garden", "Nursery calm", "cMnGfz042C4", .music, 2400, "Relaxing Records", ["Better Sleep"], false, "Gentle lullaby music for restful sleep."),
+        // Removed: ("Lullaby Garden", "cMnGfz042C4") - video unavailable
         ("Spring Awakening", "Renewal sounds", "u4pQ7O8uQRw", .music, 2700, "Peder B. Helland", ["Increase Happiness", "Reduce Stress"], false, "Music celebrating the renewal of spring."),
         ("Crystal Caves", "Echo melodies", "zLH3iZKvhKg", .music, 3000, "Peder B. Helland", ["Reduce Stress", "Better Sleep"], false, "Ethereal music echoing through crystal caves."),
         ("Gentle Snowfall", "Winter quiet", "yzoNuPZm5AU", .music, 2400, "Peder B. Helland", ["Reduce Stress"], false, "Music as gentle as falling snow."),
@@ -359,10 +359,6 @@ class ContentRepository {
         ("Hip Flexors", "Release tight hips", "6CueZ4zujMk", .movement, 900, "MadFit", ["Reduce Stress"], false, "Hip flexor stretches."),
         ("Shoulder Release", "Upper body relief", "xRH1To_xyr8", .movement, 600, "Yoga With Adriene", ["Reduce Stress"], false, "Shoulder release sequence."),
         ("Hamstring Stretch", "Back of legs", "pciXaO4wtug", .movement, 900, "MadFit", ["Reduce Stress", "Improve Performance"], false, "Hamstring stretching routine."),
-        ("Deep Stretch Flow", "Full body opening", "g7XKoWS2CBY", .movement, 1500, "Yoga With Adriene", ["Reduce Stress", "Better Sleep"], false, "Deep stretch yoga flow for total body opening."),
-        ("Yoga for Hips", "Open tight hips", "HB7VwTD46KA", .movement, 1200, "Yoga With Adriene", ["Reduce Stress", "Reduce Anxiety"], false, "Yoga to open up tight hips and lower back."),
-        ("Morning Stretch Routine", "Wake up muscles", "kEYoKCrn21A", .movement, 600, "MadFit", ["Improve Performance", "Reduce Stress"], false, "Quick morning stretch to wake up your muscles."),
-        ("Yoga for Joy", "Happy flow", "mIC5BTYbpN8", .movement, 1200, "Yoga With Adriene", ["Increase Happiness", "Reduce Stress"], false, "Yoga practice to embody the essence of joy."),
         ("Pilates for Beginners", "Core basics", "Ke8C9hYXGdE", .movement, 900, "MadFit", ["Improve Performance", "Reduce Stress"], false, "Beginner-friendly Pilates core work."),
         ("Bedtime Stretches", "Night routine", "WisaiUma9pA", .movement, 600, "MadFit", ["Better Sleep", "Reduce Stress"], false, "Gentle bedtime stretches for better sleep."),
         ("Yoga for Runners", "Post-run stretch", "0hTllAb4XGg", .movement, 900, "Yoga With Adriene", ["Reduce Stress", "Improve Performance"], false, "Post-run yoga stretches for recovery."),
@@ -385,11 +381,11 @@ class ContentRepository {
         ("Leg Day Stretch", "Lower body", "FN_X-WHcMF4", .movement, 900, "MadFit", ["Reduce Stress", "Improve Performance"], false, "Lower body stretching after leg exercises."),
 
         // ASMR - Using verified working YouTube video IDs with thumbnails
-        ("Relaxing Triggers", "Soft spoken relaxation", "b1XxYxOCyJc", .asmr, 2400, "Gibi ASMR", ["Better Sleep", "Reduce Anxiety"], false, "Gentle whispers and soft sounds to help you relax and unwind."),
-        ("Sleep Treatment", "Personal attention", "UZEz41Gvjtg", .asmr, 1800, "ASMR Darling", ["Better Sleep", "Reduce Stress"], false, "Soothing personal attention triggers for deep relaxation."),
+        ("Relaxing Triggers", "Soft spoken relaxation", "91YBinrDHrs", .asmr, 2400, "Gibi ASMR", ["Better Sleep", "Reduce Anxiety"], false, "Gentle whispers and soft sounds to help you relax and unwind."),
+        ("Sleep Treatment", "Personal attention", "7FHHXTUsJx0", .asmr, 1800, "ASMR Darling", ["Better Sleep", "Reduce Stress"], false, "Soothing personal attention triggers for deep relaxation."),
         ("Cozy Library", "Page turning sounds", "h9BZ77q33N8", .asmr, 2100, "Gibi ASMR", ["Better Sleep"], false, "Relaxing library ambiance with soft page turning."),
         ("Rain Sounds", "Nature ASMR", "no3IkQuYS0A", .asmr, 3600, nil, ["Better Sleep", "Reduce Anxiety"], false, "Gentle rain sounds for peaceful sleep."),
-        ("Makeup Session", "Pampering session", "P-k8hm2jCRk", .asmr, 1500, "ASMR Glow", ["Reduce Stress", "Better Sleep"], false, "Relaxing makeup application roleplay."),
+        ("Makeup Session", "Pampering session", "xLOJt2NJZqI", .asmr, 1500, "ASMR Glow", ["Reduce Stress", "Better Sleep"], false, "Relaxing makeup application roleplay."),
         ("Spa Day", "Relaxation treatment", "fvXykRA5dKc", .asmr, 2700, "ASMR Glow", ["Reduce Stress", "Reduce Anxiety"], false, "Experience a virtual spa with calming ASMR sounds."),
         ("Gentle Tapping", "Rhythmic sounds", "pEG55bEieYw", .asmr, 2100, "ASMR Darling", ["Better Sleep", "Reduce Stress"], false, "Relaxing tapping sounds for sleep."),
         ("Whisper Ramble", "Soft spoken", "Un7Qm-2v288", .asmr, 2400, "Gibi ASMR", ["Better Sleep", "Reduce Anxiety"], false, "Soothing whispered conversation for relaxation."),
@@ -399,10 +395,10 @@ class ContentRepository {
         ("Bedtime Story", "Whispered reading", "uGBukRz2HSc", .asmr, 2700, "ASMR Glow", ["Better Sleep", "Reduce Anxiety"], false, "Soft whispered reading to help you drift off to sleep."),
         ("Scalp Massage", "Head tingles", "PD0X7YADPk8", .asmr, 2400, "ASMR Darling", ["Better Sleep", "Reduce Stress"], false, "Relaxing scalp massage sounds."),
         ("Ear Cleaning", "Gentle sounds", "hiSvTQM3K1E", .asmr, 2100, "Gibi ASMR", ["Better Sleep", "Reduce Anxiety"], false, "Soothing ear cleaning roleplay."),
-        ("Face Treatment", "Skincare sounds", "FidhD-izZnk", .asmr, 1800, "ASMR Glow", ["Reduce Stress"], false, "Relaxing facial treatment ASMR."),
+        ("Sleep Triggers", "Relaxing sounds", "b1XxYxOCyJc", .asmr, 1800, "ASMR", ["Reduce Stress", "Better Sleep"], false, "100+ triggers collection for sleep."),
         ("Brushing Sounds", "Gentle strokes", "DhtejBYCaOQ", .asmr, 2400, "ASMR Darling", ["Better Sleep", "Reduce Stress"], false, "Soft brush sounds for relaxation."),
         ("Keyboard Typing", "Soft clicks", "oYt2Nx944OM", .asmr, 2100, "Gibi ASMR", ["Better Sleep"], false, "Gentle typing sounds."),
-        ("Book Reading", "Page sounds", "y1ucBSGR2Do", .asmr, 2700, "Gibi ASMR", ["Better Sleep", "Reduce Anxiety"], false, "Book page turning and reading."),
+        ("Book Reading", "Page sounds", "oDC6Xcyt65Q", .asmr, 2700, "Gibi ASMR", ["Better Sleep", "Reduce Anxiety"], false, "Book page turning and reading."),
         ("Crinkle Sounds", "Paper sounds", "kMvGsOrpjNo", .asmr, 1800, "ASMR Darling", ["Better Sleep"], false, "Satisfying crinkle sounds."),
         ("Drawing ASMR", "Pencil sounds", "IEnVXQ8Sc_Y", .asmr, 2100, "Gibi ASMR", ["Reduce Stress", "Better Sleep"], false, "Gentle drawing and sketching sounds."),
         ("Soft Speaking", "Calm voice", "BY3KSC3a4v0", .asmr, 2400, "ASMR Glow", ["Reduce Stress", "Reduce Anxiety"], false, "Soft spoken relaxation."),
@@ -435,9 +431,9 @@ class ContentRepository {
         ("Tingles Galore", "Maximum tingles", "4fLhM7Yq2Sg", .asmr, 2700, "ASMR Darling", ["Better Sleep", "Reduce Stress"], false, "Ultimate tingle experience."),
         ("Peaceful Night", "Nighttime ASMR", "0W_TyIllekM", .asmr, 2400, "Gibi ASMR", ["Better Sleep"], false, "Peaceful nighttime sounds."),
         ("ASMR Layered Sleep", "Multi-layer sounds", "3YJ0pIjLWEk", .asmr, 2400, "Gibi ASMR", ["Better Sleep", "Reduce Anxiety"], false, "Layered ASMR sounds for relaxation and sleep."),
-        ("Sleep Relaxation Treatment", "Calming care", "7FHHXTUsJx0", .asmr, 2700, "Gibi ASMR", ["Better Sleep", "Reduce Stress"], false, "Sleep and relaxation treatment roleplay."),
+        ("Light Hypnosis Sleep", "Guided relaxation", "UZEz41Gvjtg", .asmr, 2700, "ASMR", ["Better Sleep", "Reduce Stress"], false, "Light hypnosis for sleep with guided relaxation."),
         ("Tingle Experiment", "Sleep clinic", "5NxMTZk48vo", .asmr, 2100, "Gibi ASMR", ["Better Sleep"], false, "The ASMR sleep clinic tingle experiment."),
-        ("Calm Slow Triggers", "Gentle pace", "HQMkxmtPZhg", .asmr, 2400, "Gibi ASMR", ["Better Sleep", "Reduce Anxiety"], false, "Slow and calm ASMR triggers for sleep."),
+        ("Hypnotic Sleep Triggers", "3 hours", "P-k8hm2jCRk", .asmr, 2400, "ASMR", ["Better Sleep", "Reduce Anxiety"], false, "Hypnotic ASMR triggers for deep sleep."),
         ("Rain Window ASMR", "Rainy comfort", "c1XOgrBz6sU", .asmr, 2700, nil, ["Better Sleep", "Reduce Stress"], false, "Rain on window sounds for ASMR relaxation."),
         ("Mic Scratching", "Textured sounds", "_Ta52qomXDE", .asmr, 2100, "ASMR Glow", ["Better Sleep", "Reduce Stress"], false, "Soothing mic scratching textures."),
         ("Travel Check-In", "Hotel roleplay", "sH1KvVgVSIA", .asmr, 2400, "Gibi ASMR", ["Reduce Stress"], false, "Relaxing hotel check-in roleplay."),
@@ -466,7 +462,7 @@ class ContentRepository {
         ("Morning Energy", "Energize", "J-swZaKN2Ic", .mindset, 600, "Motivational", ["Increase Happiness", "Improve Performance"], false, "A motivating morning routine to set up your day for success."),
         ("Build Confidence", "Believe in yourself", "gWHPGmwwAFs", .mindset, 900, "Fearless Soul", ["Build Self Esteem", "Reduce Anxiety"], false, "Build unshakeable confidence with proven techniques."),
         ("Abundance Mindset", "Attract prosperity", "n4SPwPhWu8g", .mindset, 1800, "Bob Proctor", ["Increase Happiness", "Develop Gratitude"], false, "Shift from scarcity thinking to abundance consciousness."),
-        ("Self-Compassion", "Be kind to yourself", "px9CzSZsa0Y", .mindset, 1200, "Kristin Neff", ["Build Self Esteem", "Reduce Anxiety"], false, "Learn to treat yourself with the same kindness you show others."),
+        // Removed: ("Self-Compassion", "px9CzSZsa0Y") - video unavailable
         ("Success Habits", "Daily routines", "TQMbvJNRpLE", .mindset, 900, "TEDx Talks", ["Improve Performance", "Build Self Esteem"], false, "Build habits for success."),
         ("Positive Thinking", "Mindset shift", "gOwAWpBeDSg", .mindset, 720, "Jason Stephenson", ["Increase Happiness", "Reduce Anxiety"], false, "Shift to positive thinking."),
         ("Inner Peace", "Find calm", "uT6ASPy2Dbs", .mindset, 1200, "Fearless Soul", ["Reduce Stress", "Reduce Anxiety"], false, "Find your inner peace."),
@@ -499,7 +495,7 @@ class ContentRepository {
         ("Positive Energy", "Radiate good", "11U0h0DPu7k", .mindset, 600, "Motivational", ["Increase Happiness"], false, "Generate positive energy."),
         ("Mental Clarity", "Clear thinking", "ibM6ANA5c4Q", .mindset, 900, "Fearless Soul", ["Improve Performance", "Reduce Stress"], false, "Achieve mental clarity."),
         ("Daily Affirmations", "Power words", "iNyUmbmQQZg", .mindset, 720, "Jason Stephenson", ["Build Self Esteem", "Increase Happiness"], false, "Powerful daily affirmations."),
-        ("Wealth Mindset", "Financial freedom", "NVPrxcR_RZI", .mindset, 1200, "Bob Proctor", ["Improve Performance"], false, "Develop a wealth mindset."),
+        ("Wealth Mindset", "Financial freedom", "WeEaX0xy9ic", .mindset, 1200, "Bob Proctor", ["Improve Performance"], false, "Develop a wealth mindset."),
         ("Patience Practice", "Wait wisely", "-B1eYQRapQA", .mindset, 900, "Kristin Neff", ["Reduce Anxiety", "Reduce Stress"], false, "Practice patience."),
         ("Confidence Daily", "Daily boost", "3CK2Md9Ov6s", .mindset, 600, "Fearless Soul", ["Build Self Esteem"], false, "Daily confidence boost."),
         ("Overcome Obstacles", "Face challenges", "BsEkNunXtkw", .mindset, 1200, "TEDx Talks", ["Build Self Esteem", "Improve Performance"], false, "Overcome any obstacle."),
@@ -517,9 +513,9 @@ class ContentRepository {
         ("Forgiveness Practice", "Release grudges", "Ca8tAjaKhLM", .mindset, 900, "Jason Stephenson", ["Reduce Stress", "Increase Happiness"], false, "Practice forgiveness and let go."),
         ("Authentic Living", "Be real", "KaEi74DiNuI", .mindset, 720, "Kristin Neff", ["Build Self Esteem"], false, "Live authentically and be yourself."),
         ("Time Management", "Use time wisely", "l6XK7GP4nOw", .mindset, 1200, "Brian Tracy", ["Improve Performance"], false, "Effective time management strategies."),
-        ("Overcoming Procrastination", "Start now", "arj7oStGLkU", .mindset, 900, "TEDx Talks", ["Improve Performance", "Reduce Anxiety"], false, "Overcome procrastination and take action."),
+        ("Overcoming Procrastination", "Start now", "FWTNMzK9vG4", .mindset, 900, "TEDx Talks", ["Improve Performance", "Reduce Anxiety"], false, "Overcome procrastination and take action."),
         ("Inner Strength", "Core power", "y6iKEN6Cy1g", .mindset, 720, "Fearless Soul", ["Build Self Esteem", "Reduce Stress"], false, "Discover your inner strength."),
-        ("Positive Habits", "Daily discipline", "FUYwRbt4Qa4", .mindset, 600, "Motivational", ["Improve Performance", "Increase Happiness"], false, "Build positive daily habits."),
+        // Removed: ("Positive Habits", "FUYwRbt4Qa4") - video unavailable
         ("Emotional Healing", "Heart repair", "XkkxNN4SSO4", .mindset, 1200, "Kristin Neff", ["Reduce Anxiety", "Build Self Esteem"], false, "Begin your emotional healing journey."),
         ("Leadership Mindset", "Lead yourself", "K-ZfTFRcA7Y", .mindset, 900, "Brian Tracy", ["Improve Performance", "Build Self Esteem"], false, "Develop a leadership mindset."),
         ("Surrender Practice", "Let go of control", "KfEqviC7rwg", .mindset, 1200, "Jason Stephenson", ["Reduce Stress", "Reduce Anxiety"], false, "Practice surrendering control."),
@@ -570,7 +566,7 @@ class ContentRepository {
         ("Headspace Sleepcast", "Bedtime story for adults", "oA9sOhJaGGQ", .sleepStory, 2700, "Headspace", ["Better Sleep"], false, "A full 45-minute sleepcast designed to ease you gently into sleep."),
         ("The Sleepy Hotel Collection", "Cozy bedtime tales", "2wHUeHv91fw", .sleepStory, 10800, "Stephen Dalton Sleep Stories", ["Better Sleep", "Reduce Stress"], false, "Three hours of cozy hotel-themed bedtime stories to drift off to."),
         ("Parisian Dreams", "A night in Paris", "y_tU9P27U_o", .sleepStory, 10800, "Stephen Dalton Sleep Stories", ["Better Sleep", "Reduce Anxiety"], false, "A soothing collection of Parisian sleep stories spanning three hours."),
-        ("The Secret Garden", "Classic bedtime tale", "Py10WYS1ahg", .sleepStory, 3600, "Soothing Pod", ["Better Sleep"], false, "The classic story of The Secret Garden told as a relaxing sleep story."),
+        // Removed: ("The Secret Garden", "Py10WYS1ahg") - video unavailable
         ("Moonrise Meadow", "Guided sleep meditation", "1zNm-LW1Nqo", .sleepStory, 2700, "Headspace", ["Better Sleep", "Reduce Stress"], false, "A 45-minute guided sleep meditation journey through moonlit meadows."),
         ("The Enchanted Castle", "Fantasy sleep journey", "9lJoqJr9CIc", .sleepStory, 3600, "Stephen Dalton Sleep Stories", ["Better Sleep", "Reduce Anxiety"], false, "A guided sleep story exploring an enchanted castle and mystic library."),
         ("Midnight Launderette", "Sleepcast story", "9oDt2Qkc2jQ", .sleepStory, 600, "Headspace", ["Better Sleep"], false, "A relaxing deep sleep sleepcast set in a midnight launderette."),
@@ -593,20 +589,20 @@ class ContentRepository {
         // NEW Soundscapes (25) - Verified popular ambient/nature sound videos
         ("Thunderstorm Sounds", "8 hours of storms", "q6XlcY7rL0k", .soundscape, 28800, nil, ["Better Sleep", "Reduce Stress"], false, "Eight hours of thunderstorm sounds for relaxing, focus or deep sleep."),
         ("Rain and Thunder", "10 hours rainstorm", "ekXFslHOvZ8", .soundscape, 36000, nil, ["Better Sleep", "Reduce Anxiety"], false, "Ten hours of rain and thunder rainstorm sounds for sleep and relaxation."),
-        ("Epic Thunder and Rain", "10 hours of storms", "SStn9gRauLk", .soundscape, 36000, nil, ["Better Sleep", "Reduce Stress"], false, "Ten hours of epic thunder and rain sounds for relaxing or deep sleep."),
+        // Removed: ("Epic Thunder and Rain", "SStn9gRauLk") - video unavailable (10 hour livestream)
         ("Rain and Ocean Waves", "White noise blend", "b3Xm12phFts", .soundscape, 36000, nil, ["Better Sleep", "Reduce Anxiety"], false, "Rain sounds combined with ocean waves for ten hours of white noise."),
         ("Front Porch Rain", "No ads rain sounds", "ep4JqcEX1qc", .soundscape, 36000, nil, ["Better Sleep", "Reduce Stress"], false, "Ten hours of calming rain sounds from a front porch."),
         ("Tropical Island Ocean", "Maldives waves", "Nep1qytq9JM", .soundscape, 36000, nil, ["Better Sleep", "Reduce Anxiety"], false, "Ocean ambience on a tropical Maldives island with soothing waves."),
         ("Relaxing Ocean Waves", "Coastal serenity", "vPhg6sc1Mk4", .soundscape, 36000, nil, ["Better Sleep", "Reduce Stress"], false, "The most relaxing ocean waves for sleep, study and relaxation."),
-        ("Deep Sleep Ocean Waves", "Beach at night", "quXkhxjsU1c", .soundscape, 36000, nil, ["Better Sleep", "Reduce Anxiety"], false, "Ocean waves crashing on a beach at night for deep sleep."),
-        ("Soothing Ocean Waves", "Calm seas", "EJT2LocgtuY", .soundscape, 36000, nil, ["Better Sleep", "Reduce Stress"], false, "The most relaxing waves for sleep, study and relaxation."),
+        // Removed: ("Deep Sleep Ocean Waves", "quXkhxjsU1c") - video unavailable (10 hour livestream)
+        // Removed: ("Soothing Ocean Waves", "EJT2LocgtuY") - video unavailable; use "Deep Sleep Ocean Waves" quXkhxjsU1c instead
         ("Rain and Forest Stream", "Nature water sounds", "4bskZYoO0N0", .soundscape, 36000, nil, ["Better Sleep", "Reduce Anxiety"], false, "Relaxing rain noise combined with forest stream water sounds."),
         ("Heavy Rain on Road", "Dark screen rain", "0fO7ZOvupQU", .soundscape, 36000, nil, ["Better Sleep", "Reduce Stress"], false, "Ten hours of heavy rain on a road with dark screen for sleeping."),
         ("Heavy Rain at Night", "Nighttime downpour", "9QneqUhCVtU", .soundscape, 36000, nil, ["Better Sleep", "Reduce Anxiety"], false, "Ten hours of heavy rain at night for sleeping and stress relief."),
         ("Rain and Distant Thunder", "White noise 4K", "BSmYxnvUDHw", .soundscape, 36000, nil, ["Better Sleep", "Reduce Stress"], false, "Ten hours of rain sounds with distant thunder for deep sleep."),
         ("Rain in the Woods", "Forest rain sounds", "9oc8Fa7tb8c", .soundscape, 36000, nil, ["Better Sleep", "Reduce Anxiety"], false, "Rain sounds in the woods for sleep, study or focus."),
         ("Forest Birdsong", "Nature bird sounds", "8DozJTiW5AA", .soundscape, 36000, nil, ["Reduce Stress", "Increase Happiness"], false, "Relaxing forest birdsong nature sounds for sleeping and calm."),
-        ("Gentle Stream and Birdsong", "Creek and birds", "CEzt9rjhe4o", .soundscape, 36000, nil, ["Better Sleep", "Reduce Stress"], false, "Gentle stream sounds with soft birdsong for sleep and relaxation."),
+        // Removed: ("Gentle Stream and Birdsong", "CEzt9rjhe4o") - video unavailable; use "Birds and Babbling Brook" bQ5dASMUyvM instead
         ("Forest Nature Sounds", "8 hours johnnielawson", "Qh76SLPQV9M", .soundscape, 28800, nil, ["Better Sleep", "Reduce Stress"], false, "Eight hours of forest and birdsong nature sounds for sleeping."),
         ("Birds and Babbling Brook", "Forest stream", "bQ5dASMUyvM", .soundscape, 36000, nil, ["Reduce Stress", "Increase Happiness"], false, "Calming birds chirping with a babbling brook in the forest."),
         ("Tropical Rain 4K", "Rainforest sounds", "c9pQYOGIWM8", .soundscape, 36000, nil, ["Better Sleep", "Reduce Stress"], false, "4K tropical rain sounds and relaxing nature for sleep and meditation."),
@@ -657,7 +653,7 @@ class ContentRepository {
         ("12 Min Daily Stretch", "Full Body Mobility & Flexibility", "itJE4neqDJw", .movement, 857, "MadFit", ["Reduce Stress", "Improve Performance", "Increase Happiness"], false, "A 12-minute daily full body stretch routine targeting tight muscles and improving overall mobility and flexibility for better everyday movement."),
         ("20 Min Morning Yoga", "Full Body Flow for Beginners", "vJMbsWrGMVA", .movement, 1462, "MadFit", ["Reduce Stress", "Increase Happiness", "Build Self Esteem"], false, "A beginner-friendly 20-minute morning yoga flow that combines stretching and strength to energize the body and uplift the mind."),
         ("15 Min Stretch/Yoga for Stress Relief", "Stress & Anxiety Relief Flow", "utrAlZf_Pjs", .movement, 1105, "MadFit", ["Reduce Stress", "Reduce Anxiety", "Better Sleep"], false, "A calming 15-minute stretch and yoga combination focused on releasing physical tension and relieving stress and anxiety from the body."),
-        ("20 Min Relaxing Stretch/Yoga", "Flexibility & Stress Relief", "tRLAZbz3NUs", .movement, 1486, "MadFit", ["Reduce Stress", "Reduce Anxiety", "Better Sleep"], false, "A relaxing 20-minute stretch and yoga session that improves flexibility while melting away stress, perfect for winding down after a long day."),
+        ("20 Min Relaxing Stretch/Yoga", "Flexibility & Stress Relief", "sTANio_2E0Q", .movement, 1486, "MadFit", ["Reduce Stress", "Reduce Anxiety", "Better Sleep"], false, "A relaxing 20-minute stretch and yoga session that improves flexibility while melting away stress, perfect for winding down after a long day."),
         ("Morning Yoga Workout", "Better Than The Gym - Strength & Stretch", "oX6I6vs1EFs", .movement, 1030, "Boho Beautiful Yoga", ["Improve Performance", "Increase Happiness", "Build Self Esteem"], false, "An invigorating morning yoga workout that combines strength-building poses with deep stretches for a complete mind-body start to your day."),
         ("Easy Yoga For Beginners", "Full Body Gentle Flow", "3_Q-yYfjeBM", .movement, 1182, "Boho Beautiful Yoga", ["Reduce Stress", "Reduce Anxiety", "Build Self Esteem"], false, "A gentle and welcoming 20-minute beginner yoga flow that builds confidence while stretching and strengthening the entire body."),
         ("Stress Relief Yoga", "A Relaxed & Calming Flow", "7CTsdbf81W8", .movement, 772, "Boho Beautiful Yoga", ["Reduce Stress", "Reduce Anxiety", "Better Sleep"], false, "A beautifully calming yoga flow designed to clear your mind and release stored stress through gentle movements and conscious breathing."),
@@ -685,7 +681,7 @@ class ContentRepository {
         ("Ultimate Real Person ASMR Session", "Gentle Whispering ASMR", "UOmf1BDd46M", .asmr, 2614, "Gentle Whispering ASMR", ["Reduce Stress", "Reduce Anxiety"], false, "A comprehensive real-person ASMR session featuring ear attention, hair play, and gentle touch for deep relaxation."),
         ("ASMR Autumn Night Pampering", "Latte ASMR", "AcLyZUs9hgg", .asmr, 3736, "Latte ASMR", ["Better Sleep", "Reduce Stress"], false, "A cozy autumn-themed pampering session with gentle skincare sounds and soft whispers for peaceful sleep."),
         ("Only For Your Sleep - ASMR", "Latte ASMR", "DoirTSeqX5A", .asmr, 3440, "Latte ASMR", ["Better Sleep", "Reduce Stress", "Reduce Anxiety"], false, "An ASMR session crafted entirely to help you fall asleep, with soothing triggers and gentle whispered care."),
-        ("Acupuncture in Your Ears - Relaxing Triggers for Sleep", "Latte ASMR", "BUboJN6hZhw", .asmr, 1208, "Latte ASMR", ["Better Sleep", "Reduce Stress"], false, "Gentle ear acupuncture roleplay with relaxing trigger sounds designed to induce deep sleep."),
+        // Removed: ("Acupuncture in Your Ears", "BUboJN6hZhw") - video unavailable
         ("ASMR Touching Your Face for Deep Sleep", "ASMR Glow", "5OTT5eK9W4k", .asmr, 2325, "ASMR Glow", ["Better Sleep", "Reduce Anxiety"], false, "Close-up face touching with gentle whispers creating an immersive ASMR experience for deep sleep."),
         ("ASMR This Will Save Your Sleep Tonight", "ASMR Glow", "THiEmYQ1tyk", .asmr, 1271, "ASMR Glow", ["Better Sleep", "Reduce Stress"], false, "A deeply relaxing ASMR session with carefully chosen triggers to rescue your sleep tonight."),
         ("ASMR Sleep-Inducing Optician Exam", "ASMR Glow", "6E-fCX7SmMo", .asmr, 2217, "ASMR Glow", ["Better Sleep", "Reduce Stress", "Reduce Anxiety"], false, "A soothing optician exam roleplay with gentle face measurements and soft-spoken instructions for relaxation."),
@@ -714,7 +710,7 @@ class ContentRepository {
         ("Listening to Shame", "Own your story", "psN1DORYYV0", .mindset, 1230, "TED", ["Build Self Esteem", "Reduce Anxiety"], false, "Brene Brown dives deeper into vulnerability and explores the power of shame resilience."),
         ("The Art of Letting Go", "Stop people pleasing", "GwRzjFQa_Og", .mindset, 720, "TEDx Talks", ["Reduce Stress", "Reduce Anxiety"], false, "Sarah Knight shares a practical guide to spending your time and energy on what truly matters."),
         ("Eliminate Self Doubt", "Unlock your power", "v1ojZKWfShQ", .mindset, 1050, "TEDx Talks", ["Build Self Esteem", "Reduce Anxiety"], false, "Peter Sage reveals the unconscious mind's role in self-doubt and how to overcome it permanently."),
-        ("Make Stress Your Friend", "Reframe pressure", "RcGyVTAoXEU", .mindset, 870, "TED", ["Reduce Stress", "Improve Performance"], false, "Kelly McGonigal presents groundbreaking research showing how changing your mind about stress makes you healthier."),
+        ("Make Stress Your Friend", "Reframe pressure", "CuCptHYw_-c", .mindset, 870, "TED", ["Reduce Stress", "Improve Performance"], false, "Kelly McGonigal presents groundbreaking research showing how changing your mind about stress makes you healthier."),
         ("Increase Self-Awareness", "Know thyself", "tGdsOXZpyWE", .mindset, 1050, "TEDx Talks", ["Build Self Esteem", "Improve Performance"], false, "Tasha Eurich reveals one simple fix to dramatically increase your self-awareness."),
         ("Don't Take It Personally", "Emotional freedom", "LnJwH_PZXnM", .mindset, 1020, "TEDx Talks", ["Reduce Stress", "Reduce Anxiety"], false, "Frederik Imbo shares practical strategies for not taking things personally in daily life."),
         ("Meet Yourself", "Build self-esteem", "uOrzmFUJtrs", .mindset, 660, "TEDxYouth", ["Build Self Esteem", "Increase Happiness"], false, "Niko Everett presents a user's guide to building genuine, lasting self-esteem."),
@@ -754,8 +750,8 @@ class ContentRepository {
         ("Midnight Train Journey", "Rails to dreamland", "713yQmnsVFU", .sleepStory, 2400, "PowerThoughts Meditation Club", ["Better Sleep", "Reduce Stress"], false, "Board the midnight express and let the gentle rocking of the train carry you to sleep."),
         ("Moonlit Garden Walk", "Fragrant dreams", "MXPJuXD96-Q", .sleepStory, 1800, "Yoga with Anne Forkert", ["Better Sleep", "Reduce Anxiety"], false, "Stroll through a moonlit garden filled with night-blooming flowers and gentle breezes."),
         ("Cozy Cabin Fireplace", "Warm winter night", "hgT5eAQX88Y", .sleepStory, 2100, "Yoga With Bird", ["Better Sleep", "Reduce Stress"], false, "Settle into a cozy mountain cabin with a crackling fireplace on a snowy evening."),
-        ("Stargazing Adventure", "Cosmic wonder", "4jqGrF3Zqtg", .sleepStory, 1500, "goop", ["Better Sleep", "Increase Happiness"], false, "Lie under a blanket of stars and explore the wonders of the night sky."),
-        ("Castle in the Clouds", "Floating fortress", "xm_GCZKltLA", .sleepStory, 2400, "New Horizon", ["Better Sleep", "Reduce Anxiety"], true, "Discover a magical castle floating among the clouds in this enchanting bedtime tale."),
+        ("Stargazing Adventure", "Cosmic wonder", "VlU4eDBNeEQ", .sleepStory, 1500, "goop", ["Better Sleep", "Increase Happiness"], false, "Lie under a blanket of stars and explore the wonders of the night sky."),
+        // Removed: ("Castle in the Clouds", "xm_GCZKltLA") - video unavailable
         ("Ancient Forest Path", "Woodland magic", "eVVZAe0rJxw", .sleepStory, 1800, "New Horizon", ["Better Sleep", "Reduce Stress"], false, "Walk along an ancient forest path where trees whisper stories of ages past."),
         ("Sailing the Stars", "Celestial voyage", "ZnBxnQPWNlQ", .sleepStory, 2400, "Calm Cove by Sleep Cove", ["Better Sleep", "Reduce Stress"], false, "Set sail on a ship that journeys among the stars and constellations."),
         ("Valley of Dreams", "Mountain valley", "EtTdC-CDpmQ", .sleepStory, 1800, "Calm Cove by Sleep Cove", ["Better Sleep", "Reduce Anxiety"], false, "Descend into a peaceful valley surrounded by majestic mountains at twilight."),
@@ -771,18 +767,18 @@ class ContentRepository {
         ("Snowy Cottage Evening", "Winter warmth", "cmBjsxT0bH8", .sleepStory, 2100, "PowerThoughts Meditation Club", ["Better Sleep", "Reduce Stress"], false, "Spend an evening in a snow-covered cottage with hot cocoa and soft blankets."),
 
         // BATCH 2 - Soundscapes (25 videos from new channels)
-        ("Hobbit Shire Ambience", "Middle-earth peace", "1fueZCTYkpA", .soundscape, 3600, "Lofi Girl", ["Reduce Stress", "Reduce Anxiety"], false, "Immerse yourself in the peaceful sounds of the Shire with birdsong and gentle breezes."),
+        ("Hobbit Shire Ambience", "Middle-earth peace", "HFlxEM6zZsc", .soundscape, 3600, "Lofi Girl", ["Reduce Stress", "Reduce Anxiety"], false, "Immerse yourself in the peaceful sounds of the Shire with birdsong and gentle breezes."),
         ("Peaceful River Sounds", "Flowing water", "q76bMs-NwRk", .soundscape, 3600, "The Relaxed Guy", ["Better Sleep", "Reduce Stress"], false, "The continuous sound of a peaceful river flowing through a green valley."),
-        ("Irish Countryside Rain", "Celtic calm", "eKFTSSKCzWA", .soundscape, 3600, "johnnielawson", ["Better Sleep", "Reduce Anxiety"], false, "Gentle Irish countryside rain with distant sheep bells and soft wind."),
+        ("Irish Countryside Rain", "Celtic calm", "K3GlXuWv3Uc", .soundscape, 3600, "johnnielawson", ["Better Sleep", "Reduce Anxiety"], false, "Gentle Irish countryside rain with distant sheep bells and soft wind."),
         ("Wizard's Study", "Fantasy ambience", "WsnlMXBPDnE", .soundscape, 3600, "Ambient Worlds", ["Reduce Stress", "Reduce Anxiety"], true, "A cozy wizard's study with crackling fire, bubbling potions, and turning pages."),
-        ("Enchanted Forest Night", "Mystical woodland", "q4UO0YmBP0M", .soundscape, 3600, "Nemo's Dreamscapes", ["Better Sleep", "Reduce Anxiety"], false, "Nighttime sounds of an enchanted forest with crickets, owls, and gentle wind."),
-        ("Crystal Lake Morning", "Dawn chorus", "x30hX9F3txs", .soundscape, 3600, "Nemo's Dreamscapes", ["Reduce Stress", "Increase Happiness"], false, "Morning at a crystal-clear mountain lake with birdsong and gentle lapping water."),
+        // Removed: ("Enchanted Forest Night", "q4UO0YmBP0M") - video unavailable
+        // Removed: ("Crystal Lake Morning", "x30hX9F3txs") - video unavailable
         ("Scottish Highlands Wind", "Heather breeze", "Gx2qDprzzpI", .soundscape, 3600, "Calmed By Nature", ["Reduce Stress", "Reduce Anxiety"], false, "Wind sweeping across the Scottish Highlands through heather and rolling hills."),
         ("Medieval Tavern", "Olde world charm", "qBySTc4W-Fw", .soundscape, 3600, "The Guild of Ambience", ["Reduce Stress", "Increase Happiness"], true, "A warm medieval tavern with crackling fire, distant lute music, and muffled conversation."),
         ("Ancient Library", "Scholar's peace", "ABCwX_ERUmw", .soundscape, 3600, "The Guild of Ambience", ["Reduce Stress", "Improve Performance"], false, "The peaceful atmosphere of an ancient library with turning pages and rain on stone."),
-        ("Tropical Beach Waves", "Island paradise", "cJqc5HENm5E", .soundscape, 3600, "Stardust Vibes", ["Reduce Stress", "Better Sleep"], false, "Gentle tropical beach waves washing ashore on a warm island paradise."),
+        // Removed: ("Tropical Beach Waves", "cJqc5HENm5E") - video unavailable
         ("Mountain Stream", "Alpine freshness", "VW60iOM-H_I", .soundscape, 3600, "Stardust Vibes", ["Reduce Stress", "Reduce Anxiety"], false, "A crystal-clear mountain stream tumbling over rocks in an alpine meadow."),
-        ("Spring Garden Rain", "Renewal sounds", "YLvLfNx0bQw", .soundscape, 3600, "Stardust Vibes", ["Better Sleep", "Reduce Stress"], false, "Soft spring rain falling in a blooming garden with distant birdsong."),
+        // Removed: ("Spring Garden Rain", "YLvLfNx0bQw") - video unavailable
         ("Japanese Zen Garden", "Eastern tranquility", "peBFcmBkGaU", .soundscape, 3600, "Nature Sound Retreat", ["Reduce Stress", "Reduce Anxiety"], true, "Peaceful sounds of a Japanese zen garden with water features and wind chimes."),
         ("Thunderstorm at Sea", "Oceanic power", "qUbS6BWzbAE", .soundscape, 3600, "Nature Sound Retreat", ["Better Sleep", "Reduce Anxiety"], false, "A distant thunderstorm rolling across the open ocean with deep rumbling thunder."),
         ("Healing Forest Bath", "Shinrin-yoku", "FOvA3s_UbHw", .soundscape, 3600, "Miracle Forest", ["Reduce Stress", "Increase Happiness"], false, "The immersive sounds of a forest bath with leaves rustling and birds calling."),
@@ -791,17 +787,17 @@ class ContentRepository {
         ("Autumn Wind and Leaves", "Fall whispers", "i7K-7JKhpM4", .soundscape, 3600, "The Soul of Wind", ["Reduce Stress", "Reduce Anxiety"], false, "Autumn wind rustling through fallen leaves and bare branches in a quiet park."),
         ("Coastal Cliff Wind", "Seaside heights", "K3nD7GC-VnI", .soundscape, 3600, "johnnielawson", ["Reduce Stress", "Reduce Anxiety"], false, "Wind along coastal cliffs with crashing waves below and calling seabirds."),
         ("Woodland Stream Walk", "Forest waters", "zbRS1WFaVho", .soundscape, 3600, "johnnielawson", ["Reduce Stress", "Increase Happiness"], false, "A gentle woodland stream flowing through moss-covered rocks in an ancient forest."),
-        ("Cozy Rain on Tent", "Camping comfort", "FA65XVp0I9M", .soundscape, 3600, "Relaxing Ambience ASMR", ["Better Sleep", "Reduce Stress"], false, "Rain falling softly on a tent while camping in the peaceful wilderness."),
-        ("Snowy Forest Walk", "Winter wonderland", "nFE50bCyNlA", .soundscape, 3600, "Relaxing Ambience ASMR", ["Reduce Stress", "Reduce Anxiety"], false, "Crunching snow underfoot in a quiet winter forest with gentle snowfall."),
+        // Removed: ("Cozy Rain on Tent", "FA65XVp0I9M") - video unavailable
+        // Removed: ("Snowy Forest Walk", "nFE50bCyNlA") - video unavailable
 
         // BATCH 2 - Music (23 videos from new channels)
         ("Jazz Piano Lounge", "Smooth melodies", "qYnA9wWFHLI", .music, 3600, "JustMusicTV", ["Reduce Stress", "Increase Happiness"], false, "Smooth jazz piano melodies perfect for relaxation and unwinding after a long day."),
-        ("Lofi Study Beats", "Focus music", "5qap5aO4i9A", .music, 3600, "Lofi Girl", ["Improve Performance", "Reduce Stress"], false, "Chill lofi hip hop beats designed to help you focus and study peacefully."),
-        ("Acoustic Guitar Calm", "Gentle strings", "fEvM-OUbaKs", .music, 3600, "BGM channel", ["Reduce Stress", "Reduce Anxiety"], false, "Beautiful acoustic guitar melodies creating a calm and peaceful atmosphere."),
+        // Removed: ("Lofi Study Beats", "5qap5aO4i9A") - video unavailable
+        // Removed: ("Acoustic Guitar Calm", "fEvM-OUbaKs") - video unavailable
         ("Nature Documentary Score", "Cinematic calm", "AgpWX18dby4", .music, 2400, "BBC Earth", ["Reduce Stress", "Increase Happiness"], false, "Sweeping orchestral scores from nature documentaries that evoke wonder and calm."),
-        ("Coffee Shop Jazz", "Morning vibes", "Ju5USgX0pWY", .music, 3600, "Cafe Music BGM channel", ["Reduce Stress", "Increase Happiness"], true, "Warm coffee shop jazz creating the perfect relaxed morning atmosphere."),
-        ("Bossa Nova Afternoon", "Brazilian breeze", "i-jTCdbIt2A", .music, 3600, "Cafe Music BGM channel", ["Reduce Stress", "Increase Happiness"], false, "Light bossa nova rhythms evoking a sunny afternoon in a Brazilian cafe."),
-        ("Healing Frequencies", "432Hz therapy", "Ou6PRUxP1eo", .music, 3600, "Body Mind Zone", ["Reduce Stress", "Better Sleep"], false, "Healing music tuned to 432Hz for deep relaxation and cellular restoration."),
+        // Removed: ("Coffee Shop Jazz", "Ju5USgX0pWY") - video unavailable
+        // Removed: ("Bossa Nova Afternoon", "i-jTCdbIt2A") - video unavailable
+        // Removed: ("Healing Frequencies", "Ou6PRUxP1eo") - video unavailable
         ("Tibetan Singing Bowls", "Vibrational calm", "hlhWQbAbPG8", .music, 2400, "Body Mind Zone", ["Reduce Anxiety", "Reduce Stress"], true, "Tibetan singing bowl resonance creating deep vibrational healing and calm."),
         ("Classical Guitar Serenade", "Evening strings", "R9Iue2LpeIg", .music, 3600, "HALIDONMUSIC", ["Reduce Stress", "Better Sleep"], false, "Beautiful classical guitar serenade perfect for a peaceful evening."),
         ("Baroque for Relaxation", "Timeless elegance", "FK98tDshVKg", .music, 3600, "HALIDONMUSIC", ["Improve Performance", "Reduce Stress"], false, "Elegant baroque compositions creating an atmosphere of timeless tranquility."),
@@ -829,7 +825,7 @@ class ContentRepository {
         ("Yoga With Tim Basics", "Foundation practice", "LVIjqxJtdg0", .movement, 1500, "Yoga With Tim", ["Improve Performance", "Reduce Stress"], false, "Build a strong yoga foundation with clear instruction on fundamental poses."),
         ("Flexibility Flow", "Bendy body", "tkTQ64Ug57k", .movement, 1200, "Yoga With Tim", ["Improve Performance", "Reduce Stress"], false, "A flowing sequence designed to improve flexibility in the entire body."),
         ("Total Body Sculpt", "Yoga fitness", "M4dyK28GrE0", .movement, 1800, "Move With Nicole", ["Improve Performance", "Build Self Esteem"], true, "A total body sculpting yoga session combining strength and flexibility."),
-        ("Pilates Core Flow", "Core strength", "6Iuh2_kk1d8", .movement, 1200, "Move With Nicole", ["Improve Performance", "Reduce Stress"], false, "A Pilates-inspired core flow to strengthen and tone your midsection."),
+        // Removed: ("Pilates Core Flow", "6Iuh2_kk1d8") - video unavailable
         ("Arm Balance Play", "Advanced play", "iX5fqFcH7Nk", .movement, 900, "KinoYoga", ["Improve Performance", "Build Self Esteem"], true, "Explore arm balance poses with playful transitions and clear guidance."),
         ("Ashtanga Introduction", "Traditional practice", "XWEVFDjQkhg", .movement, 2400, "KinoYoga", ["Improve Performance", "Reduce Stress"], false, "An introduction to the traditional Ashtanga yoga primary series."),
         ("Slow Stretch Flow", "Mindful movement", "V4lgwrl66uU", .movement, 1200, "Jess Yoga", ["Reduce Stress", "Better Sleep"], false, "A slow mindful stretch flow perfect for unwinding at the end of the day."),
@@ -907,7 +903,7 @@ class ContentRepository {
         ("Ease Anxiety Tonight", "Peaceful slumber", "ot8UfIbTAgE", .sleepStory, 2100, "The Honest Guys", ["Better Sleep", "Reduce Anxiety"], false, "Ease away the day's anxiety and drift into peaceful deep sleep tonight."),
 
         // Soundscape — 5 new
-        ("Lofi Study Beats", "Focus and flow", "jfKfPfyJRdk", .soundscape, 3600, "Lofi Girl", ["Reduce Stress", "Improve Performance"], false, "Chill lofi hip hop beats to help you relax, study and focus."),
+        // Removed: ("Lofi Study Beats", "jfKfPfyJRdk") - video unavailable
         ("1 A.M. Study Session", "Late night focus", "lTRiuFIWV54", .soundscape, 3600, "Lofi Girl", ["Reduce Stress", "Improve Performance"], false, "A late-night lofi study session to keep you calm and focused."),
         ("Deep Sleep Soundscape", "Drift away", "bP9gMpl1gyQ", .soundscape, 3600, "The Soul of Wind", ["Better Sleep", "Reduce Stress"], false, "Relaxing sleep music combined with nature sounds to help you drift into deep sleep."),
         ("Peaceful Meditation Sounds", "Inner stillness", "FjHGZj2IjBk", .soundscape, 3600, nil, ["Reduce Stress", "Reduce Anxiety"], false, "Peaceful and soothing meditation sounds to guide you into deep inner stillness."),
@@ -915,7 +911,7 @@ class ContentRepository {
         // Music — 5 new
         ("Delta Waves Sleep Music", "Deep sleep frequencies", "xQ6xgDI7Whc", .music, 3600, "MeditationRelaxClub", ["Better Sleep", "Reduce Stress"], false, "Sleep music with delta waves to help you relax into deep, restorative sleep."),
         ("Cozy Jazz Piano", "Warm cafe vibes", "MYPVQccHhAQ", .music, 3600, "Relaxing Jazz Piano", ["Reduce Stress", "Increase Happiness"], false, "Cozy coffee shop ambience with smooth piano jazz for relaxing and studying."),
-        ("Space Ambient Music", "Cosmic dreams", "tNkZsRW7h2c", .music, 3600, "Relaxation Ambient Music", ["Better Sleep", "Reduce Stress"], true, "Ambient space music for stress relief, dreaming and deep relaxation."),
+        // Removed: ("Space Ambient Music", "tNkZsRW7h2c") - video unavailable
 
         // Movement — 5 new
         ("10-Minute Beginner Yoga", "Start your journey", "j7rKKpwdXNE", .movement, 600, "Yoga With Adriene", ["Reduce Stress", "Build Self Esteem"], false, "The perfect starting point for your yoga journey with gentle beginner-friendly poses."),
@@ -946,7 +942,7 @@ class ContentRepository {
         ("Body Scan Meditation", "Daily energy reset", "BlWo7sqWLNk", .meditation, 600, "MindfulPeace", ["Reduce Stress", "Better Sleep"], false, "A guided body scan meditation to release tension and restore energy throughout your entire body."),
         ("Mindful Body Scan", "Release tension", "CyKhfUdOEgs", .meditation, 888, "Teik Yen Ko", ["Reduce Stress", "Reduce Anxiety"], false, "A calming mindfulness body scan meditation to bring awareness to each part of your body and let go of stress."),
         ("20 Min Being Present", "Deep mindfulness", "-2zdUXve6fQ", .meditation, 1233, "The Mindful Movement", ["Reduce Stress", "Reduce Anxiety"], false, "A 20 minute mindfulness meditation for being fully present and grounded in the current moment."),
-        ("Inner-Body Awareness", "Eckhart Tolle practice", "FDIPl0f4v04", .meditation, 1530, "Eckhart Tolle", ["Reduce Stress", "Develop Gratitude"], false, "An inner-body awareness practice guided by Eckhart Tolle to deepen presence and stillness."),
+        ("Mountain Peace", "Find stillness", "tvT4a2nYvOk", .meditation, 900, "Headspace", ["Reduce Stress", "Develop Gratitude"], false, "Find peace and stillness like a mountain in the storm."),
 
         // Sleep Story — 5 new
         ("Sleepy Fairytale Stories", "6 hours of calm", "GHt8XyYshIQ", .sleepStory, 21939, "Get Sleepy", ["Better Sleep", "Reduce Anxiety"], false, "Six hours of calming fairytale stories designed to gently guide you into deep restful sleep."),
@@ -960,7 +956,7 @@ class ContentRepository {
         ("Crackling Fire & Thunder", "Deep relaxation", "atELVQ9aVGw", .soundscape, 12600, "Virtual Fireplace", ["Better Sleep", "Reduce Stress"], false, "Crackling fireplace with thunder, rain and howling wind sounds for deep relaxation and sleep."),
         ("Wind Chimes & Rain", "12 hours nature", "cCF6nZ1Kd8o", .soundscape, 44087, "Relax Night and Day", ["Better Sleep", "Reduce Anxiety"], false, "Chimes, rain, thunder and wind ambiance for 12 hours of continuous nature sounds for sleep and meditation."),
         ("Hobbit Bedroom", "Cozy rain on roof", "yiUh4PWCddA", .soundscape, 43187, "Nemo's Dreamscapes", ["Better Sleep", "Reduce Stress"], false, "A cozy hobbit bedroom with relaxing fireplace and soothing rainfall sounds on the roof for deep sleep."),
-        ("Fire & Rain Ambience", "10 hours 4K", "tzcNCcfcdhE", .soundscape, 36001, "Relax Night and Day", ["Better Sleep", "Reduce Anxiety"], false, "Crackling fire with rain and thunder sounds outside for ten hours of relaxing cozy ambience."),
+        // Removed: ("Fire & Rain Ambience", "tzcNCcfcdhE") - video unavailable (10 hour livestream)
 
         // Music — 5 new
         ("432Hz Sound Healing", "Whole body healing", "GHyFYDyiBqo", .music, 3600, "Sacred Healing", ["Reduce Stress", "Reduce Anxiety"], false, "432Hz Tibetan zen sound healing music designed to heal the whole body emotionally, physically and spiritually."),
@@ -1003,10 +999,197 @@ class ContentRepository {
         ("Romantic Strings & Piano", "35 min beautiful music", "wqHHRcuJ3OU", .music, 2100, "Soothing Relaxation", ["Reduce Stress", "Reduce Anxiety"], false, "30 minutes of beautiful romantic music featuring guitar, violin, cello and piano."),
         ("9 Solfeggio Frequencies", "45 min restoration", "NxXzQLl2H5Y", .music, 2745, "MindfulMed", ["Reduce Stress", "Better Sleep"], false, "All 9 solfeggio frequencies in 45 minutes for complete restoration of body and mind."),
         ("432Hz Sleep Music", "1 hour healing", "Ny-aW_pK0Nk", .music, 3598, "Infinity Meditation", ["Better Sleep", "Reduce Anxiety"], false, "One hour of 432Hz healing frequency sleep music for deep relaxation and restful sleep."),
+
+        // ── v32: 71 new videos across all categories ──
+
+        // Meditation — 11 new (kids, grief, pain, yoga nidra, walking, ADHD)
+        ("Healing Chronic Pain", "20-min guided relief", "3RNXvq3oCHA", .meditation, 1200, "The Mindful Movement", ["Reduce Stress", "Reduce Anxiety"], false, "A 20-minute guided meditation for healing chronic pain through mindful body awareness."),
+        ("Grounding for Teens", "20-min beginners", "psyExnCkcXU", .meditation, 1200, "The Mindful Movement", ["Reduce Anxiety", "Reduce Stress"], false, "A 20-minute grounding meditation designed for teens and beginners of any age."),
+        ("Yoga Nidra Full Reset", "10-min nervous system", "ApQ9NovgnA4", .meditation, 600, "Sarovara Yoga", ["Reduce Stress", "Better Sleep"], false, "A 10-minute yoga nidra session for a full nervous system massage and deep reset."),
+        ("Yoga Nidra for Sleep", "Guided deep rest", "ZDNEgeVjNDc", .meditation, 1800, "Lizzy Hill", ["Better Sleep", "Reduce Stress"], false, "A guided yoga nidra meditation designed to help you drift into deep restful sleep."),
+        ("Yoga Nidra for Grief", "Integrative method", "hceKxJyIoGw", .meditation, 1500, "Julie Lemerond", ["Reduce Anxiety", "Reduce Stress"], false, "A yoga nidra meditation for processing grief using the integrative Amrit method."),
+        ("Land of Gratitude", "Kids guided meditation", "6FycErkBETA", .meditation, 600, "New Horizon", ["Develop Gratitude", "Increase Happiness"], false, "A fun guided meditation for children exploring the magical land of gratitude."),
+        ("The Dream Maker", "Kids sleep meditation", "l1eBa7iL2As", .meditation, 900, "New Horizon", ["Better Sleep", "Reduce Anxiety"], false, "A sleep meditation for kids featuring the magical Dream Maker to guide them to sleep."),
+        ("Balloon Meditation", "Peace Out for kids", "ZBnPlqQFPKs", .meditation, 300, "Cosmic Kids Yoga", ["Reduce Anxiety", "Reduce Stress"], false, "A fun, calming meditation for kids using balloon breathing from Peace Out."),
+        ("Awakening Through Loss", "Tara Brach on change", "lRj1w-8YtM8", .meditation, 960, "Palouse Mindfulness", ["Reduce Anxiety", "Reduce Stress"], false, "Tara Brach guides a meditation on awakening through change and loss."),
+        ("Working Through Grief", "Jack Kornfield guided", "WUluh4ogfN8", .meditation, 900, "Palouse Mindfulness", ["Reduce Anxiety", "Reduce Stress"], false, "Jack Kornfield guides a compassionate meditation for working through grief."),
+        ("Mindful Walking", "Walking exercise", "JZ4-letTpAk", .meditation, 600, "Wildmind", ["Reduce Stress", "Improve Performance"], false, "A guided mindful walking meditation exercise for grounding and presence."),
+
+        // Sleep Story — 8 new (male narrators, nature journeys, under 30 min)
+        ("Magical Forest Walk", "Bedtime for grown-ups", "Ay-FyhPAYyc", .sleepStory, 2400, "Dan Jones", ["Better Sleep", "Reduce Stress"], false, "A magical forest walk bedtime story narrated for grown-ups to drift off peacefully."),
+        ("The Enchanted Oak Tree", "Forest sleep story", "HBh8fIZ1MQc", .sleepStory, 2700, "Dan Jones", ["Better Sleep", "Reduce Anxiety"], false, "A magical forest oak tree bedtime story designed for deep relaxation and sleep."),
+        ("8 Hours Sleep Meditations", "All-night guided", "LG3TU9WeYts", .sleepStory, 28800, "Jason Stephenson", ["Better Sleep", "Reduce Stress"], true, "Eight hours of guided sleep meditations for all-night deep restful sleep."),
+        ("Fall Asleep in 10 Minutes", "Quick sleep story", "vZNUswv5Fng", .sleepStory, 600, "The Honest Guys", ["Better Sleep", "Reduce Anxiety"], false, "A short guided meditation designed to help you fall asleep in under 10 minutes."),
+        ("Five Minutes to Sleep", "Ultra-quick rest", "teqhGPYK_8w", .sleepStory, 300, "Lauren Ostrowski Fenton", ["Better Sleep", "Reduce Stress"], false, "A five-minute guided meditation for deep restful sleep when you're short on time."),
+        ("Transition Into Sleep", "10-min sleep guide", "4jqGrF3Zqtg", .sleepStory, 600, "Goop", ["Better Sleep", "Reduce Anxiety"], false, "A 10-minute meditation to help you transition from wakefulness into peaceful sleep."),
+        ("Gratitude Before Sleep", "Thankful rest", "q6hOcO8RM3E", .sleepStory, 600, "Brandon Epstein", ["Better Sleep", "Develop Gratitude"], false, "A gratitude meditation before sleep to cultivate thankfulness and rest peacefully."),
+        ("River in the Shire", "9 hours nature sounds", "9Nwn-TZfFUI", .sleepStory, 32400, "The Honest Guys", ["Better Sleep", "Reduce Stress"], true, "Nine hours of river sounds in the Shire with no music for deep overnight sleep."),
+
+        // Soundscape — 10 new (forest, snow, cafe, underwater, Japanese)
+        ("Woodland Bird Song", "Forest ambience", "xNN7iTA57jM", .soundscape, 3600, "Guild of Ambience", ["Reduce Stress", "Reduce Anxiety"], false, "One hour of forest sounds with woodland ambience and beautiful bird song."),
+        ("Underwater Whale Sounds", "60-min deep ocean", "savCAd6RyPI", .soundscape, 3600, "Jason Lewis", ["Better Sleep", "Reduce Stress"], false, "One hour of underwater whale sounds for an immersive deep ocean soundscape."),
+        ("Coffee Shop Ambience", "Cafe study sounds", "Mckcmh-OU5M", .soundscape, 3600, "Nomadic Ambience", ["Improve Performance", "Reduce Stress"], false, "Coffee shop ambience with gentle cafe sounds perfect for studying and focus."),
+        ("Calm Forest Waterfall", "Nature sleeping sounds", "eKFTSSKCzWA", .soundscape, 3600, "johnnielawson", ["Better Sleep", "Reduce Stress"], false, "Relaxing nature sounds of a calm forest waterfall for sleeping and meditation."),
+        ("Cozy Winter Cabin", "Snowstorm & fireplace", "kJJjhUGqW-w", .soundscape, 10800, "Autumn Cozy", ["Better Sleep", "Reduce Stress"], true, "Cozy winter cabin ambience with snowstorm and crackling fireplace sounds."),
+        ("Winter Fishing Cabin", "Blizzard & fire", "5z3bsDxIuUc", .soundscape, 10800, "Rainy Guy", ["Better Sleep", "Reduce Anxiety"], true, "Winter ambience in a cozy fishing cabin with blizzard and warm fireplace sounds."),
+        ("Rainy Night Coffee Shop", "Jazz & rain sounds", "c0_ejQQcrwI", .soundscape, 28800, "Calmed By Nature", ["Reduce Stress", "Improve Performance"], true, "Eight hours of rainy night coffee shop ambience with relaxing jazz and rain sounds."),
+        ("Cozy Fire Tower Cabin", "Thunder & fireplace", "NPqUWeRTyWY", .soundscape, 10800, "Calmed By Nature", ["Better Sleep", "Reduce Stress"], true, "Cozy fire tower cabin ambience with thunderstorm and warm fireplace sounds."),
+        ("Gentle Rain", "1 hour no music", "yoTa0lhYO9Q", .soundscape, 3600, "The Honest Guys", ["Better Sleep", "Reduce Anxiety"], false, "One hour of gentle rain sounds without music for meditation and sleep."),
+        ("Water Sounds Meditation", "3 hours relaxing", "luRkeDCoxZ4", .soundscape, 10800, "The Honest Guys", ["Better Sleep", "Reduce Stress"], true, "Three hours of relaxing music with water sounds for meditation and deep rest."),
+
+        // Music — 10 new (lo-fi, classical, ambient, native, Celtic)
+        ("Best of Mozart", "Classical relaxation", "Rb0UmrCXxVA", .music, 5400, "Halidonmusic", ["Reduce Stress", "Improve Performance"], false, "The best of Mozart for relaxation and focus — timeless classical piano and orchestral music."),
+        ("Native Flute & Canyon", "Sleep flute music", "dr2VyUvzrwI", .music, 3600, "Nu Meditation Music", ["Better Sleep", "Reduce Stress"], false, "Native American flute music with nocturnal canyon sounds for deep sleep and relaxation."),
+        ("Morning Coffee Lo-fi", "Lo-fi hip hop beats", "1fueZCTYkpA", .music, 3600, "Lofi Girl", ["Improve Performance", "Reduce Stress"], false, "Morning coffee lo-fi hip hop beats for studying, relaxation, and a calm start to the day."),
+        ("Best of Fearless Soul", "1 hour inspirational", "CaPq3jWunHM", .music, 3600, "Fearless Soul", ["Build Self Esteem", "Increase Happiness"], false, "One hour of beautiful inspiring music from Fearless Soul for motivation and upliftment."),
+        ("Moonlight Zen Music", "Nature & meditation", "zcm6nV7Bod8", .music, 3600, "Soothing Relaxation", ["Better Sleep", "Reduce Stress"], false, "Relaxing zen music with nature sounds for meditation, spa, sleep, and relaxation."),
+        ("Celtic Dance of Life", "Irish relaxation", "BiqlZZddZEo", .music, 3600, "Soothing Relaxation", ["Reduce Stress", "Increase Happiness"], false, "Relaxing Celtic music for meditation and sleep by Peder B. Helland."),
+        ("Relaxing Piano Music", "Gentle keys", "gpB4mBE94nE", .music, 3600, "Soothing Relaxation", ["Better Sleep", "Reduce Stress"], false, "Relaxing piano music for sleep, meditation, spa, and yoga."),
+        ("Piano & Water Sounds", "Soothing keys", "77ZozI0rw7w", .music, 3600, "Soothing Relaxation", ["Better Sleep", "Reduce Anxiety"], false, "Soothing relaxation piano music with water sounds for sleep and meditation."),
+        ("Piano From Another Room", "Muffled calm", "72QtflepnUo", .music, 3600, "Calmed By Nature", ["Better Sleep", "Reduce Stress"], false, "Relaxing piano music from another room — a muffled, cozy atmosphere for sleep."),
+        ("Ambient Study Music", "Deep focus", "Q5aGoc2pW04", .music, 3600, "Quiet Quest", ["Improve Performance", "Reduce Stress"], false, "Ambient study music for effective studying, concentration, and memory."),
+
+        // Movement — 10 new (chair yoga, tai chi, pilates, desk yoga)
+        ("Chair Yoga", "Seated practice", "-Ts01MC2mIo", .movement, 1800, "Yoga With Adriene", ["Reduce Stress", "Reduce Anxiety"], false, "A gentle chair yoga practice accessible for all levels and mobility ranges."),
+        ("Relaxing Stretch & Yoga", "20-min flexibility", "tRLAZbz3NUs", .movement, 1200, "MadFit", ["Reduce Stress", "Better Sleep"], false, "A 20-minute relaxing stretch and yoga session for flexibility and stress relief."),
+        ("Tai Chi for Beginners", "Best instructional", "bcpelNJTDbY", .movement, 1800, "BodyWisdom", ["Reduce Stress", "Improve Performance"], false, "The best instructional video for learning tai chi as a complete beginner."),
+        ("Tai Chi Basics", "Dr. Paul Lam teaches", "hIOHGrYCEJ4", .movement, 1200, "Dr Paul Lam", ["Reduce Stress", "Reduce Anxiety"], false, "Dr. Paul Lam teaches tai chi for beginners with clear, easy-to-follow instruction."),
+        ("Sunrise Tai Chi", "15-min morning flow", "1DeihMgXLDk", .movement, 900, "Tai Chi Made Easy", ["Reduce Stress", "Improve Performance"], false, "A 15-minute sunrise tai chi flow perfect for beginners to start the morning."),
+        ("8 Minute Tai Chi", "Quick beginner flow", "6L43P1MY2KA", .movement, 480, "TaiChiHealthProducts", ["Reduce Stress", "Reduce Anxiety"], false, "The best 8-minute tai chi routine for beginners — quick and effective."),
+        ("Pilates Yoga Blend", "Calming flow", "u-Xeeu2iZf0", .movement, 1500, "Fitness Blender", ["Reduce Stress", "Reduce Anxiety"], false, "A calming pilates and yoga blend workout for relaxation and flexibility."),
+        ("Stretching for Stress", "Full body flexibility", "7h_Pn7NyJ0k", .movement, 1800, "Fitness Blender", ["Reduce Stress", "Better Sleep"], false, "A relaxing stretching workout for flexibility and stress relief — pilates yoga blend."),
+        ("Yoga at Your Desk", "Office stretches", "tAUf7aajBWE", .movement, 600, "Yoga With Adriene", ["Reduce Stress", "Improve Performance"], false, "Quick yoga stretches you can do at your desk for stress relief during work."),
+        ("Home Tai Chi", "All ages gentle", "SysvZezpHp8", .movement, 1200, "Melton City Council", ["Reduce Stress", "Reduce Anxiety"], false, "Tai chi for beginners of all ages — a gentle home fitness routine."),
+
+        // Mindset — 10 new (imposter syndrome, burnout, manifestation, discipline, EQ)
+        ("Imposter Syndrome", "Valerie Young TED", "h7v-GG3SEWQ", .mindset, 1020, "TED Archive", ["Build Self Esteem", "Reduce Anxiety"], false, "Valerie Young explains how to think your way out of imposter syndrome."),
+        ("What Is Imposter Syndrome?", "TED-Ed animated", "ZQUxL4Jm1Lo", .mindset, 300, "TED-Ed", ["Build Self Esteem", "Reduce Anxiety"], false, "An animated TED-Ed lesson on what imposter syndrome is and how to combat it."),
+        ("Emotional Intelligence", "6 steps to improve", "D6_J7FfgWVc", .mindset, 1080, "TEDx Talks", ["Improve Performance", "Build Self Esteem"], false, "Ramona Hacker shares 6 practical steps to improve your emotional intelligence."),
+        ("Manifestation Meditation", "10-min visualization", "NVPrxcR_RZI", .mindset, 600, "Manifest by Jess", ["Build Self Esteem", "Increase Happiness"], false, "A powerful 10-minute manifestation meditation with visualization for a new life."),
+        ("Manifesting a New Life", "Gabby Bernstein guided", "Kh7DxmiylQU", .mindset, 900, "Gabby Bernstein", ["Build Self Esteem", "Increase Happiness"], false, "Gabby Bernstein guides a manifesting meditation for creating a new reality."),
+        ("Master Procrastinator", "Tim Urban TED Talk", "arj7oStGLkU", .mindset, 840, "TED", ["Improve Performance", "Build Self Esteem"], false, "Tim Urban takes us inside the mind of a master procrastinator in this hilarious TED Talk."),
+        ("The Cure for Burnout", "It's not self-care", "PrJAX-iQ-O4", .mindset, 780, "TED", ["Reduce Stress", "Reduce Anxiety"], false, "Emily and Amelia Nagoski reveal the real cure for burnout — hint: it's not self-care."),
+        ("Bounce Back from Burnout", "3 simple steps", "OHj38et5L04", .mindset, 660, "TEDx Talks", ["Reduce Stress", "Build Self Esteem"], false, "Allan Ting shares how to bounce back from burnout in 3 simple steps."),
+        ("Secret to Self-Control", "Break unwanted habits", "TbcS1c4zPF8", .mindset, 914, "TEDx Talks", ["Improve Performance", "Build Self Esteem"], false, "Tran Nguyen reveals the secret to self-control and breaking unwanted habits."),
+        ("Make Stress Your Friend", "Kelly McGonigal TED", "RcGyVTAoXEU", .mindset, 900, "TED", ["Reduce Stress", "Improve Performance"], false, "Kelly McGonigal shows how to make stress your friend with a surprising perspective shift."),
+
+        // ASMR — 10 new (nature, cozy, hand movements, water, wooden)
+        ("Rainy Night ASMR", "Peaceful whispers", "6q5ai9GjVqo", .asmr, 2400, "ASMR Zeitgeist", ["Better Sleep", "Reduce Anxiety"], false, "ASMR on a rainy night with peaceful soft whispers for deep relaxation and sleep."),
+        ("Whispers & Hand Movements", "Visual triggers", "BSL446RlJHk", .asmr, 1800, "Gentle Whispering ASMR", ["Better Sleep", "Reduce Stress"], false, "Whispers and hand movements for visual ASMR triggers and deep relaxation."),
+        ("Zen Garden ASMR", "45-min no talking", "bCFALoEfBGw", .asmr, 2700, "Made In France ASMR", ["Better Sleep", "Reduce Anxiety"], true, "ASMR zen garden with decreasing brightness as a sleep aid — no talking, pure zen."),
+        ("Simple Pleasures ASMR", "Personal attention", "B4jUVci17vE", .asmr, 1800, "Gentle Whispering ASMR", ["Better Sleep", "Reduce Stress"], false, "Simple pleasures ASMR with soft spoken personal attention for total relaxation."),
+        ("Taps for Your Nap", "Tapping triggers", "y1ucBSGR2Do", .asmr, 1800, "Gentle Whispering ASMR", ["Better Sleep", "Reduce Stress"], false, "Gentle tapping triggers for your nap — relaxing ASMR for quick rest."),
+        ("10 Hours of Tapping", "No talking marathon", "jbAy9MwBR-I", .asmr, 36000, "MassageASMR", ["Better Sleep", "Reduce Anxiety"], true, "Ten hours of tapping, crinkle and trigger sounds with no talking for all-night sleep."),
+        ("21 ASMR Trigger Words", "Word triggers", "o3cpQi9-RlA", .asmr, 900, "Gibi ASMR", ["Better Sleep", "Reduce Stress"], false, "21 words to trigger ASMR — a variety of whispered word triggers for tingles."),
+        ("Siberian Winter ASMR", "Crunching snow", "B5hmvHfqv88", .asmr, 3600, "Involving Ambience", ["Better Sleep", "Reduce Stress"], true, "Siberian winter town ASMR ambience with crunching ice, snow, and church bells."),
+        ("Twin Whisper Sounds", "Dual ear ASMR", "R86PZFCv-4I", .asmr, 1800, "FredsVoice ASMR", ["Better Sleep", "Reduce Anxiety"], false, "Twin inaudible whispering sounds from both ears for deep sleep ASMR."),
+        ("Hogwarts Study ASMR", "Harry Potter ambience", "NqSbyaVTqII", .asmr, 3600, "ASMR Weekly", ["Improve Performance", "Reduce Stress"], false, "Hogwarts study session with rainy window — Harry Potter inspired ASMR ambience."),
+
+        // v33 — Meditation (15 new: tonglen, vipassana, ADHD, chronic pain, ho'oponopono, postpartum, exam anxiety, metta, emotional eating, third eye)
+        ("Tonglen Meditation", "Tibetan compassion", "QwqlurCvXuM", .meditation, 1800, "Pema Chodron", ["Reduce Stress", "Increase Happiness"], false, "Pema Chodron guides tonglen meditation — the Tibetan practice of giving and receiving compassion."),
+        ("Tonglen Practice", "Guided compassion", "SAV1RCnuAaE", .meditation, 1200, "Belfast Buddhist", ["Reduce Stress", "Develop Gratitude"], false, "Guided tonglen practice for transforming suffering into compassion through breath."),
+        ("Vipassana for Beginners", "Insight meditation", "Z7oYJZg9nOA", .meditation, 1800, "Vipassana Meditation", ["Reduce Stress", "Reduce Anxiety"], false, "Vipassana insight meditation guided for beginners — observe sensations with equanimity."),
+        ("Vipassana 30 Minute Sit", "Guided insight practice", "PxuNf87E1_c", .meditation, 1800, "Can You Zen", ["Reduce Stress", "Reduce Anxiety"], false, "Guided 30-minute vipassana sit — develop awareness through body scanning and breath observation."),
+        ("ADHD Mindfulness Meditation", "Calm racing thoughts", "y5EqO8CQ_cQ", .meditation, 1800, "ADHDVision", ["Reduce Anxiety", "Improve Performance"], false, "Mindfulness meditation designed for ADHD — gentle techniques to calm racing thoughts."),
+        ("Racing Thoughts Sleep Fix", "Quiet the mind", "ft-vhYwHzxw", .meditation, 600, "Headspace", ["Better Sleep", "Reduce Anxiety"], false, "Headspace guide to quieting racing thoughts before sleep — simple mindfulness techniques."),
+        ("Heal Your Body", "Chronic pain relief", "EpgusOQUlmA", .meditation, 1800, "Rising Higher Meditation", ["Reduce Stress", "Reduce Anxiety"], false, "Guided meditation for chronic pain — heal your body through visualization and deep relaxation."),
+        ("Chronic Pain Meditation", "Natural pain relief", "L3-SlMJHrms", .meditation, 1200, "Generation Calm", ["Reduce Stress", "Reduce Anxiety"], false, "Meditation for chronic pain relief — natural techniques to ease discomfort and find calm."),
+        ("Ho'oponopono Prayer", "108 repetitions", "lNeiLi882MU", .meditation, 3600, "Mind Body Soul", ["Develop Gratitude", "Increase Happiness"], true, "Ho'oponopono Hawaiian forgiveness prayer — 108 repetitions for deep healing and release."),
+        ("Ho'oponopono Sleep", "Forgiveness meditation", "yDJYZXlsASg", .meditation, 3600, "Jason Stephenson", ["Better Sleep", "Develop Gratitude"], true, "Before-sleep ho'oponopono meditation — affirmations of forgiveness and love for deep rest."),
+        ("Postpartum Meditation", "New parent destress", "bXk916CpGxw", .meditation, 900, "Bridget Teyler", ["Reduce Stress", "Reduce Anxiety"], false, "Guided affirmation meditation for new parents — destress and find calm during postpartum."),
+        ("Exam Success Meditation", "Test anxiety relief", "AtF0T2fPvbI", .meditation, 1200, "Jason Stephenson", ["Reduce Anxiety", "Improve Performance"], false, "Meditation for exam success — calm test anxiety and build confidence before exams."),
+        ("Loving Kindness Extended", "Deep metta practice", "c2iCoEluq8A", .meditation, 2400, "Michael Sealey", ["Increase Happiness", "Develop Gratitude"], false, "Extended loving-kindness meditation — deep metta practice for compassion toward self and others."),
+        ("Stop Emotional Eating", "Mindful eating guide", "9m45ITi-ALw", .meditation, 1200, "Lisa A. Romano", ["Build Self Esteem", "Reduce Anxiety"], false, "Guided meditation to stop emotional and binge eating — mindful awareness techniques."),
+        ("Third Eye Meditation", "Pineal gland activation", "yaA_aYEe8JA", .meditation, 1800, "New Horizon", ["Reduce Stress", "Improve Performance"], false, "Opening the third eye guided meditation — pineal gland activation for deep inner awareness."),
+
+        // v33 — Sleep Stories (15 new: space, train, cabin, underwater, ancient Greece, fairy tales, rain, winter, library)
+        ("Universe Sleep Facts", "Space exploration", "pXzD871cyEw", .sleepStory, 3600, "Sleepy Science Channel", ["Better Sleep", "Reduce Stress"], false, "The most relaxing facts about the universe to fall asleep to — cosmic journey through space."),
+        ("Floating Amongst Stars", "Space sleep story", "N4qCFFBrrgk", .sleepStory, 3600, "Jason Stephenson", ["Better Sleep", "Reduce Anxiety"], true, "Guided meditation for sleep — floating amongst the stars in a peaceful cosmic journey."),
+        ("Rainy Train to Sleep", "Train journey", "vvfnUHwULvM", .sleepStory, 3600, "Stephen Dalton", ["Better Sleep", "Reduce Stress"], false, "A rainy train ride to the village of sleep — soothing narration with gentle rain sounds."),
+        ("Rainy Night Train", "Calm bedtime journey", "46RQhUE0sD8", .sleepStory, 2400, "Michelle's Sanctuary", ["Better Sleep", "Reduce Anxiety"], false, "Rainy night train journey — calm bedtime story with rhythmic rain and train sounds."),
+        ("The Bookshop of Sleep", "Magical bookshop", "_gRQleINoJk", .sleepStory, 3600, "Stephen Dalton", ["Better Sleep", "Reduce Stress"], false, "The bookshop of sleep — a magical narration with rain, exploring shelves of stories until you drift off."),
+        ("Cozy Mountain Cabin", "Cabin in the rain", "1uwbPydMLjo", .sleepStory, 2400, "Stephen Dalton", ["Better Sleep", "Reduce Stress"], false, "A cozy mountain cabin in the rain — soothing sleep story with fireplace and gentle rainfall."),
+        ("Winter Hut Deep Sleep", "Fireplace and blizzard", "Rm-4JUivLcE", .sleepStory, 28800, "Rainy Guy", ["Better Sleep", "Reduce Anxiety"], true, "Deep sleep in a cozy winter hut — fireplace crackling with blizzard and snow outside."),
+        ("The Underwater City", "Ocean adventure", "D8eplSV1wus", .sleepStory, 1800, "BetterSleep", ["Better Sleep", "Reduce Stress"], false, "The underwater city — a magical bedtime story exploring a peaceful ocean world."),
+        ("Underwater Voyage", "Deep sea bedtime", "Btn0YZajEkk", .sleepStory, 2400, "Stephen Dalton", ["Better Sleep", "Reduce Anxiety"], false, "A magical underwater voyage — bedtime story drifting through coral reefs and ocean depths."),
+        ("Greek Mythology Stories", "Ancient tales", "By1-wZ9G2QQ", .sleepStory, 21600, "Soothing Pod", ["Better Sleep", "Reduce Stress"], true, "Six hours of Greek mythology stories — ancient tales narrated gently for deep sleep."),
+        ("Boring Greek Myths", "Sleepy mythology", "jMxHxzY5usw", .sleepStory, 3600, "Boring History", ["Better Sleep", "Reduce Stress"], false, "Boring Greek myths told in the most sleep-inducing way — perfect for drifting off."),
+        ("Snow White for Grown Ups", "Cozy fairy tale", "3Qx49IyhCME", .sleepStory, 2400, "Get Sleepy", ["Better Sleep", "Reduce Anxiety"], false, "The coziest fairy tale retelling — Snow White for grown-ups, gentle and soothing."),
+        ("Gentle Rain Sleep Talk", "Rain and voice", "oJjc4XreJSQ", .sleepStory, 3600, "The Honest Guys", ["Better Sleep", "Reduce Anxiety"], false, "Guided sleep talkdown with gentle rain — one hour of soothing narration and rainfall."),
+        ("Magical Winter Stories", "Cozy winter collection", "ZVXflJ1g298", .sleepStory, 18000, "Get Sleepy", ["Better Sleep", "Reduce Stress"], true, "Five hours of magical winter stories — the coziest collection for cold night sleep."),
+        ("Night in the Library", "Book-filled dreams", "a9MZvseN6Ug", .sleepStory, 2400, "Stephen Dalton", ["Better Sleep", "Reduce Stress"], false, "A night in the library of sleep — wander through shelves of stories as you drift into dreams."),
+
+        // v33 — Soundscapes (15 new: thunderstorm, zen garden, fireplace, rainforest, wind, singing bowls, desert, Scottish, arctic)
+        ("Heavy Thunder 8 Hours", "Intense storm", "7ev8I2AW9ko", .soundscape, 28800, "SHAANTI", ["Better Sleep", "Reduce Anxiety"], true, "Eight hours of heavy thunderstorm and rain — intense storm sounds for deep uninterrupted sleep."),
+        ("Heavy Rain Old House", "Rain and thunder", "GHqA2Ruhz1E", .soundscape, 28800, "LUCASTA", ["Better Sleep", "Reduce Stress"], true, "Heavy rain and intense thunder on an old house at night — cozy storm ambience."),
+        ("Japanese Zen Garden", "Shishi-odoshi sounds", "40sHfUrDezE", .soundscape, 36000, "Positive Energy", ["Reduce Stress", "Reduce Anxiety"], true, "Ten hours of shishi-odoshi water fountain sounds in a Japanese zen garden."),
+        ("Zen Garden Rain Night", "Japanese rain ambience", "YN6wj5NfOnM", .soundscape, 36000, "Calmbience", ["Better Sleep", "Reduce Stress"], true, "Rain on a Japanese zen garden at night — ten hours of peaceful rainfall ambience."),
+        ("Fireplace and Snowfall", "Crackling fire", "8_6WU4kqr5A", .soundscape, 28800, "Dreamy Sleep Ambience", ["Better Sleep", "Reduce Stress"], false, "Crackling fireplace with gentle snowfall outside — cozy winter ambience for sleep."),
+        ("Blizzard and Fireplace", "Snowstorm sleep", "jK3cMcH9e_c", .soundscape, 28800, "Rainy Guy", ["Better Sleep", "Reduce Anxiety"], true, "Relaxing blizzard for sleep — snowstorm howling outside with warm fireplace crackling."),
+        ("Tropical Rainforest", "Jungle rain 10 hours", "FUQEecZ0HG0", .soundscape, 36000, "RainRider Ambience", ["Better Sleep", "Reduce Stress"], true, "Tropical rainforest ambience — ten hours of rain falling on leaves in the jungle."),
+        ("Swamp Sounds at Night", "Frogs and crickets", "ih4_1FyVjaY", .soundscape, 28800, "The Guild of Ambience", ["Better Sleep", "Reduce Stress"], true, "Swamp sounds at night — frogs, crickets, and light rain in a tropical wetland."),
+        ("Howling Wind in Pines", "Forest wind sounds", "sT5f1jBJHng", .soundscape, 28800, "Relaxing Sounds Of Nature", ["Better Sleep", "Reduce Anxiety"], true, "Strong howling wind through swaying spruce trees — deep forest wind for sleep."),
+        ("Rain in Spruce Forest", "Forest rain 10 hours", "bbjMDgMz504", .soundscape, 36000, "Relaxing Sounds Of Nature", ["Better Sleep", "Reduce Stress"], true, "Rain in a spruce forest with fog and swaying branches — ten hours of forest rain."),
+        ("Tibetan Singing Bowls", "3 hour healing", "yuybyOCd0Bw", .soundscape, 10800, "Elaine Leet", ["Reduce Stress", "Reduce Anxiety"], true, "Three hours of Tibetan singing bowl meditation — chakra healing and deep relaxation."),
+        ("Ancient Singing Bowl", "8 hour deep sleep", "-PS9EBu8KmQ", .soundscape, 28800, "Aurabowls", ["Better Sleep", "Reduce Stress"], true, "300-year-old antique singing bowl — eight hours of resonant tones for deep sleep."),
+        ("Desert Wind Sounds", "Howling canyon wind", "Bpq2KdZcOto", .soundscape, 28800, "RELAXATION ZONE", ["Better Sleep", "Reduce Anxiety"], false, "Howling desert winds — canyon wind sounds for sleep and relaxation."),
+        ("Scottish Castle Storm", "Highland rain", "7_-XU8jSGZM", .soundscape, 14400, "Outdoor Therapy", ["Better Sleep", "Reduce Stress"], true, "Stormy night at a Scottish castle in 4K — heavy rain and thunder on ancient stone walls."),
+        ("Arctic Blizzard", "Polar wind igloo", "OD5worsS-Mg", .soundscape, 28800, "Nature Therapy", ["Better Sleep", "Reduce Anxiety"], true, "Blizzard snowstorm and arctic howling wind — warm igloo ambience for sleep."),
+
+        // v33 — Music (15 new: 432 Hz, handpan, classical, Gregorian, sitar, ambient, harp, flute)
+        ("432 Hz Sleep Music", "Healing frequency", "o-9T184mpY4", .music, 28800, "PowerThoughts", ["Better Sleep", "Reduce Stress"], true, "The best sleep music at 432 Hz healing frequency — deep relaxation for all-night rest."),
+        ("432 Hz Black Screen", "Sleep frequency", "tQGE_Mivb8M", .music, 28800, "Meditate with Abhi", ["Better Sleep", "Reduce Anxiety"], true, "Sleep instantly with 432 Hz healing frequency — black screen for undisturbed rest."),
+        ("Chakra Healing 432 Hz", "All 7 chakras", "UllduL1OqOc", .music, 28800, "Inner Lotus Music", ["Better Sleep", "Reduce Stress"], true, "All 7 chakras opening and healing with 432 Hz sleep music — deep energy balancing."),
+        ("Hang Drum Relaxation", "432 Hz hang drum", "OHzT6IMx_S8", .music, 3600, "Alex Dav", ["Reduce Stress", "Reduce Anxiety"], false, "Relaxing hang drum music at 432 Hz — soothing percussive tones for meditation."),
+        ("Handpan Meditation", "1 hour handpan", "uwEaQk5VeS4", .music, 3600, "Malte Marten", ["Reduce Stress", "Increase Happiness"], false, "Calming meditation with one hour of handpan music — rich resonant tones for inner peace."),
+        ("Healing Handpan 1111 Hz", "Frequency meditation", "j_3C0z96GE0", .music, 3600, "Malte Marten Music", ["Reduce Stress", "Reduce Anxiety"], false, "Healing frequency meditation at 1111 Hz with handpan — restorative sound therapy."),
+        ("Classical Piano Sleep", "Debussy, Chopin, Satie", "c1rX8wQ80JE", .music, 14400, "HALIDONMUSIC", ["Better Sleep", "Reduce Stress"], true, "Classical music for sleeping — Debussy, Chopin, and Satie piano pieces for gentle rest."),
+        ("Chopin for Relaxation", "Classical piano", "9Y5XmI8KiUc", .music, 10800, "HALIDONMUSIC", ["Reduce Stress", "Reduce Anxiety"], true, "Chopin classical music for relaxation — beautiful piano compositions for calm and focus."),
+        ("Gregorian Chant 432 Hz", "3 hours healing", "W-hrBhA4XkM", .music, 10800, "Meditative Mind", ["Better Sleep", "Reduce Stress"], true, "Gregorian chants at 432 Hz — three hours of sacred vocal healing music for meditation."),
+        ("Gregorian Healing Chant", "Divine restoration", "d2MfVktfYFU", .music, 3600, "Gregorian Chants", ["Reduce Stress", "Develop Gratitude"], false, "Gregorian chant for healing — divine restoration vocals at 432 Hz for deep peace."),
+        ("Indian Sitar Relaxation", "Traditional sitar", "FuZgOP5zOQM", .music, 3600, "Best Relaxing Music", ["Reduce Stress", "Reduce Anxiety"], false, "Relaxing Indian sitar music for meditation — traditional stringed instrument for deep calm."),
+        ("Music for Airports", "Brian Eno ambient", "vNwYtllyt3Q", .music, 3000, "Brian Eno", ["Reduce Stress", "Improve Performance"], false, "Brian Eno's Ambient 1: Music for Airports — the pioneering ambient electronic album for calm focus."),
+        ("Harp Music for Sleep", "Gentle harp", "dCvEgqePl84", .music, 28800, "Soothing Relaxation", ["Better Sleep", "Reduce Stress"], true, "Relaxing harp music for sleep and meditation — gentle plucked strings for peaceful dreams."),
+        ("Native Flute and Rain", "Healing rain flute", "QCT3WcUPPmI", .music, 10800, "24Relax", ["Better Sleep", "Reduce Stress"], true, "Healing rain with Native American flute — soothing nature sounds and wooden flute melodies."),
+        ("Japanese Bamboo Flute", "Eastern meditation", "MzgMBrtrFc4", .music, 10800, "Ambient With Flute", ["Reduce Stress", "Reduce Anxiety"], true, "Japanese bamboo flute, guzheng, and erhu collection — serene Eastern meditation music."),
+
+        // v33 — Movement (15 new: qi gong, seniors, somatic, desk stretches, yin yoga, back pain, morning stretch, bed yoga, pilates)
+        ("Qi Gong for Beginners", "Full routine", "IyINAjEoTIs", .movement, 1800, "Yoqi", ["Reduce Stress", "Improve Performance"], false, "Qigong for beginners — full guided routine for energy flow and inner balance."),
+        ("Daily Qigong Routine", "Morning qi gong", "nmmNWj9YtAw", .movement, 1200, "Yoqi", ["Reduce Stress", "Increase Happiness"], false, "Daily qigong routine — energizing morning practice for vitality and calm."),
+        ("Qi Gong for Stress", "Anxiety and energy", "CCicH-iz1oU", .movement, 1200, "Qigong For Vitality", ["Reduce Stress", "Reduce Anxiety"], false, "Qi gong for stress, anxiety, and energy — gentle flowing movements for emotional balance."),
+        ("Gentle Senior Stretching", "Beginner friendly", "kfjVFQWWiZw", .movement, 1200, "yes2next", ["Reduce Stress", "Reduce Anxiety"], false, "Gentle stretching for seniors and beginner exercisers — safe, easy movements for flexibility."),
+        ("Senior Chair Exercises", "Range of motion", "E2YqFYFLSbE", .movement, 1200, "Improved Health", ["Reduce Stress", "Improve Performance"], false, "Gentle range of motion chair exercises for seniors — seated movements for mobility."),
+        ("Hip Opening for Release", "Trauma-informed yoga", "24qDdn2QXjk", .movement, 2400, "Caitlin K'eli Yoga", ["Reduce Stress", "Reduce Anxiety"], false, "Trauma-informed hip opening yoga for emotional release — gentle somatic practice."),
+        ("Somatic Trauma Release", "Stress release practice", "xM2Z-miz3Y4", .movement, 1200, "Dr. Arielle Schwartz", ["Reduce Stress", "Reduce Anxiety"], false, "Somatic practice for trauma and stress release — gentle body-based healing exercises."),
+        ("TRE Follow-Along", "Tension release", "QoB9wpuO688", .movement, 1800, "Transform Pelvic Health", ["Reduce Stress", "Reduce Anxiety"], false, "TRE tension release exercises follow-along with Dr. Berceli — release stored stress from the body."),
+        ("10 Min Office Stretch", "Fix desk posture", "XZM1xiY9jOw", .movement, 600, "Pamela Reif", ["Reduce Stress", "Improve Performance"], false, "10-minute office life stretch — fix posture and release tension from sitting at a desk."),
+        ("Deep Yin Yoga 45 Min", "Flexibility flow", "01L4f_oT6DM", .movement, 2700, "Yoga with Kassandra", ["Reduce Stress", "Reduce Anxiety"], false, "Deep stretch yin yoga for flexibility — 45 minutes of long-held poses for deep relaxation."),
+        ("Yoga for Back Pain", "Lower back relief", "XeXz8fIZDCE", .movement, 1800, "Yoga With Adriene", ["Reduce Stress", "Reduce Anxiety"], false, "Yoga for lower back pain — gentle poses and stretches for relief and healing."),
+        ("Back Pain Stretches", "10 min yoga relief", "2eA2Koq6pTI", .movement, 600, "Mady Morrison", ["Reduce Stress", "Reduce Anxiety"], false, "Back pain relief stretches — 10-minute yoga routine to ease tension and stiffness."),
+        ("Full Body Stretch Silent", "No talking stretch", "8XNpAg5mDS8", .movement, 1500, "MadFit", ["Reduce Stress", "Improve Performance"], false, "25-minute full body stretch with no talking — peaceful morning routine with music only."),
+        ("Bedtime Yoga Stretch", "Evening release", "4TQsfBYCyKQ", .movement, 1200, "Yoga With Bird", ["Better Sleep", "Reduce Stress"], false, "Bedtime yoga stretch to release tension and stress — gentle floor yoga for evening wind-down."),
+        ("Pilates for Stress", "Gentle pilates", "IMB-7y1lfqs", .movement, 1500, "Lottie Murphy", ["Reduce Stress", "Reduce Anxiety"], false, "Gentle pilates for stress relief — 25 minutes of mindful movement to ease tension."),
+
+        // v33 — Mindset (15 new: stoicism, growth mindset, people-pleasing, resilience, CBT, self-compassion, dopamine detox, perfectionism)
+        ("9 Stoic Rules for Life", "Marcus Aurelius wisdom", "heh5XLwZVOY", .mindset, 1200, "Daily Stoic", ["Build Self Esteem", "Improve Performance"], false, "Nine stoic rules for a better life from Marcus Aurelius — ancient wisdom for modern challenges."),
+        ("10 Stoic Principles", "Emotional control", "sx2CBR0O6RY", .mindset, 900, "Stoic Journal", ["Build Self Esteem", "Reduce Anxiety"], false, "Ten stoic principles so nothing can affect you — master your emotional reactions."),
+        ("Stoicism for Ordinary Life", "TEDx philosophy", "Yhn1Fe8cT0Q", .mindset, 1200, "TEDx Talks", ["Build Self Esteem", "Improve Performance"], false, "Stoicism as a philosophy for an ordinary life — TEDx talk on applying ancient wisdom daily."),
+        ("Growth vs Fixed Mindset", "Mindset explained", "KUWn_TJTrnU", .mindset, 600, "Sprouts", ["Improve Performance", "Build Self Esteem"], false, "Growth mindset vs fixed mindset — clear animated explanation of how your beliefs shape success."),
+        ("Growth Mindset Guide", "How it works", "75GFzikmRY0", .mindset, 900, "Trevor Ragan", ["Improve Performance", "Build Self Esteem"], false, "Growth mindset introduction — what it is, how it works, and how to develop it."),
+        ("Stop People Pleasing", "Set boundaries", "1naEi1f0Zo4", .mindset, 600, "Psych2Go", ["Build Self Esteem", "Reduce Anxiety"], false, "How to stop people pleasing — understand the pattern and learn to set healthy boundaries."),
+        ("People Pleasing Health", "How to say no", "FbmwWvZEdZw", .mindset, 900, "Mel Robbins", ["Build Self Esteem", "Reduce Stress"], false, "People pleasing and your health — Mel Robbins on how to say no and protect your energy."),
+        ("Trauma and Resilience", "TEDx resilience talk", "3qELiw_1Ddg", .mindset, 900, "TEDx Talks", ["Build Self Esteem", "Reduce Anxiety"], false, "What trauma taught me about resilience — TEDx talk on building strength through adversity."),
+        ("Build Resilience", "10 practical ways", "VNCL1glwyOI", .mindset, 600, "Art of Improvement", ["Build Self Esteem", "Improve Performance"], false, "Ten ways to build and develop resilience — practical strategies for emotional strength."),
+        ("Stop Overthinking", "Cognitive defusion", "V3vhXQy48jo", .mindset, 900, "Therapy in a Nutshell", ["Reduce Anxiety", "Improve Performance"], false, "Intrusive thoughts and overthinking — cognitive defusion technique to break the anxiety cycle."),
+        ("Break Negative Thoughts", "CBT techniques", "lLZ-3TSoe9E", .mindset, 600, "Therapy in a Nutshell", ["Reduce Anxiety", "Reduce Stress"], false, "Automatic negative thoughts — CBT techniques to break the anxiety cycle and think clearly."),
+        ("Self-Compassion Break", "Kristin Neff guided", "LX71ZTAsmg8", .mindset, 600, "Dr. Kristin Neff", ["Build Self Esteem", "Increase Happiness"], false, "Tender self-compassion break guided by Dr. Kristin Neff — be kind to yourself in moments of struggle."),
+        ("Stop Wasting Your Life", "Dopamine detox", "gh2m0dj_lFk", .mindset, 1200, "Koi", ["Improve Performance", "Build Self Esteem"], false, "How to stop wasting your life — full dopamine detox protocol for focus and motivation."),
+        ("Rewire for Discipline", "Brain training", "KXvyd-tkrmc", .mindset, 900, "HustleCore", ["Improve Performance", "Build Self Esteem"], false, "How to rewire your brain to enjoy discipline — build lasting habits through neuroscience."),
+        ("Perfectionism 70% Rule", "Let go of perfect", "SxA69uUGEUI", .mindset, 600, "struthless", ["Reduce Anxiety", "Build Self Esteem"], false, "Advice for perfectionists — the 70% rule for letting go of perfect and getting things done."),
     ]
 
     // Content version - increment this when video IDs change to force re-seed
-    private static let contentVersion = 31
+    private static let contentVersion = 33
     private static let contentVersionKey = "ContentRepositoryVersion"
 
     func seedContentIfNeeded(in context: ModelContext) {

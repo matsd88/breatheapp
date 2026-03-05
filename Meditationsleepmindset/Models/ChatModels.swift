@@ -18,6 +18,16 @@ enum MoodLevel: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    var displayName: String {
+        switch self {
+        case .great: return String(localized: "Great")
+        case .good: return String(localized: "Good")
+        case .okay: return String(localized: "Okay")
+        case .low: return String(localized: "Low")
+        case .struggling: return String(localized: "Struggling")
+        }
+    }
+
     var emoji: String {
         switch self {
         case .great: return "😊"

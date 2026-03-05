@@ -22,9 +22,11 @@ final class iCloudSyncService {
         static let lastSyncDate = "sync_lastDate"
     }
 
+    private var cloudObserver: Any?
+
     private init() {
         // Listen for external iCloud changes
-        NotificationCenter.default.addObserver(
+        cloudObserver = NotificationCenter.default.addObserver(
             forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
             object: store,
             queue: .main
@@ -32,6 +34,12 @@ final class iCloudSyncService {
             self?.handleExternalChange()
         }
         store.synchronize()
+    }
+
+    deinit {
+        if let observer = cloudObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
 
     // MARK: - Sync to iCloud

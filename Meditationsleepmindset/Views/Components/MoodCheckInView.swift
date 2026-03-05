@@ -9,8 +9,10 @@ struct MoodCheckInView: View {
     @Binding var isPresented: Bool
     var onMoodSelected: ((Mood) -> Void)?
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var selectedMood: Mood?
     @State private var showingConfirmation = false
+    @State private var dismissTask: Task<Void, Never>?
 
     var body: some View {
         ZStack {
@@ -50,6 +52,7 @@ struct MoodCheckInView: View {
                     }
                 }
                 .padding(.horizontal)
+                .frame(maxWidth: sizeClass == .regular ? 700 : 500)
 
                 Spacer()
 
@@ -60,7 +63,10 @@ struct MoodCheckInView: View {
                         withAnimation {
                             showingConfirmation = true
                         }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                        dismissTask?.cancel()
+                        dismissTask = Task {
+                            try? await Task.sleep(nanoseconds: 1_000_000_000)
+                            guard !Task.isCancelled else { return }
                             isPresented = false
                         }
                     }
@@ -71,6 +77,7 @@ struct MoodCheckInView: View {
                 }
                 .disabled(selectedMood == nil)
                 .padding(.horizontal)
+                .frame(maxWidth: sizeClass == .regular ? 600 : 400)
 
                 // Skip Button
                 Button("Skip for now") {
@@ -84,6 +91,9 @@ struct MoodCheckInView: View {
             if showingConfirmation {
                 confirmationOverlay
             }
+        }
+        .onDisappear {
+            dismissTask?.cancel()
         }
     }
 
@@ -136,7 +146,7 @@ struct MoodOptionButton: View {
                     }
                 }
 
-                Text(mood.rawValue)
+                Text(mood.displayName)
                     .font(.caption)
                     .fontWeight(isSelected ? .semibold : .regular)
                     .foregroundStyle(isSelected ? Theme.textPrimary : Theme.textSecondary)
@@ -251,7 +261,7 @@ struct MiniMoodButton: View {
                 Text(mood.emoji)
                     .font(.title2)
 
-                Text(mood.rawValue)
+                Text(mood.displayName)
                     .font(.caption2)
                     .foregroundStyle(isSelected ? Theme.textPrimary : Theme.textSecondary)
             }
@@ -276,6 +286,7 @@ struct PreSessionMoodCheck: View {
     @Binding var isPresented: Bool
     var onContinue: ((Mood?) -> Void)?
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var selectedMood: Mood?
 
     var body: some View {
@@ -355,6 +366,7 @@ struct PreSessionMoodCheck: View {
                     }
                 }
                 .padding(.horizontal)
+                .frame(maxWidth: sizeClass == .regular ? 700 : 500)
 
                 Spacer()
 
@@ -374,8 +386,11 @@ struct PreSessionMoodCheck: View {
                     }
                     .foregroundStyle(Theme.textSecondary)
                 }
+                .frame(maxWidth: sizeClass == .regular ? 600 : .infinity)
                 .padding()
             }
+            .frame(maxWidth: sizeClass == .regular ? 700 : .infinity)
+            .frame(maxWidth: .infinity)
         }
     }
 }

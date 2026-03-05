@@ -14,11 +14,15 @@ struct ScrollToTopButton: View {
 
     var body: some View {
         Button {
-            withAnimation {
-                scrollProxy.scrollTo(targetID, anchor: .top)
+            // Hide the button first, then scroll
+            withAnimation(.easeOut(duration: 0.2)) {
+                isVisible = false
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                withAnimation { isVisible = false }
+            // Small delay so button removal doesn't interfere with scroll
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                withAnimation(.easeInOut(duration: 0.4)) {
+                    scrollProxy.scrollTo(targetID, anchor: .top)
+                }
             }
         } label: {
             Image(systemName: "arrow.up")

@@ -17,6 +17,18 @@ enum UserGoal: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    var displayName: String {
+        switch self {
+        case .buildSelfEsteem: return String(localized: "Build Self Esteem")
+        case .reduceAnxiety: return String(localized: "Reduce Anxiety")
+        case .increaseHappiness: return String(localized: "Increase Happiness")
+        case .developGratitude: return String(localized: "Develop Gratitude")
+        case .reduceStress: return String(localized: "Reduce Stress")
+        case .improvePerformance: return String(localized: "Improve Performance")
+        case .betterSleep: return String(localized: "Better Sleep")
+        }
+    }
+
     var iconName: String {
         switch self {
         case .buildSelfEsteem: return "star.fill"
@@ -37,11 +49,19 @@ enum ExperienceLevel: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    var displayName: String {
+        switch self {
+        case .beginner: return String(localized: "Beginner")
+        case .intermediate: return String(localized: "Intermediate")
+        case .experienced: return String(localized: "Experienced")
+        }
+    }
+
     var description: String {
         switch self {
-        case .beginner: return "New to meditation"
-        case .intermediate: return "Some experience"
-        case .experienced: return "Regular practice"
+        case .beginner: return String(localized: "New to meditation")
+        case .intermediate: return String(localized: "Some experience")
+        case .experienced: return String(localized: "Regular practice")
         }
     }
 }

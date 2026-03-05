@@ -1,0 +1,26 @@
+{
+    "applinks": {
+        "details": [
+            {
+                "appIDs": [
+                    "TEAM_ID.com.meditation.Meditation-Sleep-Mindset"
+                ],
+                "components": [
+                    {
+                        "/": "/breathe",
+                        "comment": "Breathing exercise technique picker"
+                    },
+                    {
+                        "/": "/breathe/*",
+                        "comment": "Specific breathing technique"
+                    }
+                ]
+            }
+        ]
+    },
+    "appclips": {
+        "apps": [
+            "TEAM_ID.com.meditation.Meditation-Sleep-Mindset.Clip"
+        ]
+    }
+}

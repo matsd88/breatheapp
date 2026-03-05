@@ -14,6 +14,7 @@ struct ProgramDetailView: View {
     @Query private var allProgress: [ProgramProgress]
     @Query private var allContent: [Content]
 
+    @State private var showSessionLimitPaywall = false
     private let sheetBackground = Color(red: 0.09, green: 0.17, blue: 0.31)
 
     private var days: [ProgramDay] {
@@ -155,6 +156,8 @@ struct ProgramDetailView: View {
 
                         Spacer(minLength: 100)
                     }
+                    .frame(maxWidth: 700)
+                    .frame(maxWidth: .infinity)
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -178,6 +181,13 @@ struct ProgramDetailView: View {
         }
         .presentationDetents([.large])
         .presentationBackground(sheetBackground)
+        .sheet(isPresented: $showSessionLimitPaywall) {
+            PremiumPaywallView(
+                storeManager: StoreManager.shared,
+                sessionLimitMessage: "This is a premium meditation. Subscribe to unlock the full library.",
+                onSubscribed: { showSessionLimitPaywall = false }
+            )
+        }
     }
 
     // MARK: - Logic
@@ -227,6 +237,10 @@ struct ProgramDetailView: View {
     }
 
     private func playContent(_ content: Content) {
+        if !StoreManager.shared.isSubscribed && AppStateManager.shared.hasReachedFreeSessionLimit {
+            showSessionLimitPaywall = true
+            return
+        }
         let manager = AudioPlayerManager.shared
         manager.queue = [content]
         manager.currentIndex = 0

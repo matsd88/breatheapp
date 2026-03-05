@@ -12,6 +12,15 @@ enum TimerAmbientSound: String, CaseIterable {
     case forest = "Forest"
     case silence = "Silence"
 
+    var displayName: String {
+        switch self {
+        case .rain: return String(localized: "Rain")
+        case .ocean: return String(localized: "Ocean")
+        case .forest: return String(localized: "Forest")
+        case .silence: return String(localized: "Silence")
+        }
+    }
+
     var fileName: String? {
         switch self {
         case .rain: return "rain"
@@ -39,6 +48,7 @@ class AmbientSoundService: ObservableObject {
     @Published var volume: Float = 0.7
 
     private var audioPlayer: AVAudioPlayer?
+    private var fadeTimer: Timer?
 
     private init() {
         setupAudioSession()
@@ -175,6 +185,8 @@ class AmbientSoundService: ObservableObject {
     }
 
     func stop() {
+        fadeTimer?.invalidate()
+        fadeTimer = nil
         audioPlayer?.stop()
         audioPlayer = nil
         isPlaying = false
@@ -198,12 +210,20 @@ class AmbientSoundService: ObservableObject {
 
         var currentStep = 0
 
-        Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] timer in
+        fadeTimer?.invalidate()
+        fadeTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self, weak player] timer in
+            guard let player else {
+                timer.invalidate()
+                self?.fadeTimer = nil
+                completion?()
+                return
+            }
             currentStep += 1
             player.volume -= volumeStep
 
             if currentStep >= steps {
                 timer.invalidate()
+                self?.fadeTimer = nil
                 self?.stop()
                 completion?()
             }

@@ -17,6 +17,13 @@ struct SettingsView: View {
     @State private var showingEmailCopiedAlert = false
     @State private var showingExportSheet = false
     @State private var exportImage: UIImage?
+    @StateObject private var accountService = AccountService.shared
+    @State private var showingSignInSheet = false
+    @State private var showingSignOutConfirmation = false
+    @State private var showingDeleteAccountConfirmation = false
+    @State private var showingSupportChat = false
+    @State private var showingOfflinePacks = false
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     private let headerSolidColor = Color(red: 0.08, green: 0.15, blue: 0.28)
 
@@ -40,11 +47,11 @@ struct SettingsView: View {
                         SettingsSection(title: "Support") {
                             Button {
                                 HapticManager.light()
-                                openEmail()
+                                showingSupportChat = true
                             } label: {
                                 SettingsRow(
-                                    icon: "envelope.fill",
-                                    title: "Contact Support"
+                                    icon: "message.fill",
+                                    title: "Get Help"
                                 )
                             }
 
@@ -92,10 +99,42 @@ struct SettingsView: View {
                             }
                         }
 
+                        // Downloads Section
+                        SettingsSection(title: "Downloads") {
+                            Button {
+                                HapticManager.light()
+                                showingOfflinePacks = true
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "arrow.down.circle.fill")
+                                        .foregroundStyle(.cyan)
+                                        .frame(width: 28, height: 28)
+                                        .background(Color.cyan.opacity(0.15))
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Offline Packs")
+                                            .font(.subheadline)
+                                            .foregroundStyle(.white)
+                                        Text("Download content for travel")
+                                            .font(.caption)
+                                            .foregroundStyle(Theme.textSecondary)
+                                    }
+
+                                    Spacer()
+
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundStyle(Theme.textTertiary)
+                                }
+                                .padding()
+                            }
+                        }
+
                         // Integrations
                         if HealthKitService.isAvailable {
                             SettingsSection(title: "Integrations") {
-                                HStack {
+                                HStack(spacing: 12) {
                                     Image(systemName: "heart.fill")
                                         .foregroundStyle(.red)
                                         .frame(width: 28, height: 28)
@@ -117,9 +156,10 @@ struct SettingsView: View {
                                         get: { HealthKitService.shared.isEnabled },
                                         set: { HealthKitService.shared.isEnabled = $0 }
                                     ))
+                                    .labelsHidden()
                                     .tint(Theme.profileAccent)
                                 }
-                                .padding(.vertical, 4)
+                                .padding()
                             }
                         }
 
@@ -138,6 +178,68 @@ struct SettingsView: View {
 
                         // Account Section
                         SettingsSection(title: "Account") {
+                            // Sign in with Apple row
+                            if accountService.isSignedIn {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "person.crop.circle.fill")
+                                        .font(.system(size: 18))
+                                        .foregroundStyle(.green)
+                                        .frame(width: 28)
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(accountService.userDisplayName ?? "Apple Account")
+                                            .foregroundStyle(Theme.textPrimary)
+
+                                        if let email = accountService.userEmail {
+                                            Text(email)
+                                                .font(.caption)
+                                                .foregroundStyle(Theme.textSecondary)
+                                        }
+                                    }
+
+                                    Spacer()
+
+                                    if CloudKitSyncService.shared.isSyncing {
+                                        ProgressView()
+                                            .tint(.white)
+                                            .scaleEffect(0.8)
+                                    } else {
+                                        Image(systemName: "checkmark.icloud.fill")
+                                            .foregroundStyle(.green.opacity(0.7))
+                                    }
+                                }
+                                .padding()
+                            } else {
+                                Button {
+                                    HapticManager.light()
+                                    accountService.signInReason = .manual
+                                    showingSignInSheet = true
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "person.crop.circle")
+                                            .font(.system(size: 18))
+                                            .foregroundStyle(.white)
+                                            .frame(width: 28)
+
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(String(localized: "Sign in with Apple"))
+                                                .foregroundStyle(Theme.textPrimary)
+
+                                            Text(String(localized: "Sync your data across devices"))
+                                                .font(.caption)
+                                                .foregroundStyle(Theme.textSecondary)
+                                        }
+
+                                        Spacer()
+
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundStyle(Theme.textTertiary)
+                                    }
+                                    .padding()
+                                }
+                            }
+
                             if storeManager.isSubscribed {
                                 SettingsRow(
                                     icon: "crown.fill",
@@ -161,12 +263,16 @@ struct SettingsView: View {
                                 guard !storeManager.isRestoring else { return }
                                 HapticManager.light()
                                 Task {
-                                    await storeManager.restorePurchases()
-                                    if storeManager.isSubscribed {
-                                        HapticManager.success()
-                                        ToastManager.shared.show("Purchases restored!", icon: "checkmark.circle.fill", style: .success)
-                                    } else {
-                                        ToastManager.shared.show("No purchases found", icon: "info.circle", style: .standard)
+                                    do {
+                                        try await storeManager.restorePurchases()
+                                        if storeManager.isSubscribed {
+                                            HapticManager.success()
+                                            ToastManager.shared.show("Purchases restored!", icon: "checkmark.circle.fill", style: .success)
+                                        } else {
+                                            ToastManager.shared.show("No purchases found", icon: "info.circle", style: .standard)
+                                        }
+                                    } catch {
+                                        ToastManager.shared.show("Restore failed. Try again.", icon: "xmark.circle", style: .error)
                                     }
                                 }
                             } label: {
@@ -190,6 +296,30 @@ struct SettingsView: View {
                                 .padding()
                             }
                             .disabled(storeManager.isRestoring)
+
+                            // Sign out / Delete account (only when signed in)
+                            if accountService.isSignedIn {
+                                Button {
+                                    HapticManager.light()
+                                    showingSignOutConfirmation = true
+                                } label: {
+                                    SettingsRow(
+                                        icon: "rectangle.portrait.and.arrow.right",
+                                        title: "Sign Out"
+                                    )
+                                }
+
+                                Button {
+                                    HapticManager.light()
+                                    showingDeleteAccountConfirmation = true
+                                } label: {
+                                    SettingsRow(
+                                        icon: "trash",
+                                        title: "Delete Account",
+                                        iconColor: .red
+                                    )
+                                }
+                            }
                         }
 
                         // Legal Section
@@ -215,17 +345,66 @@ struct SettingsView: View {
                             }
                         }
 
-                        // Developer Section (for testing)
+                        // Developer Section (hidden in production)
                         #if DEBUG
                         SettingsSection(title: "Developer") {
+                            HStack {
+                                Image(systemName: "server.rack")
+                                    .foregroundStyle(.orange)
+                                    .frame(width: 28, height: 28)
+                                    .background(Color.orange.opacity(0.15))
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Use R2 Storage")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.white)
+                                    Text(VideoService.useR2 ? "Self-hosted media" : "YouTube extraction")
+                                        .font(.caption)
+                                        .foregroundStyle(Theme.textSecondary)
+                                }
+
+                                Spacer()
+
+                                Toggle("", isOn: Binding(
+                                    get: { VideoService.useR2 },
+                                    set: { VideoService.useR2 = $0 }
+                                ))
+                                .tint(Theme.profileAccent)
+                            }
+                            .padding(.vertical, 4)
+
                             Button {
-                                appState.resetOnboarding()
-                                dismiss()
+                                HapticManager.light()
+                                // Clear all caches when switching backends
+                                Task {
+                                    do {
+                                        try await YouTubeService.shared.clearCache()
+                                        await VideoCache.shared.clearCache()
+                                        ImageCache.shared.clearCache()
+                                        ToastManager.shared.show("Caches cleared", icon: "trash")
+                                    } catch {
+                                        ToastManager.shared.show("Failed to clear caches", icon: "xmark.circle", style: .error)
+                                    }
+                                }
                             } label: {
                                 SettingsRow(
-                                    icon: "arrow.counterclockwise",
-                                    title: "Reset Onboarding",
-                                    iconColor: .orange
+                                    icon: "trash",
+                                    title: "Clear All Caches",
+                                    iconColor: .red
+                                )
+                            }
+
+                            Button {
+                                HapticManager.light()
+                                DemoDataSeeder.reset()
+                                ToastManager.shared.show("Demo data reset — relaunch app", icon: "arrow.counterclockwise")
+                            } label: {
+                                SettingsRow(
+                                    icon: "photo.on.rectangle",
+                                    title: "Reset Demo Data",
+                                    subtitle: Constants.isDemoMode ? "Demo mode ON" : "Demo mode OFF",
+                                    iconColor: .purple
                                 )
                             }
                         }
@@ -268,7 +447,7 @@ struct SettingsView: View {
             .sheet(isPresented: $showingRatingDialog) {
                 RatingDialogView()
             }
-            .sheet(isPresented: $showingThemeSettings) {
+            .fullScreenCover(isPresented: $showingThemeSettings) {
                 ThemeSettingsView()
             }
             .sheet(isPresented: $showingExportSheet) {
@@ -276,14 +455,59 @@ struct SettingsView: View {
                     InsightsShareSheet(items: [image])
                 }
             }
+            .sheet(isPresented: $showingSignInSheet) {
+                SignInWithAppleSheet(accountService: accountService)
+            }
+            .sheet(isPresented: $showingSupportChat) {
+                SupportChatView()
+            }
+            .sheet(isPresented: $showingOfflinePacks) {
+                if #available(iOS 18.0, *), sizeClass == .regular {
+                    OfflinePacksView()
+                        .presentationSizing(.page)
+                } else {
+                    OfflinePacksView()
+                }
+            }
+            .alert("Sign Out", isPresented: $showingSignOutConfirmation) {
+                Button("Sign Out", role: .destructive) {
+                    accountService.signOut()
+                    ToastManager.shared.show("Signed out", icon: "person.crop.circle.badge.minus")
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("Your data will stay on this device. You can sign back in anytime to sync across devices.")
+            }
+            .alert("Delete Account", isPresented: $showingDeleteAccountConfirmation) {
+                Button("Delete", role: .destructive) {
+                    Task {
+                        do {
+                            try await accountService.deleteAccount()
+                            ToastManager.shared.show("Account deleted", icon: "trash")
+                        } catch {
+                            ToastManager.shared.show("Failed to delete account", icon: "xmark.circle", style: .error)
+                        }
+                    }
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("This will remove your cloud data. Local data on this device will be kept.")
+            }
             .alert("Email Copied", isPresented: $showingEmailCopiedAlert) {
                 Button("OK", role: .cancel) { }
             } message: {
                 Text("No email app found. The support email address has been copied to your clipboard: \(Constants.Support.email)")
             }
         }
-        .presentationBackground(Theme.profileGradient)
+        .preferredColorScheme(.dark)
     }
+
+    // Cached DateFormatter for performance
+    private static let dayOfWeekFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.dateFormat = "EEE"
+        return df
+    }()
 
     @MainActor
     private func generateInsightsImage() -> UIImage {
@@ -298,8 +522,13 @@ struct SettingsView: View {
             // Background gradient
             let colors = [UIColor(red: 0.08, green: 0.15, blue: 0.28, alpha: 1).cgColor,
                           UIColor(red: 0.12, green: 0.08, blue: 0.30, alpha: 1).cgColor]
-            let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors as CFArray, locations: [0, 1])!
-            ctx.cgContext.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: 0, y: 400), options: [])
+            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors as CFArray, locations: [0, 1]) {
+                ctx.cgContext.drawLinearGradient(gradient, start: .zero, end: CGPoint(x: 0, y: 400), options: [])
+            } else {
+                // Fallback: fill with solid color if gradient fails
+                UIColor(red: 0.1, green: 0.12, blue: 0.29, alpha: 1).setFill()
+                ctx.fill(rect)
+            }
 
             // Title
             let titleAttrs: [NSAttributedString.Key: Any] = [
@@ -336,12 +565,10 @@ struct SettingsView: View {
                     .foregroundColor: UIColor.white
                 ])
 
-                let df = DateFormatter()
-                df.dateFormat = "EEE"
                 for (i, day) in moods.prefix(7).enumerated() {
                     let x = CGFloat(40 + i * 75)
                     let emoji = day.mood?.emoji ?? "-"
-                    let dayLabel = df.string(from: day.date)
+                    let dayLabel = Self.dayOfWeekFormatter.string(from: day.date)
 
                     emoji.draw(at: CGPoint(x: x + 8, y: 265), withAttributes: [.font: UIFont.systemFont(ofSize: 28)])
                     dayLabel.draw(at: CGPoint(x: x + 4, y: 300), withAttributes: [.font: UIFont.systemFont(ofSize: 12), .foregroundColor: labelColor])
@@ -544,6 +771,8 @@ struct ManageSubscriptionView: View {
                     }
                 }
                 .padding()
+                .frame(maxWidth: 600)
+                .frame(maxWidth: .infinity)
             }
         }
         .navigationTitle("Subscription")
@@ -590,7 +819,11 @@ struct ReminderSettingsView: View {
                             .padding()
                             .onChange(of: reminderTime) { _, newValue in
                                 Task {
-                                    await appState.scheduleDailyReminder(at: newValue)
+                                    do {
+                                        try await appState.scheduleDailyReminder(at: newValue)
+                                    } catch {
+                                        ToastManager.shared.show("Failed to schedule reminder", icon: "xmark.circle", style: .error)
+                                    }
                                 }
                             }
                         }
@@ -621,6 +854,8 @@ struct ReminderSettingsView: View {
                     }
                 }
                 .padding()
+                .frame(maxWidth: 600)
+                .frame(maxWidth: .infinity)
             }
         }
         .navigationTitle("Daily Reminder")
@@ -639,7 +874,11 @@ struct ReminderSettingsView: View {
         if let date = Calendar.current.date(from: components) {
             reminderTime = date
             Task {
-                await appState.scheduleDailyReminder(at: date)
+                do {
+                    try await appState.scheduleDailyReminder(at: date)
+                } catch {
+                    ToastManager.shared.show("Failed to schedule reminder", icon: "xmark.circle", style: .error)
+                }
             }
         }
     }
@@ -759,6 +998,8 @@ struct PlaybackSettingsView: View {
                     }
                 }
                 .padding()
+                .frame(maxWidth: 600)
+                .frame(maxWidth: .infinity)
             }
         }
         .navigationTitle("Playback")
@@ -777,7 +1018,7 @@ struct TermsOfServiceView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    Text("Last Updated: January 2026")
+                    Text("Last Updated: February 2026")
                         .font(.caption)
                         .foregroundStyle(Theme.textTertiary)
 
@@ -786,7 +1027,7 @@ struct TermsOfServiceView: View {
                     }
 
                     LegalSection(title: "2. Description of Service") {
-                        Text("Meditation Sleep Mindset provides guided meditations, sleep stories, soundscapes, breathing exercises, body scan experiences, guided multi-day programs, a Pomodoro focus timer, mood tracking and insights, a sleep alarm, AI wellness chat, playlists, post-session reflections, playback speed control, AirPlay support, Siri Shortcuts, and mindfulness content designed to help users relax, sleep better, and improve their mental well-being. The App offers both free and premium subscription-based content, including an AI-powered wellness companion for personalized support.")
+                        Text("Meditation Sleep Mindset provides guided meditations, AI-generated personalized meditations, sleep stories, soundscapes, ASMR content, breathing exercises, body scan experiences, Micro-Moment quick sessions, guided multi-day programs, movement and yoga sessions, a Pomodoro focus timer, mood tracking and insights, a sleep alarm, AI wellness chat, downloadable offline content packs, user-added YouTube content, playlists, post-session reflections, playback speed control, AirPlay support, Siri Shortcuts, an Apple Watch companion app, and mindfulness content designed to help users relax, sleep better, and improve their mental well-being. The App offers both free and premium subscription-based content, including an AI-powered wellness companion for personalized support.")
                     }
 
                     LegalSection(title: "3. Subscription and Billing") {
@@ -810,26 +1051,30 @@ struct TermsOfServiceView: View {
                             Text("• Attempt to reverse engineer or copy the App's content")
                             Text("• Use the App for any unlawful purpose")
                             Text("• Redistribute or commercially exploit the content")
+                            Text("• Use the AI features to generate harmful, abusive, or inappropriate content")
                         }
                     }
 
-                    LegalSection(title: "6. AI Wellness Chat") {
+                    LegalSection(title: "6. AI Features") {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("The App includes an AI-powered wellness chat feature that provides conversational support for mental wellness. By using this feature, you acknowledge that:")
+                            Text("The App includes AI-powered features including a wellness chat companion and AI-generated personalized meditations. By using these features, you acknowledge that:")
                             Text("• The AI is not a licensed therapist, counselor, or medical professional")
-                            Text("• Responses are generated by artificial intelligence and should not be considered professional advice")
+                            Text("• AI-generated meditations and chat responses are created by artificial intelligence and should not be considered professional advice")
                             Text("• The AI chat is intended for general wellness support and is not a substitute for professional mental health care")
+                            Text("• AI-generated meditations are personalized based on your selected preferences (focus area, duration) and are for relaxation purposes only")
                             Text("• If you are in crisis or experiencing a mental health emergency, please contact emergency services (911) or the Suicide & Crisis Lifeline (988)")
-                            Text("• Chat messages are processed by our AI service to generate responses and are not stored on external servers")
+                            Text("• Chat messages are processed by our AI service to generate responses and are not stored on external servers or used for AI training")
                             Text("• Free users are limited to \(Constants.Chat.freeMessageLimit) messages per day")
                         }
                     }
 
                     LegalSection(title: "7. Health & Wellness Features") {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("The App includes wellness features such as breathing exercises, body scan meditations, a focus timer (Pomodoro), guided multi-day programs, mood tracking, post-session mood reflections, and a sleep alarm. These features are designed for general wellness and relaxation purposes only.")
+                            Text("The App includes wellness features such as breathing exercises, body scan meditations, Micro-Moment quick sessions, a focus timer (Pomodoro), guided multi-day programs, movement and yoga sessions, mood tracking, post-session mood reflections, and a sleep alarm. These features are designed for general wellness and relaxation purposes only.")
                             Text("• Breathing exercises guide you through timed breathing patterns and are not medical respiratory therapy")
                             Text("• The body scan feature provides guided relaxation and is not a diagnostic tool")
+                            Text("• Micro-Moments provide brief mindfulness exercises and are not clinical interventions")
+                            Text("• Movement and yoga sessions are for general wellness and are not physical therapy")
                             Text("• The focus timer helps structure work sessions and is not a medical productivity treatment")
                             Text("• Mood tracking and post-session reflections provide personal insights and are not clinical assessments")
                             Text("• The sleep alarm and sleep timer use local notifications and require notification permissions to function")
@@ -848,44 +1093,67 @@ struct TermsOfServiceView: View {
 
                     LegalSection(title: "9. Content & Playback") {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Audio and video content in the App is streamed from third-party sources. We do not host or own this content. Availability of specific content may change without notice. The App provides playback features including:")
+                            Text("Audio and video content in the App is streamed from third-party sources or hosted on our servers. Availability of specific content may change without notice. The App provides playback and content features including:")
                             Text("• Adjustable playback speed")
                             Text("• Sleep timer with automatic fade-out")
                             Text("• AirPlay streaming to external devices")
                             Text("• Siri Shortcuts for hands-free access")
                             Text("• Sharing content at specific timestamps")
+                            Text("• Downloadable offline content packs for listening without an internet connection")
+                            Text("• The ability to search and add YouTube content to your personal library")
                         }
                     }
 
-                    LegalSection(title: "10. Health Disclaimer") {
-                        Text("The App is designed for general wellness and relaxation purposes only, including its AI chat, breathing exercises, body scan, focus timer, mood tracking, and post-session reflection features. It is not intended to diagnose, treat, cure, or prevent any medical or psychological condition. Always consult with a qualified healthcare provider before starting any wellness program or if you have concerns about your mental health. Do not use the App while driving or operating machinery.")
+                    LegalSection(title: "10. Apple Watch Companion App") {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("The App includes an optional Apple Watch companion app that allows you to access meditation and wellness features from your wrist. By using the Watch app, you acknowledge that:")
+                            Text("• The Watch app syncs data with the iPhone app via Apple's WatchConnectivity framework")
+                            Text("• Session data recorded on the Watch is stored locally and synced to the iPhone")
+                            Text("• The Watch app requires a paired iPhone with the main app installed")
+                        }
                     }
 
-                    LegalSection(title: "11. Intellectual Property") {
-                        Text("The App's software, design, and original content are the property of Meditation Sleep Mindset or its licensors and are protected by copyright and other intellectual property laws. Streamed media content is owned by its respective creators.")
+                    LegalSection(title: "11. Offline Content & Downloads") {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Premium users may download content packs for offline use. By using this feature, you acknowledge that:")
+                            Text("• Downloaded content is stored locally on your device and uses device storage")
+                            Text("• Offline content is licensed for personal use only and may not be redistributed")
+                            Text("• An active premium subscription is required to access downloaded content")
+                            Text("• Content availability may change; previously downloaded content may become unavailable")
+                        }
                     }
 
-                    LegalSection(title: "12. Limitation of Liability") {
+                    LegalSection(title: "12. Health Disclaimer") {
+                        Text("The App is designed for general wellness and relaxation purposes only, including its AI chat, AI-generated meditations, breathing exercises, body scan, Micro-Moments, movement sessions, focus timer, mood tracking, and post-session reflection features. It is not intended to diagnose, treat, cure, or prevent any medical or psychological condition. Always consult with a qualified healthcare provider before starting any wellness or exercise program or if you have concerns about your mental health. Do not use the App while driving or operating machinery.")
+                    }
+
+                    LegalSection(title: "13. Intellectual Property") {
+                        Text("The App's software, design, AI-generated content, and original content are the property of Meditation Sleep Mindset or its licensors and are protected by copyright and other intellectual property laws. Streamed media content is owned by its respective creators. User-added YouTube content remains the property of its original creators.")
+                    }
+
+                    LegalSection(title: "14. Limitation of Liability") {
                         Text("To the maximum extent permitted by law, Meditation Sleep Mindset shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the App. Our total liability shall not exceed the amount you paid for the App in the twelve months preceding any claim.")
                     }
 
-                    LegalSection(title: "13. Modifications to Terms") {
+                    LegalSection(title: "15. Modifications to Terms") {
                         Text("We reserve the right to modify these terms at any time. Continued use of the App after changes constitutes acceptance of the new terms. We will notify users of significant changes through the App.")
                     }
 
-                    LegalSection(title: "14. Termination") {
+                    LegalSection(title: "16. Termination") {
                         Text("We may terminate or suspend your access to the App at any time, without prior notice, for conduct that we believe violates these Terms or is harmful to other users, us, or third parties.")
                     }
 
-                    LegalSection(title: "15. Governing Law") {
+                    LegalSection(title: "17. Governing Law") {
                         Text("These Terms shall be governed by and construed in accordance with the laws of the United States, without regard to conflict of law principles.")
                     }
 
-                    LegalSection(title: "16. Contact Us") {
+                    LegalSection(title: "18. Contact Us") {
                         Text("If you have questions about these Terms, please contact us at \(Constants.Support.email)")
                     }
                 }
                 .padding()
+                .frame(maxWidth: 700)
+                .frame(maxWidth: .infinity)
             }
         }
         .navigationTitle("Terms of Service")
@@ -902,12 +1170,12 @@ struct PrivacyPolicyView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    Text("Last Updated: January 2026")
+                    Text("Last Updated: February 2026")
                         .font(.caption)
                         .foregroundStyle(Theme.textTertiary)
 
                     LegalSection(title: "Introduction") {
-                        Text("Meditation Sleep Mindset (\"we\", \"our\", or \"us\") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application, including our AI wellness chat, breathing exercises, body scan, focus timer, guided programs, mood tracking, post-session reflections, sleep timer, sleep alarm, AirPlay, Siri Shortcuts, home screen widgets, playlist, and content features.")
+                        Text("Meditation Sleep Mindset (\"we\", \"our\", or \"us\") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application and Apple Watch companion app, including our AI wellness chat, AI-generated meditations, breathing exercises, body scan, Micro-Moment quick sessions, focus timer, guided programs, movement sessions, mood tracking, post-session reflections, offline content packs, sleep timer, sleep alarm, AirPlay, Siri Shortcuts, home screen widgets, playlist, and content features.")
                     }
 
                     LegalSection(title: "Information We Collect") {
@@ -923,21 +1191,25 @@ struct PrivacyPolicyView: View {
                                 .fontWeight(.medium)
                                 .padding(.top, 8)
                             Text("• Meditation sessions completed and listen duration")
+                            Text("• AI-generated meditation preferences and history")
                             Text("• Post-session mood reflections")
-                            Text("• Breathing exercise and body scan sessions")
+                            Text("• Breathing exercise, body scan, and Micro-Moment sessions")
                             Text("• Focus timer sessions and work/break intervals")
                             Text("• Guided program progress and completion")
                             Text("• Mood check-ins and mood tracking history")
                             Text("• App preferences, theme, and playback speed settings")
                             Text("• Favorite content selections and playlists")
+                            Text("• User-added YouTube content selections")
+                            Text("• Downloaded offline content packs")
                             Text("• Daily reminder and alarm preferences")
                             Text("• Streak and session history")
 
-                            Text("AI Wellness Chat Data:")
+                            Text("AI Data:")
                                 .fontWeight(.medium)
                                 .padding(.top, 8)
                             Text("• Chat messages and conversation history are stored locally on your device")
                             Text("• Messages are sent to our AI service provider to generate responses but are not stored on external servers or used for AI training")
+                            Text("• AI meditation generation preferences (focus area, duration) are sent to our AI provider to create personalized meditation scripts")
 
                             Text("Health Data (Optional):")
                                 .fontWeight(.medium)
@@ -945,6 +1217,12 @@ struct PrivacyPolicyView: View {
                             Text("• If you enable Apple Health integration, we write Mindful Minutes to Apple Health")
                             Text("• We do not read or access any other health data from Apple Health")
                             Text("• Health data is never shared with third parties or used for advertising")
+
+                            Text("Apple Watch Data:")
+                                .fontWeight(.medium)
+                                .padding(.top, 8)
+                            Text("• Session data from the Apple Watch companion app is synced to your iPhone via Apple's WatchConnectivity framework")
+                            Text("• Watch data is stored locally on your devices and is not transmitted to external servers")
 
                             Text("iCloud Sync Data:")
                                 .fontWeight(.medium)
@@ -959,10 +1237,12 @@ struct PrivacyPolicyView: View {
                             Text("All usage data is processed locally on your device to:")
                             Text("• Provide and maintain the App's functionality")
                             Text("• Personalize your meditation recommendations")
+                            Text("• Generate AI-personalized meditations based on your preferences")
                             Text("• Power the AI wellness chat with contextual responses")
                             Text("• Track your progress, streaks, and program completion")
                             Text("• Display mood insights, trends, and post-session reflections")
-                            Text("• Manage your playlists and favorites")
+                            Text("• Manage your playlists, favorites, and offline downloads")
+                            Text("• Sync wellness data between your iPhone and Apple Watch")
                             Text("• Send daily reminders and sleep alarms (if enabled)")
                             Text("• Write mindful minutes to Apple Health (if enabled)")
                             Text("• Process subscription transactions through Apple")
@@ -970,7 +1250,7 @@ struct PrivacyPolicyView: View {
                     }
 
                     LegalSection(title: "Data Storage and Security") {
-                        Text("Your meditation history, mood data, post-session reflections, program progress, and preferences are stored locally on your device using Apple's secure SwiftData storage. iCloud-synced data is encrypted in transit and at rest by Apple. Health data is written to Apple Health and governed by Apple's privacy framework. We do not operate external servers that store your personal data.")
+                        Text("Your meditation history, mood data, post-session reflections, program progress, offline content, and preferences are stored locally on your device using Apple's secure SwiftData storage. Downloaded offline packs are stored in the App's sandboxed storage on your device. iCloud-synced data is encrypted in transit and at rest by Apple. Health data is written to Apple Health and governed by Apple's privacy framework. We do not operate external servers that store your personal data.")
                     }
 
                     LegalSection(title: "Third-Party Services") {
@@ -979,11 +1259,12 @@ struct PrivacyPolicyView: View {
                             Text("• Apple App Store (for purchases and subscriptions)")
                             Text("• Apple Health (for optional mindful minutes recording)")
                             Text("• Apple iCloud (for optional data sync across devices)")
+                            Text("• Apple WatchConnectivity (for iPhone-Watch data sync)")
                             Text("• Apple Spotlight (for on-device content indexing)")
                             Text("• Apple Siri (for voice-activated shortcuts)")
-                            Text("• YouTube (for streaming meditation and sleep content)")
-                            Text("• AI service provider (to process chat messages and generate wellness responses)")
-                            Text("Chat messages sent to our AI provider are used solely to generate responses and are not retained or used for training.")
+                            Text("• YouTube (for streaming and searching meditation and sleep content)")
+                            Text("• AI service provider (to process chat messages and generate wellness responses and personalized meditations)")
+                            Text("Data sent to our AI provider is used solely to generate responses and personalized content. It is not retained or used for training.")
                         }
                     }
 
@@ -996,10 +1277,12 @@ struct PrivacyPolicyView: View {
                             Text("You have the right to:")
                             Text("• Access your personal data (stored on your device)")
                             Text("• Delete all your data by uninstalling the App")
+                            Text("• Delete downloaded offline content packs at any time")
                             Text("• Disable Apple Health integration at any time")
                             Text("• Disable iCloud sync at any time in iOS Settings")
                             Text("• Disable notifications, reminders, and alarms at any time")
                             Text("• Remove Siri Shortcuts in the Shortcuts app")
+                            Text("• Remove the Apple Watch companion app independently")
                         }
                     }
 
@@ -1008,11 +1291,11 @@ struct PrivacyPolicyView: View {
                     }
 
                     LegalSection(title: "Data Retention") {
-                        Text("All data is stored locally on your device and in your personal iCloud account. Uninstalling the App deletes all local data. iCloud data can be managed through iOS Settings. Health data written to Apple Health can be managed through the Health app. We do not retain any data on external servers.")
+                        Text("All data is stored locally on your device and in your personal iCloud account. Uninstalling the App deletes all local data including downloaded offline content. iCloud data can be managed through iOS Settings. Health data written to Apple Health can be managed through the Health app. Apple Watch data can be managed by removing the Watch app. We do not retain any data on external servers.")
                     }
 
                     LegalSection(title: "International Users") {
-                        Text("Chat messages are processed by our AI provider which may operate servers in the United States. All other data remains on your device or in your personal iCloud account.")
+                        Text("Chat messages and AI meditation generation requests are processed by our AI provider which may operate servers in the United States. All other data remains on your device or in your personal iCloud account.")
                     }
 
                     LegalSection(title: "Changes to This Policy") {
@@ -1028,6 +1311,8 @@ struct PrivacyPolicyView: View {
                     }
                 }
                 .padding()
+                .frame(maxWidth: 700)
+                .frame(maxWidth: .infinity)
             }
         }
         .navigationTitle("Privacy Policy")
@@ -1134,7 +1419,7 @@ struct FAQView: View {
 
                     FAQItem(
                         question: "How do I report an issue with content?",
-                        answer: "Tap the more button (three dots) on any content card and select 'Report an Issue'. This will open an email with details about the content pre-filled so our team can investigate. You can also reach us through Settings > Contact Support."
+                        answer: "Tap the more button (three dots) on any content card and select 'Report an Issue'. This will open an email with details about the content pre-filled so our team can investigate. You can also reach us through Settings > Get Help."
                     )
 
                     FAQItem(
@@ -1149,7 +1434,7 @@ struct FAQView: View {
 
                     FAQItem(
                         question: "What's included in Premium?",
-                        answer: "Premium unlocks our full library of guided meditations, sleep stories, soundscapes, exclusive programs, and premium content. You'll also get access to new content as it's released and an ad-free experience."
+                        answer: "Premium unlocks our full library of 875+ guided meditations, sleep stories, soundscapes, ASMR, music, yoga, and mindset content. You also get access to AI-generated personalized meditations, downloadable offline content packs, exclusive programs, unlimited AI chat messages, and all new content as it's released."
                     )
 
                     FAQItem(
@@ -1159,7 +1444,7 @@ struct FAQView: View {
 
                     FAQItem(
                         question: "Can I use the app offline?",
-                        answer: "Currently, content requires an internet connection to stream. Features like the Focus Timer, Breathing Exercises, and Body Scan work fully offline. We're working on adding download functionality for offline listening in a future update."
+                        answer: "Yes! Premium users can download offline content packs for listening without an internet connection. Go to Settings > Offline Packs to browse and download available content. Features like the Focus Timer, Breathing Exercises, Body Scan, and Micro-Moments also work fully offline. Streamed content requires an internet connection."
                     )
 
                     FAQItem(
@@ -1174,10 +1459,37 @@ struct FAQView: View {
 
                     FAQItem(
                         question: "How do I contact support?",
-                        answer: "You can reach our support team by going to Settings > Contact Support. We typically respond within 24-48 hours."
+                        answer: "You can reach our support team by going to Settings > Get Help. Our support chatbot can help with most questions instantly, or you can email us for personalized assistance."
+                    )
+
+                    FAQItem(
+                        question: "What are AI Meditations?",
+                        answer: "AI Meditations generates unique, personalized meditation sessions just for you. Choose your focus area (like stress relief, better sleep, or improved focus) and your preferred duration, and the AI creates a one-of-a-kind guided meditation script. Find it on the Discover tab. Note: AI meditations are for general wellness only and are not a substitute for professional care."
+                    )
+
+                    FAQItem(
+                        question: "What are Micro-Moments?",
+                        answer: "Micro-Moments are brief mindfulness exercises you can do anytime, anywhere — even in under a minute. They're perfect for a quick reset during a busy day. Find them on the Discover tab. Micro-Moments work fully offline."
+                    )
+
+                    FAQItem(
+                        question: "How do offline content packs work?",
+                        answer: "Premium users can download content packs for offline listening. Go to Settings > Offline Packs to browse available packs. Downloaded content is stored on your device and requires an active subscription to play. You can delete downloaded packs anytime to free up storage."
+                    )
+
+                    FAQItem(
+                        question: "How does the Apple Watch app work?",
+                        answer: "The Apple Watch companion app lets you start meditation sessions, breathing exercises, and track your streak right from your wrist. It syncs automatically with the iPhone app via Bluetooth. Make sure both devices are signed into the same Apple ID. The Watch app requires the main app installed on your paired iPhone."
+                    )
+
+                    FAQItem(
+                        question: "Can I add my own YouTube content?",
+                        answer: "Yes! You can search for and add YouTube meditation or sleep content to your personal library. Look for the search feature to find content from YouTube creators you love. Added content appears alongside our curated library and can be favorited or added to playlists."
                     )
                 }
                 .padding()
+                .frame(maxWidth: 700)
+                .frame(maxWidth: .infinity)
             }
         }
         .navigationTitle("FAQ")
@@ -1336,6 +1648,8 @@ struct RatingDialogView: View {
                     Spacer()
                 }
                 .padding()
+                .frame(maxWidth: 500)
+                .frame(maxWidth: .infinity)
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -1350,7 +1664,7 @@ struct RatingDialogView: View {
                 }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
     }
 
     private func submitRating() {
@@ -1628,6 +1942,8 @@ struct AccessibilitySettingsView: View {
                     .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadiusLarge))
                 }
                 .padding()
+                .frame(maxWidth: 600)
+                .frame(maxWidth: .infinity)
             }
         }
         .navigationTitle("Accessibility")

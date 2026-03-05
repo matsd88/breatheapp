@@ -43,13 +43,17 @@ class AppsFlyerService: NSObject {
 
     /// Request ATT permission then start the SDK. Call from onAppear after UI is visible.
     func requestTrackingAndStart() {
+        // Delay to ensure the app is fully active and visible (ATT requires active state)
         Task {
+            try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
             if #available(iOS 14, *) {
                 await ATTrackingManager.requestTrackingAuthorization()
             }
+            // Enable Firebase Analytics only after ATT authorization completes (Guideline 5.1.2)
+            FirebaseService.shared.enableAnalyticsCollection()
             AppsFlyerLib.shared().start()
             #if DEBUG
-            print("[AppsFlyerService] SDK started")
+            print("[AppsFlyerService] SDK started, analytics collection enabled")
             #endif
         }
     }
@@ -85,6 +89,31 @@ class AppsFlyerService: NSObject {
             AFEventParamQuantity: 1
         ])
     }
+
+    // MARK: - Onboarding Events
+
+    func logOnboardingStep(step: Int, stepName: String, action: String) {
+        AppsFlyerLib.shared().logEvent("onboarding_\(action)", withValues: [
+            "step_index": step,
+            "step_name": stepName
+        ])
+    }
+
+    // MARK: - Paywall Events
+
+    func logPaywallEvent(eventName: String, plan: String? = nil) {
+        var values: [String: Any] = [:]
+        if let plan { values["plan"] = plan }
+        AppsFlyerLib.shared().logEvent(eventName, withValues: values)
+    }
+
+    // MARK: - Trial Events
+
+    func logTrialStarted(productID: String) {
+        AppsFlyerLib.shared().logEvent("trial_started", withValues: [
+            AFEventParamContentId: productID
+        ])
+    }
 }
 
 // MARK: - AppsFlyerLibDelegate
@@ -93,6 +122,21 @@ extension AppsFlyerService: AppsFlyerLibDelegate {
         #if DEBUG
         print("[AppsFlyerService] Conversion data: \(conversionInfo)")
         #endif
+
+        // Forward attribution data to Firebase as user properties for CAC analysis
+        let mediaSource = conversionInfo["media_source"] as? String
+        let campaign = conversionInfo["campaign"] as? String
+        let adSet = conversionInfo["adset"] as? String
+        let ad = conversionInfo["ad"] as? String
+
+        Task { @MainActor in
+            FirebaseService.shared.setAttributionUserProperties(
+                mediaSource: mediaSource,
+                campaign: campaign,
+                adSet: adSet,
+                ad: ad
+            )
+        }
     }
 
     nonisolated func onConversionDataFail(_ error: any Error) {
@@ -111,11 +155,23 @@ class AppsFlyerService {
     private init() {}
 
     func configure() {}
-    func requestTrackingAndStart() {}
+    func requestTrackingAndStart() {
+        // Still need to handle ATT + Firebase analytics even without AppsFlyer
+        Task {
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            if #available(iOS 14, *) {
+                await ATTrackingManager.requestTrackingAuthorization()
+            }
+            FirebaseService.shared.enableAnalyticsCollection()
+        }
+    }
     func logCompleteRegistration() {}
     func logTutorialCompletion() {}
     func logPurchase(price: Decimal, currencyCode: String, productID: String) {}
     func logRenewal(price: Decimal, currencyCode: String, productID: String) {}
+    func logOnboardingStep(step: Int, stepName: String, action: String) {}
+    func logPaywallEvent(eventName: String, plan: String? = nil) {}
+    func logTrialStarted(productID: String) {}
 }
 
 #endif

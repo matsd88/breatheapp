@@ -6,6 +6,11 @@
 import Foundation
 
 enum Constants {
+    // MARK: - Demo Mode
+    // Set to true for App Store screenshots with fake user data
+    // Set to false for App Store and normal builds
+    static let isDemoMode = false
+
     // MARK: - Curator Mode
     // Set to true for your personal builds to enable YouTube search/add content
     // Set to false for App Store builds
@@ -14,24 +19,26 @@ enum Constants {
     // MARK: - App Store
     enum AppStore {
         static let appID = "6758229420"
-        static let shareURL = URL(string: "https://apps.apple.com/app/id\(appID)")!
-        static let reviewURL = URL(string: "https://apps.apple.com/app/id\(appID)?action=write-review")!
+        // Safe URL creation with fallback (these hardcoded URLs should never fail)
+        static let shareURL: URL = URL(string: "https://apps.apple.com/app/id\(appID)") ?? URL(string: "https://apps.apple.com")!
+        static let reviewURL: URL = URL(string: "https://apps.apple.com/app/id\(appID)?action=write-review") ?? URL(string: "https://apps.apple.com")!
     }
 
     // MARK: - Support
     enum Support {
         static let email = "matsdegerstedt@gmail.com"
-        static let privacyURL = URL(string: "https://meditationandsleepapp.com/privacy")!
-        static let termsURL = URL(string: "https://meditationandsleepapp.com/terms")!
-        static let helpURL = URL(string: "https://meditationandsleepapp.com")!
+        // Safe URL creation with fallback
+        static let privacyURL: URL = URL(string: "https://meditationandsleepapp.com/privacy") ?? URL(string: "https://meditationandsleepapp.com")!
+        static let termsURL: URL = URL(string: "https://meditationandsleepapp.com/terms") ?? URL(string: "https://meditationandsleepapp.com")!
+        static let helpURL: URL = URL(string: "https://meditationandsleepapp.com") ?? URL(string: "https://apple.com")!
     }
 
     // MARK: - Subscription Product IDs
     enum Subscriptions {
-        static let weeklyID = "com.meditation.weekly"
-        static let monthlyID = "com.meditation.monthly"
-        static let annualID = "com.meditation.annual"
-        static let annualDiscountedID = "com.meditation.annual.discounted"
+        static let weeklyID = "WeeklySubscription"
+        static let monthlyID = "MonthlySubscription"
+        static let annualID = "AnnualSubscription"
+        static let annualDiscountedID = "AnnualSubscription"
     }
 
     // MARK: - User Defaults Keys
@@ -49,12 +56,20 @@ enum Constants {
         static let chatMessagesSentCount = "chatMessagesSentCount"
     }
 
+    // MARK: - Analytics Keys (Trial Tracking)
+    enum AnalyticsKeys {
+        static let trialStartDate = "analyticsTrialStartDate"
+        static let trialProductID = "analyticsTrialProductID"
+        static let trialOriginalTransactionID = "analyticsTrialOriginalTransactionID"
+        static let trialConvertedLogged = "analyticsTrialConvertedLogged"
+    }
+
     // MARK: - Engagement Thresholds
     enum Engagement {
         static let sharePromptOpenCount = 2
         static let ratingPromptOpenCount = 3
         static let ratingPromptMinSessions = 5
-        static let freeSessionLimit = 3
+        static let freeSessionLimit = 12
     }
 
     // MARK: - Timer Presets
@@ -124,16 +139,24 @@ enum Constants {
         static let profileGoalScore = 1 // Points for legacy profile goals
     }
 
+    // MARK: - Account
+    enum Account {
+        static let streakMilestoneForPrompt = 7
+        static let sessionMilestoneForPrompt = 5
+        static let favoriteMilestoneForPrompt = 3
+        static let promptCooldownDays = 7
+        static let maxPromptDismissals = 3
+    }
+
     // MARK: - Chat
     enum Chat {
-        static let freeMessageLimit = 10
+        static let freeMessageLimit = 5
         static let proxyBaseURL = "https://winter-hill-e14c.matsdegerstedt.workers.dev"
-        static let maxTokens = 500
+        static let maxTokens = 300
         static let modelName = "gpt-4o-mini"
-        static let maxConversationHistory = 20
+        static let maxConversationHistory = 10
         static let historyRetentionDaysPremium = 30
-        static let historyRetentionDaysFree = 0
-        static let therapistReferralURL = "https://www.betterhelp.com/?utm_source=meditationapp"
+        static let historyRetentionDaysFree = 3
     }
 
     // MARK: - Crisis Resources
@@ -142,5 +165,26 @@ enum Constants {
         static let crisisTextLine = "741741"
         static let emergencyNumber = "911"
         static let findHelpURL = "https://findahelpline.com/"
+    }
+
+    // MARK: - AI Meditation Generation
+    enum AIMeditation {
+        /// OpenAI model for script generation (use gpt-4o-mini for cost efficiency)
+        static let scriptModel = "gpt-4o-mini"
+
+        /// Maximum tokens for script generation
+        static let maxScriptTokens = 4000
+
+        /// OpenAI TTS model (tts-1 for speed/cost, tts-1-hd for quality)
+        static let ttsModel = "tts-1"
+
+        /// Maximum number of AI meditations a free user can generate (lifetime)
+        static let freeGenerationLimit = 1
+
+        /// Maximum number of AI meditations a premium user can generate per day
+        static let premiumDailyGenerationLimit = 5
+
+        /// Name of the "My Creations" playlist
+        static let myCreationsPlaylistName = "My Creations"
     }
 }

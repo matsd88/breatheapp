@@ -34,15 +34,23 @@ class StreakService: ObservableObject {
         static let weeklyMinutes = "cloud_weeklyMinutes"
     }
 
+    private var cloudObserver: Any?
+
     private init() {
         setupCloudSync()
         loadStreakData()
         checkTodayStatus()
     }
 
+    deinit {
+        if let observer = cloudObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+
     private func setupCloudSync() {
         // Listen for iCloud changes from other devices
-        NotificationCenter.default.addObserver(
+        cloudObserver = NotificationCenter.default.addObserver(
             forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
             object: cloudStore,
             queue: .main
@@ -51,9 +59,6 @@ class StreakService: ObservableObject {
                 self?.handleCloudUpdate(notification)
             }
         }
-
-        // Trigger initial sync
-        cloudStore.synchronize()
     }
 
     private func handleCloudUpdate(_ notification: Notification) {
@@ -222,6 +227,9 @@ class StreakService: ObservableObject {
         // Check for streak milestone
         checkStreakMilestone()
 
+        // Update challenge streak progress
+        ChallengeService.shared.updateStreakProgress(currentStreak: currentStreak)
+
         // Handle first session
         if isFirstSession {
             isFirstSession = false
@@ -259,7 +267,11 @@ class StreakService: ObservableObject {
 
         if milestones.contains(currentStreak) {
             NotificationService.shared.scheduleStreakMilestone(days: currentStreak)
+            SmartRatingManager.shared.checkAndPromptIfAppropriate(trigger: .streakMilestone(days: currentStreak))
         }
+
+        // Check if we should prompt for account sign-in
+        AccountService.shared.checkStreakMilestone(streak: currentStreak)
     }
 
     // MARK: - Check Streak Status
@@ -336,7 +348,7 @@ class StreakService: ObservableObject {
 
         // Prune entries older than 14 days to prevent unbounded growth
         let calendar = Calendar.current
-        let cutoffDate = calendar.date(byAdding: .day, value: -14, to: Date())!
+        guard let cutoffDate = calendar.date(byAdding: .day, value: -14, to: Date()) else { return }
         let cutoffKey = formatDateKey(cutoffDate)
         weeklyMinutes = weeklyMinutes.filter { $0.key >= cutoffKey }
 
@@ -345,7 +357,6 @@ class StreakService: ObservableObject {
 
         // Save to iCloud
         cloudStore.set(weeklyMinutes, forKey: CloudKeys.weeklyMinutes)
-        cloudStore.synchronize()
 
         updateWeeklyActivity()
     }
@@ -367,18 +378,45 @@ class StreakService: ObservableObject {
         cloudStore.set(lastSessionDate, forKey: CloudKeys.lastSessionDate)
         cloudStore.set(Int64(totalMinutes), forKey: CloudKeys.totalMinutes)
         cloudStore.set(Int64(totalSessions), forKey: CloudKeys.totalSessions)
-        cloudStore.synchronize()
     }
 
     // MARK: - Widget Data Sync
     private func syncWidgetData() {
         guard let shared = UserDefaults(suiteName: "group.com.meditation.shared") else { return }
+
+        // Basic streak data
         shared.set(currentStreak, forKey: "widget_currentStreak")
         shared.set(totalMinutes, forKey: "widget_totalMinutes")
         shared.set(lastSessionDate, forKey: "widget_lastSessionDate")
 
+        // Weekly activity for streak widget (7 bools, M-S, most recent last)
+        let weeklyActivityBools = weeklyActivity.map { $0.hasActivity }
+        shared.set(weeklyActivityBools, forKey: "widget_weeklyActivity")
+
+        // Weekly stats for progress widget
+        let weeklyMinutesTotal = weeklyActivity.reduce(0) { $0 + $1.minutes }
+        let weeklySessionsCount = weeklyActivity.filter { $0.hasActivity }.count
+        let dailyMinutesArray = weeklyActivity.map { $0.minutes }
+
+        shared.set(weeklyMinutesTotal, forKey: "widget_weeklyMinutes")
+        shared.set(weeklySessionsCount, forKey: "widget_weeklySessions")
+        shared.set(dailyMinutesArray, forKey: "widget_dailyMinutes")
+
+        // Weekly goal (default 70 min = 10 min/day)
+        let weeklyGoal = UserDefaults.standard.integer(forKey: "weeklyGoalMinutes")
+        shared.set(weeklyGoal > 0 ? weeklyGoal : 70, forKey: "widget_weeklyGoalMinutes")
+
         // Reload widget timelines
         WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    /// Sync recent content for quick actions widget
+    func syncRecentContent(title: String, type: String, id: String) {
+        guard let shared = UserDefaults(suiteName: "group.com.meditation.shared") else { return }
+        shared.set(title, forKey: "widget_recentContentTitle")
+        shared.set(type, forKey: "widget_recentContentType")
+        shared.set(id, forKey: "widget_recentContentId")
+        WidgetCenter.shared.reloadTimelines(ofKind: "QuickActionsWidget")
     }
 
     // MARK: - Reset (for testing)
@@ -421,12 +459,12 @@ class StreakService: ObservableObject {
 
     var streakMessage: String {
         switch currentStreak {
-        case 0: return "Start your streak today!"
-        case 1: return "Great start! Keep it going!"
-        case 2...6: return "You're building momentum!"
-        case 7...13: return "One week strong!"
-        case 14...29: return "Amazing dedication!"
-        default: return "Incredible consistency!"
+        case 0: return String(localized: "Start your streak today!")
+        case 1: return String(localized: "Great start! Keep it going!")
+        case 2...6: return String(localized: "You're building momentum!")
+        case 7...13: return String(localized: "One week strong!")
+        case 14...29: return String(localized: "Amazing dedication!")
+        default: return String(localized: "Incredible consistency!")
         }
     }
 }

@@ -28,6 +28,16 @@ struct UnifiedContentCard: View {
     var onAddToPlaylist: (() -> Void)? = nil
     var onShare: (() -> Void)? = nil
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    // Adaptive sizes for iPad
+    private var listThumbWidth: CGFloat { sizeClass == .regular ? 140 : 100 }
+    private var listThumbHeight: CGFloat { sizeClass == .regular ? 100 : 70 }
+    private var compactThumbWidth: CGFloat { sizeClass == .regular ? 110 : 80 }
+    private var compactThumbHeight: CGFloat { sizeClass == .regular ? 75 : 55 }
+    private var thumbnailCardWidth: CGFloat { sizeClass == .regular ? 180 : 140 }
+    private var thumbnailCardHeight: CGFloat { sizeClass == .regular ? 115 : 90 }
+
     var body: some View {
         Button(action: onTap) {
             cardContent
@@ -54,7 +64,7 @@ struct UnifiedContentCard: View {
             }
 
             ShareLink(
-                item: URL(string: "meditation://content/\(content.youtubeVideoID)")!,
+                item: content.deepLinkURL,
                 subject: Text(content.title),
                 message: Text("Check out '\(content.title)' on Meditation Sleep Mindset!")
             ) {
@@ -80,11 +90,11 @@ struct UnifiedContentCard: View {
     // MARK: - List Style (Full Row)
     private var listStyleCard: some View {
         HStack(spacing: 12) {
-            thumbnailImage(width: 100, height: 70, cornerRadius: 8)
+            thumbnailImage(width: listThumbWidth, height: listThumbHeight, cornerRadius: 8)
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 4) {
-                    Text(content.contentType.rawValue)
+                    Text(content.contentType.displayName)
                         .font(.caption)
                         .fontWeight(.medium)
                         .foregroundStyle(.white.opacity(0.7))
@@ -131,7 +141,7 @@ struct UnifiedContentCard: View {
     // MARK: - Compact Style (Small Row)
     private var compactStyleCard: some View {
         HStack(spacing: 12) {
-            thumbnailImage(width: 80, height: 55, cornerRadius: 8)
+            thumbnailImage(width: compactThumbWidth, height: compactThumbHeight, cornerRadius: 8)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(content.title)
@@ -145,13 +155,15 @@ struct UnifiedContentCard: View {
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.7))
 
-                    Text("•")
-                        .font(.caption)
-                        .foregroundStyle(Theme.textTertiary)
+                    if !content.durationFormatted.isEmpty {
+                        Text("•")
+                            .font(.caption)
+                            .foregroundStyle(Theme.textTertiary)
 
-                    Text(content.durationFormatted)
-                        .font(.caption)
-                        .foregroundStyle(Theme.textSecondary)
+                        Text(content.durationFormatted)
+                            .font(.caption)
+                            .foregroundStyle(Theme.textSecondary)
+                    }
                 }
             }
 
@@ -171,15 +183,15 @@ struct UnifiedContentCard: View {
     private var thumbnailStyleCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack {
-                thumbnailImage(width: 140, height: 90, cornerRadius: 12)
+                thumbnailImage(width: thumbnailCardWidth, height: thumbnailCardHeight, cornerRadius: 12)
 
                 if showPlayOverlay {
                     Circle()
                         .fill(.black.opacity(0.5))
-                        .frame(width: 36, height: 36)
+                        .frame(width: sizeClass == .regular ? 44 : 36, height: sizeClass == .regular ? 44 : 36)
                         .overlay(
                             Image(systemName: "play.fill")
-                                .font(.system(size: 14))
+                                .font(.system(size: sizeClass == .regular ? 18 : 14))
                                 .foregroundStyle(.white)
                         )
                 }
@@ -187,17 +199,17 @@ struct UnifiedContentCard: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(content.title)
-                    .font(.subheadline)
+                    .font(sizeClass == .regular ? .body : .subheadline)
                     .fontWeight(.medium)
                     .foregroundStyle(Theme.textPrimary)
                     .lineLimit(1)
 
                 Text(content.durationFormatted)
-                    .font(.caption)
+                    .font(sizeClass == .regular ? .subheadline : .caption)
                     .foregroundStyle(Theme.textSecondary)
             }
         }
-        .frame(width: 140)
+        .frame(width: thumbnailCardWidth)
     }
 
     // MARK: - Sleep Style (Vertical with Gradient)

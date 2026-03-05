@@ -63,22 +63,34 @@ extension Date {
         return calendar.date(from: components) ?? self
     }
 
+    private static let dayOfWeekFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE"
+        return f
+    }()
+
+    private static let shortDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .short
+        return f
+    }()
+
+    private static let mediumDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        return f
+    }()
+
     var dayOfWeek: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEE"
-        return formatter.string(from: self)
+        Date.dayOfWeekFormatter.string(from: self)
     }
 
     var shortDate: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        return formatter.string(from: self)
+        Date.shortDateFormatter.string(from: self)
     }
 
     var mediumDate: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        return formatter.string(from: self)
+        Date.mediumDateFormatter.string(from: self)
     }
 
     func daysFrom(_ date: Date) -> Int {

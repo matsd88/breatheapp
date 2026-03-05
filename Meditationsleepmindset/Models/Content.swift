@@ -17,7 +17,17 @@ enum ContentType: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var displayName: String { rawValue }
+    var displayName: String {
+        switch self {
+        case .meditation: return String(localized: "Meditation")
+        case .sleepStory: return String(localized: "Sleep Story")
+        case .soundscape: return String(localized: "Soundscape")
+        case .music: return String(localized: "Music")
+        case .movement: return String(localized: "Movement")
+        case .mindset: return String(localized: "Mindset")
+        case .asmr: return String(localized: "ASMR")
+        }
+    }
 
     var iconName: String {
         switch self {
@@ -56,6 +66,20 @@ enum Mood: String, Codable, CaseIterable, Identifiable {
     case grateful = "Grateful"
 
     var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .calm: return String(localized: "Calm")
+        case .happy: return String(localized: "Happy")
+        case .anxious: return String(localized: "Anxious")
+        case .stressed: return String(localized: "Stressed")
+        case .sad: return String(localized: "Sad")
+        case .tired: return String(localized: "Tired")
+        case .energetic: return String(localized: "Energetic")
+        case .focused: return String(localized: "Focused")
+        case .grateful: return String(localized: "Grateful")
+        }
+    }
 }
 
 @Model
@@ -112,19 +136,24 @@ final class Content {
 
     var durationFormatted: String {
         guard durationSeconds > 0 else { return "" }
-        let minutes = durationSeconds / 60
-        if minutes >= 60 {
-            let hours = minutes / 60
-            let remainingMinutes = minutes % 60
-            return remainingMinutes > 0 ? "\(hours)h \(remainingMinutes)m" : "\(hours)h"
-        }
-        return "\(minutes) min"
+        let formatter = DateComponentsFormatter()
+        formatter.unitsStyle = .abbreviated
+        formatter.allowedUnits = durationSeconds >= 3600 ? [.hour, .minute] : [.minute]
+        return formatter.string(from: Double(durationSeconds)) ?? ""
     }
 
     var thumbnailURLComputed: String {
-        // Use mqdefault.jpg (320x180) for clean 16:9 thumbnails without black letterbox bars
-        // hqdefault.jpg (480x360) is 4:3 and adds black bars to 16:9 video thumbnails
-        thumbnailURL ?? "https://img.youtube.com/vi/\(youtubeVideoID)/mqdefault.jpg"
+        // If custom thumbnail URL is set, use it
+        if let custom = thumbnailURL { return custom }
+
+        // Use R2-hosted thumbnails when enabled, otherwise fallback to YouTube
+        if VideoService.useR2 {
+            // R2 structure: {baseURL}/videos/{videoID}/thumb.jpg
+            return "https://pub-7b886d08f03c4e4ebcee90f70a22739e.r2.dev/videos/\(youtubeVideoID)/thumb.jpg"
+        }
+
+        // Default: YouTube thumbnail (mqdefault for 16:9 without letterboxing)
+        return "https://img.youtube.com/vi/\(youtubeVideoID)/mqdefault.jpg"
     }
 }
 
@@ -164,17 +193,18 @@ final class FavoriteContent {
     }
 
     var thumbnailURL: String {
-        "https://img.youtube.com/vi/\(youtubeVideoID)/hqdefault.jpg"
+        if VideoService.useR2 {
+            return "https://pub-7b886d08f03c4e4ebcee90f70a22739e.r2.dev/videos/\(youtubeVideoID)/thumb.jpg"
+        }
+        return "https://img.youtube.com/vi/\(youtubeVideoID)/mqdefault.jpg"
     }
 
     var durationFormatted: String {
-        let minutes = durationSeconds / 60
-        if minutes >= 60 {
-            let hours = minutes / 60
-            let remainingMinutes = minutes % 60
-            return remainingMinutes > 0 ? "\(hours)h \(remainingMinutes)m" : "\(hours)h"
-        }
-        return "\(minutes) min"
+        guard durationSeconds > 0 else { return "" }
+        let formatter = DateComponentsFormatter()
+        formatter.unitsStyle = .abbreviated
+        formatter.allowedUnits = durationSeconds >= 3600 ? [.hour, .minute] : [.minute]
+        return formatter.string(from: Double(durationSeconds)) ?? ""
     }
 }
 
@@ -235,6 +265,39 @@ final class MeditationSession {
     }
 }
 
+// MARK: - Biometric Session Data
+
+@Model
+final class BiometricSessionData {
+    var id: UUID
+    var sessionID: UUID
+    var startHeartRate: Int?
+    var endHeartRate: Int?
+    var avgHeartRate: Int?
+    var recordedAt: Date
+
+    init(sessionID: UUID, startHeartRate: Int?, endHeartRate: Int?, avgHeartRate: Int?) {
+        self.id = UUID()
+        self.sessionID = sessionID
+        self.startHeartRate = startHeartRate
+        self.endHeartRate = endHeartRate
+        self.avgHeartRate = avgHeartRate
+        self.recordedAt = Date()
+    }
+
+    var heartRateChange: Int? {
+        guard let start = startHeartRate, let end = endHeartRate else { return nil }
+        return end - start
+    }
+
+    var formattedChange: String {
+        guard let change = heartRateChange else { return "--" }
+        if change > 0 { return "+\(change) bpm" }
+        if change < 0 { return "\(change) bpm" }
+        return "0 bpm"
+    }
+}
+
 // MARK: - Playlist
 
 @Model
@@ -255,6 +318,9 @@ final class Playlist {
 
     var coverThumbnailURL: String? {
         guard let videoID = coverYoutubeVideoID else { return nil }
+        if VideoService.useR2 {
+            return "https://pub-7b886d08f03c4e4ebcee90f70a22739e.r2.dev/videos/\(videoID)/thumb.jpg"
+        }
         return "https://img.youtube.com/vi/\(videoID)/mqdefault.jpg"
     }
 }
@@ -311,16 +377,17 @@ final class PlaylistItem {
     }
 
     var thumbnailURL: String {
-        "https://img.youtube.com/vi/\(youtubeVideoID)/mqdefault.jpg"
+        if VideoService.useR2 {
+            return "https://pub-7b886d08f03c4e4ebcee90f70a22739e.r2.dev/videos/\(youtubeVideoID)/thumb.jpg"
+        }
+        return "https://img.youtube.com/vi/\(youtubeVideoID)/mqdefault.jpg"
     }
 
     var durationFormatted: String {
-        let minutes = durationSeconds / 60
-        if minutes >= 60 {
-            let hours = minutes / 60
-            let remainingMinutes = minutes % 60
-            return remainingMinutes > 0 ? "\(hours)h \(remainingMinutes)m" : "\(hours)h"
-        }
-        return "\(minutes) min"
+        guard durationSeconds > 0 else { return "" }
+        let formatter = DateComponentsFormatter()
+        formatter.unitsStyle = .abbreviated
+        formatter.allowedUnits = durationSeconds >= 3600 ? [.hour, .minute] : [.minute]
+        return formatter.string(from: Double(durationSeconds)) ?? ""
     }
 }

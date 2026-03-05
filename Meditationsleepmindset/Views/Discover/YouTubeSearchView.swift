@@ -137,6 +137,9 @@ struct YouTubeSearchView: View {
             }
             .toolbarBackground(.hidden, for: .navigationBar)
         }
+        .onDisappear {
+            searchTask?.cancel()
+        }
         .onChange(of: searchText) { _, newValue in
             // Debounce search
             searchTask?.cancel()

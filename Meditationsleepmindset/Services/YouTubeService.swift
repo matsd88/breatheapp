@@ -23,7 +23,8 @@ actor YouTubeService {
         var url: URL? { URL(string: urlString) }
 
         var isExpired: Bool {
-            Date().timeIntervalSince(cachedAt) > 2 * 60 * 60
+            // YouTube URLs typically valid for ~6 hours, use 5h to be safe
+            Date().timeIntervalSince(cachedAt) > 5 * 60 * 60
         }
 
         init(url: URL, cachedAt: Date) {
@@ -88,13 +89,14 @@ actor YouTubeService {
         print("[YouTubeService] Fetching stream for \(videoID), audioOnly: \(audioOnly)")
         #endif
 
-        // Retry up to 3 attempts with progressive backoff
+        // Retry up to 3 attempts with exponential backoff
+        // YouTube extraction can be flaky - give it more chances with longer waits
         var lastError: Error = YouTubeError.extractionFailed
         let maxAttempts = 3
-        let backoffDelays: [UInt64] = [300_000_000, 1_000_000_000] // 0.3s, 1s
+        let backoffDelays: [UInt64] = [1_000_000_000, 2_000_000_000, 4_000_000_000] // 1s, 2s, 4s between retries
         for attempt in 1...maxAttempts {
             do {
-                let url = try await extractWithTimeout(videoID: videoID, audioOnly: audioOnly)
+                let url = try await Self.extractWithTimeout(videoID: videoID, audioOnly: audioOnly)
                 urlCache[cacheKey] = CachedStream(url: url, cachedAt: Date())
                 saveDiskCache()
                 #if DEBUG
@@ -106,7 +108,7 @@ actor YouTubeService {
                 #if DEBUG
                 print("[YouTubeService] Attempt \(attempt)/\(maxAttempts) failed: \(error)")
                 #endif
-                if attempt < maxAttempts {
+                if attempt < maxAttempts, attempt - 1 < backoffDelays.count {
                     try? await Task.sleep(nanoseconds: backoffDelays[attempt - 1])
                 }
             }
@@ -120,7 +122,7 @@ actor YouTubeService {
             print("[YouTubeService] Trying replacement video \(replacement.videoID) for dead \(videoID)")
             #endif
             // Try the replacement — if it also fails, let the error propagate naturally
-            return try await extractWithTimeout(videoID: replacement.videoID, audioOnly: audioOnly)
+            return try await Self.extractWithTimeout(videoID: replacement.videoID, audioOnly: audioOnly)
         }
 
         // No replacement available — try force-refreshing the manifest in case one was just added
@@ -129,7 +131,7 @@ actor YouTubeService {
             #if DEBUG
             print("[YouTubeService] Replacement found after manifest refresh: \(replacement.videoID)")
             #endif
-            return try await extractWithTimeout(videoID: replacement.videoID, audioOnly: audioOnly)
+            return try await Self.extractWithTimeout(videoID: replacement.videoID, audioOnly: audioOnly)
         }
 
         if lastError is YouTubeError {
@@ -138,15 +140,17 @@ actor YouTubeService {
         throw YouTubeError.extractionFailed
     }
 
-    /// Single extraction attempt with timeout
-    private func extractWithTimeout(videoID: String, audioOnly: Bool) async throws -> URL {
+    /// Single extraction attempt with timeout — runs OFF the actor to allow proper timeout
+    private static func extractWithTimeout(videoID: String, audioOnly: Bool) async throws -> URL {
         try await withThrowingTaskGroup(of: URL.self) { group in
+            // Extraction task — runs detached from the actor so it doesn't block
             group.addTask {
-                try await self.extractStream(videoID: videoID, audioOnly: audioOnly)
+                try await Self.extractStream(videoID: videoID, audioOnly: audioOnly)
             }
 
+            // Timeout task - 8 seconds to allow for slower extractions
             group.addTask {
-                try await Task.sleep(nanoseconds: 6_000_000_000) // 6 second timeout per attempt
+                try await Task.sleep(nanoseconds: 12_000_000_000) // 12 second timeout
                 throw YouTubeError.networkError
             }
 
@@ -159,7 +163,8 @@ actor YouTubeService {
     }
 
     // MARK: - Stream Extraction (using YouTubeKit)
-    private func extractStream(videoID: String, audioOnly: Bool) async throws -> URL {
+    /// Nonisolated static method so it runs outside the actor — allows timeout to actually fire
+    private static func extractStream(videoID: String, audioOnly: Bool) async throws -> URL {
         // Create YouTube instance with video ID
         let video = YouTube(videoID: videoID)
 
@@ -170,11 +175,25 @@ actor YouTubeService {
             throw YouTubeError.noStreamsAvailable
         }
 
+        #if DEBUG
+        let audioCount = streams.filterAudioOnly().count
+        let progressiveCount = streams.filter { $0.isProgressive }.count
+        let nativeCount = streams.filter { $0.isNativelyPlayable }.count
+        print("[YouTubeService] \(videoID): \(streams.count) streams (\(audioCount) audio, \(progressiveCount) progressive, \(nativeCount) native)")
+        #endif
+
         if audioOnly {
-            // Get audio-only streams, sorted by bitrate ascending
-            let audioStreams = streams.filterAudioOnly().sorted {
+            // Prefer natively playable audio streams for fastest start
+            let allAudio = streams.filterAudioOnly()
+
+            // Try natively playable audio first (no transcoding needed by AVPlayer)
+            let nativeAudio = allAudio.filter { $0.isNativelyPlayable }.sorted {
                 ($0.bitrate ?? Int.max) < ($1.bitrate ?? Int.max)
             }
+
+            let audioStreams = nativeAudio.isEmpty ? allAudio.sorted {
+                ($0.bitrate ?? Int.max) < ($1.bitrate ?? Int.max)
+            } : nativeAudio
 
             guard !audioStreams.isEmpty else {
                 throw YouTubeError.noAudioStream
@@ -186,15 +205,23 @@ actor YouTubeService {
             let minAcceptable = 48_000
             let targetBitrate = 96_000
             let acceptable = audioStreams.filter { ($0.bitrate ?? 0) >= minAcceptable }
-            let bestStream = (acceptable.isEmpty ? audioStreams : acceptable).min(by: {
+            guard let bestStream = (acceptable.isEmpty ? audioStreams : acceptable).min(by: {
                 abs(($0.bitrate ?? 0) - targetBitrate) < abs(($1.bitrate ?? 0) - targetBitrate)
-            }) ?? audioStreams.first!
+            }) else {
+                throw YouTubeError.noAudioStream
+            }
 
+            #if DEBUG
+            print("[YouTubeService] Selected audio: bitrate=\(bestStream.bitrate ?? 0), native=\(bestStream.isNativelyPlayable)")
+            #endif
             return bestStream.url
         } else {
             // Get progressive video streams (video + audio combined)
-            let progressiveStreams = streams.filter { $0.isProgressive }.sorted {
-                ($0.bitrate ?? 0) < ($1.bitrate ?? 0) // Lowest bitrate first
+            // Prefer natively playable for fastest AVPlayer start
+            let allProgressive = streams.filter { $0.isProgressive }
+            let nativeProgressive = allProgressive.filter { $0.isNativelyPlayable }
+            let progressiveStreams = (nativeProgressive.isEmpty ? allProgressive : nativeProgressive).sorted {
+                ($0.bitrate ?? 0) < ($1.bitrate ?? 0)
             }
 
             // For mobile, 360p is plenty for meditation visuals and loads MUCH faster.
@@ -203,6 +230,9 @@ actor YouTubeService {
             if let best = progressiveStreams.min(by: {
                 abs(($0.bitrate ?? 0) - targetBitrate) < abs(($1.bitrate ?? 0) - targetBitrate)
             }) {
+                #if DEBUG
+                print("[YouTubeService] Selected video: bitrate=\(best.bitrate ?? 0), res=\(best.videoResolution ?? 0)p, native=\(best.isNativelyPlayable)")
+                #endif
                 return best.url
             }
 
@@ -211,9 +241,13 @@ actor YouTubeService {
                 return smallest.url
             }
 
-            // If no progressive streams, try video-only
-            let videoOnlyStreams = streams.filterVideoOnly()
+            // If no progressive streams, try any stream with both audio and video
+            if let combined = streams.first(where: { $0.includesVideoAndAudioTrack }) {
+                return combined.url
+            }
 
+            // Last resort: video-only
+            let videoOnlyStreams = streams.filterVideoOnly()
             if let firstVideoOnly = videoOnlyStreams.first {
                 return firstVideoOnly.url
             }
@@ -314,6 +348,7 @@ struct YouTubeVideoInfo {
         }
         return String(format: "%d:%02d", minutes, seconds)
     }
+
 }
 
 // MARK: - Errors
@@ -328,17 +363,17 @@ enum YouTubeError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .extractionFailed:
-            return "Could not extract stream URL from YouTube"
+            return "Unable to load content. Please check your connection and try again."
         case .invalidVideoID:
-            return "Invalid YouTube video ID"
+            return "This content is temporarily unavailable."
         case .networkError:
-            return "Network error occurred while fetching video"
+            return "No internet connection. Please check your network and try again."
         case .noAudioStream:
-            return "No audio stream available for this video"
+            return "Audio is temporarily unavailable for this content."
         case .noVideoStream:
-            return "No video stream available for this video"
+            return "Video is temporarily unavailable for this content."
         case .noStreamsAvailable:
-            return "No streams available for this video"
+            return "This content is currently unavailable. Please try again later."
         }
     }
 }

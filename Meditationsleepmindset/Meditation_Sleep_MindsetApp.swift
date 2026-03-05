@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import StoreKit
 import CoreSpotlight
 
 @main
@@ -32,6 +33,7 @@ struct Meditation_Sleep_MindsetApp: App {
             ProgramDay.self,
             ProgramProgress.self,
             AIGeneratedMeditation.self,
+            BiometricSessionData.self,
         ])
 
         let modelConfiguration = ModelConfiguration(
@@ -66,7 +68,7 @@ struct Meditation_Sleep_MindsetApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
-                .statusBarHidden()
+                .statusBarHidden(UIDevice.current.userInterfaceIdiom != .pad)
                 .environmentObject(appState)
                 .environmentObject(accountService)
                 .onAppear {
@@ -147,6 +149,8 @@ struct Meditation_Sleep_MindsetApp: App {
                 appDelegate.updateQuickActions()
                 // Re-check subscription status (Apple reviewers test lapsed subscriptions)
                 Task { await StoreManager.shared.refreshSubscriptionStatus() }
+                // Check if trial user cancelled (entitlement expired without converting)
+                Task { await StoreManager.shared.checkTrialCancellation() }
                 // Reset re-engagement notifications and clear badge
                 notificationService.resetReengagementOnAppOpen()
                 notificationService.clearBadge()
@@ -223,8 +227,11 @@ struct RootView: View {
             handleQuickAction(action)
         }
         .onAppear {
-            // Request ATT permission and start AppsFlyer SDK (requires visible UI)
-            AppsFlyerService.shared.requestTrackingAndStart()
+            // For users who already completed onboarding, request ATT here.
+            // New users get the ATT prompt during onboarding (step 5).
+            if appState.hasCompletedOnboarding {
+                AppsFlyerService.shared.requestTrackingAndStart()
+            }
 
             // Handle pending quick action if app was launched from one
             if let action = AppDelegate.pendingQuickAction {
@@ -392,6 +399,13 @@ struct MainTabViewWithQuickActions: View {
             }
             // Check for morning check-in prompt
             morningCheckIn.checkForMorningPrompt(sessions: sessions)
+
+            // Track first time user reaches the main app (post-onboarding activation)
+            let firstHomeKey = "hasLoggedFirstHomeView"
+            if !UserDefaults.standard.bool(forKey: firstHomeKey) {
+                UserDefaults.standard.set(true, forKey: firstHomeKey)
+                FirebaseService.shared.logFirstHomeView()
+            }
         }
         .sheet(isPresented: $morningCheckIn.shouldShowCheckIn) {
             MorningCheckInView(
@@ -508,7 +522,7 @@ struct DiscountedPaywallView: View {
 
                         // Free Trial Details
                         VStack(spacing: 8) {
-                            Text("3 Days Free")
+                            Text("7 Days Free")
                                 .font(.system(size: 48, weight: .bold))
                                 .foregroundStyle(.white)
 
@@ -536,10 +550,18 @@ struct DiscountedPaywallView: View {
                         // CTA Button
                         Button {
                             Task {
+                                if storeManager.subscriptions.isEmpty {
+                                    await storeManager.loadProducts()
+                                }
                                 if let product = annualProduct {
                                     await storeManager.purchase(product)
+                                    if storeManager.isSubscribed {
+                                        dismiss()
+                                    }
+                                } else {
+                                    storeManager.error = "Unable to load subscription options. Please check your internet connection and try again."
+                                    storeManager.showError = true
                                 }
-                                dismiss()
                             }
                         } label: {
                             Text("Start Free Trial")
@@ -558,7 +580,7 @@ struct DiscountedPaywallView: View {
                         .foregroundStyle(.white.opacity(0.6))
 
                         // Fine print (Apple requirement: price, duration, auto-renewal terms)
-                        Text("After the 3-day free trial, you will be charged \(annualProduct?.displayPrice ?? "$49.99")/year. Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account.")
+                        Text("After the 7-day free trial, you will be charged \(annualProduct?.displayPrice ?? "$49.99")/year. Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account.")
                             .font(.caption2)
                             .foregroundStyle(.white.opacity(0.4))
                             .multilineTextAlignment(.center)
@@ -576,6 +598,11 @@ struct DiscountedPaywallView: View {
                             .font(.title2)
                             .foregroundStyle(.white.opacity(0.6))
                     }
+                }
+            }
+            .task {
+                if storeManager.subscriptions.isEmpty {
+                    await storeManager.loadProducts()
                 }
             }
             .alert("Purchase Failed", isPresented: $storeManager.showError) {

@@ -123,13 +123,13 @@ class NotificationService: ObservableObject {
         cancelNotifications(withIdentifier: "daily-reminder")
 
         let messages = [
-            "Your evening calm awaits. Ready for 5 minutes of peace?",
-            "Time for your daily meditation. Your mind will thank you.",
-            "The day is winding down. Let's breathe together.",
-            "Your mind called. It's asking for a few quiet minutes.",
-            "3 minutes is all it takes. Your meditation is ready.",
-            "A moment of stillness is waiting for you.",
-            "Pause. Breathe. You've earned this.",
+            String(localized: "Your evening calm awaits. Ready for 5 minutes of peace?"),
+            String(localized: "Time for your daily meditation. Your mind will thank you."),
+            String(localized: "The day is winding down. Let's breathe together."),
+            String(localized: "Your mind called. It's asking for a few quiet minutes."),
+            String(localized: "3 minutes is all it takes. Your meditation is ready."),
+            String(localized: "A moment of stillness is waiting for you."),
+            String(localized: "Pause. Breathe. You've earned this."),
         ]
 
         let components = Calendar.current.dateComponents([.hour, .minute], from: dailyReminderTime)
@@ -141,8 +141,8 @@ class NotificationService: ObservableObject {
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
 
         let content = UNMutableNotificationContent()
-        content.title = "Mindful Moments"
-        content.body = messages.randomElement() ?? messages[0]
+        content.title = String(localized: "Mindful Moments")
+        content.body = messages.randomElement() ?? String(localized: "Time for a moment of calm.")
         content.sound = .default
         content.categoryIdentifier = "DAILY_REMINDER"
 
@@ -172,11 +172,11 @@ class NotificationService: ObservableObject {
         cancelNotifications(withIdentifier: "bedtime-reminder")
 
         let messages = [
-            "Wind down time. A sleep story is waiting for you.",
-            "Ready for better sleep tonight?",
-            "Your body is tired. Let's help your mind follow.",
-            "Time to drift off. Tonight's sleep story awaits.",
-            "The stars are out. Time for rest.",
+            String(localized: "Wind down time. A sleep story is waiting for you."),
+            String(localized: "Ready for better sleep tonight?"),
+            String(localized: "Your body is tired. Let's help your mind follow."),
+            String(localized: "Time to drift off. Tonight's sleep story awaits."),
+            String(localized: "The stars are out. Time for rest."),
         ]
 
         let components = Calendar.current.dateComponents([.hour, .minute], from: bedtimeReminderTime)
@@ -188,8 +188,8 @@ class NotificationService: ObservableObject {
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
 
         let content = UNMutableNotificationContent()
-        content.title = "Bedtime"
-        content.body = messages.randomElement() ?? messages[0]
+        content.title = String(localized: "Bedtime")
+        content.body = messages.randomElement() ?? String(localized: "Time for a moment of calm.")
         content.sound = .default
         content.categoryIdentifier = "BEDTIME_REMINDER"
 
@@ -230,23 +230,23 @@ class NotificationService: ObservableObject {
     private func streakMessage(for days: Int) -> (title: String, body: String) {
         switch days {
         case 3:
-            return ("3 Days!", "You're building something powerful. Keep going!")
+            return (String(localized: "3 Days!"), String(localized: "You're building something powerful. Keep going!"))
         case 7:
-            return ("One Week!", "7 days of mindfulness. You're in the top 20% of users!")
+            return (String(localized: "One Week!"), String(localized: "7 days of mindfulness. You're in the top 20% of users!"))
         case 14:
-            return ("Two Weeks!", "14 days strong. Your mind is thanking you.")
+            return (String(localized: "Two Weeks!"), String(localized: "14 days strong. Your mind is thanking you."))
         case 21:
-            return ("21 Days!", "Science says it takes 21 days to form a habit. You did it!")
+            return (String(localized: "21 Days!"), String(localized: "Science says it takes 21 days to form a habit. You did it!"))
         case 30:
-            return ("30 Days!", "One month of meditation! You've built a lasting practice.")
+            return (String(localized: "30 Days!"), String(localized: "One month of meditation! You've built a lasting practice."))
         case 60:
-            return ("60 Days!", "Two months of daily calm. You're inspiring!")
+            return (String(localized: "60 Days!"), String(localized: "Two months of daily calm. You're inspiring!"))
         case 90:
-            return ("90 Days!", "A quarter year of mindfulness. Incredible dedication!")
+            return (String(localized: "90 Days!"), String(localized: "A quarter year of mindfulness. Incredible dedication!"))
         case 365:
-            return ("ONE YEAR!", "365 days of meditation. You're a true master!")
+            return (String(localized: "ONE YEAR!"), String(localized: "365 days of meditation. You're a true master!"))
         default:
-            return ("Streak: \(days) Days", "Keep the momentum going!")
+            return (String(localized: "Streak: \(days) Days"), String(localized: "Keep the momentum going!"))
         }
     }
 
@@ -261,8 +261,8 @@ class NotificationService: ObservableObject {
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
 
         let content = UNMutableNotificationContent()
-        content.title = "Don't lose your streak!"
-        content.body = "Just 3 minutes to keep your streak alive. You've got this!"
+        content.title = String(localized: "Don't lose your streak!")
+        content.body = String(localized: "Just 3 minutes to keep your streak alive. You've got this!")
         content.sound = .default
         content.categoryIdentifier = "STREAK_AT_RISK"
 
@@ -285,18 +285,21 @@ class NotificationService: ObservableObject {
         // Day 2: Feature highlight
         scheduleTrialDay2Notification(trialEndDate: trialEndDate)
 
-        // Day 3 Morning: Urgency
-        scheduleTrialDay3MorningNotification(trialEndDate: trialEndDate)
+        // Day 4: Mid-trial engagement
+        scheduleTrialDay4Notification(trialEndDate: trialEndDate)
 
-        // Day 3 Evening: Final push
-        scheduleTrialDay3EveningNotification(trialEndDate: trialEndDate)
+        // Day 7 Morning: Urgency (last day)
+        scheduleTrialDay7MorningNotification(trialEndDate: trialEndDate)
+
+        // Day 7 Evening: Final push
+        scheduleTrialDay7EveningNotification(trialEndDate: trialEndDate)
     }
 
     func scheduleTrialDay1Notification() {
         // Called after first meditation session
         let content = UNMutableNotificationContent()
-        content.title = "Great first session!"
-        content.body = "You have 3 days to explore everything free. Try a Sleep Story tonight!"
+        content.title = String(localized: "Great first session!")
+        content.body = String(localized: "You have 7 days to explore everything free. Try a Sleep Story tonight!")
         content.sound = .default
         content.categoryIdentifier = "TRIAL_DAY_1"
 
@@ -313,7 +316,7 @@ class NotificationService: ObservableObject {
     }
 
     private func scheduleTrialDay2Notification(trialEndDate: Date) {
-        guard let day2 = Calendar.current.date(byAdding: .day, value: -1, to: trialEndDate) else { return }
+        guard let day2 = Calendar.current.date(byAdding: .day, value: -5, to: trialEndDate) else { return }
 
         var dateComponents = Calendar.current.dateComponents([.year, .month, .day], from: day2)
         dateComponents.hour = 20
@@ -322,8 +325,8 @@ class NotificationService: ObservableObject {
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
 
         let content = UNMutableNotificationContent()
-        content.title = "Pro tip"
-        content.body = "The best time to meditate is right before bed. Try tonight's Sleep Story!"
+        content.title = String(localized: "Pro tip")
+        content.body = String(localized: "The best time to meditate is right before bed. Try tonight's Sleep Story!")
         content.sound = .default
         content.categoryIdentifier = "TRIAL_DAY_2"
 
@@ -336,21 +339,23 @@ class NotificationService: ObservableObject {
         UNUserNotificationCenter.current().add(request)
     }
 
-    private func scheduleTrialDay3MorningNotification(trialEndDate: Date) {
-        var dateComponents = Calendar.current.dateComponents([.year, .month, .day], from: trialEndDate)
-        dateComponents.hour = 9
+    private func scheduleTrialDay4Notification(trialEndDate: Date) {
+        guard let day4 = Calendar.current.date(byAdding: .day, value: -3, to: trialEndDate) else { return }
+
+        var dateComponents = Calendar.current.dateComponents([.year, .month, .day], from: day4)
+        dateComponents.hour = 20
         dateComponents.minute = 0
 
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
 
         let content = UNMutableNotificationContent()
-        content.title = "Last day of your free trial"
-        content.body = "Lock in annual today—that's just $0.96/week."
+        content.title = String(localized: "Halfway through your trial!")
+        content.body = String(localized: "Have you tried the AI meditation generator? Create a session just for you.")
         content.sound = .default
-        content.categoryIdentifier = "TRIAL_DAY_3_AM"
+        content.categoryIdentifier = "TRIAL_DAY_4"
 
         let request = UNNotificationRequest(
-            identifier: "trial-day-3-am",
+            identifier: "trial-day-4",
             content: content,
             trigger: trigger
         )
@@ -358,7 +363,29 @@ class NotificationService: ObservableObject {
         UNUserNotificationCenter.current().add(request)
     }
 
-    private func scheduleTrialDay3EveningNotification(trialEndDate: Date) {
+    private func scheduleTrialDay7MorningNotification(trialEndDate: Date) {
+        var dateComponents = Calendar.current.dateComponents([.year, .month, .day], from: trialEndDate)
+        dateComponents.hour = 9
+        dateComponents.minute = 0
+
+        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
+
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "Last day of your free trial")
+        content.body = String(localized: "Lock in annual today—that's just $0.96/week.")
+        content.sound = .default
+        content.categoryIdentifier = "TRIAL_DAY_7_AM"
+
+        let request = UNNotificationRequest(
+            identifier: "trial-day-7-am",
+            content: content,
+            trigger: trigger
+        )
+
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    private func scheduleTrialDay7EveningNotification(trialEndDate: Date) {
         var dateComponents = Calendar.current.dateComponents([.year, .month, .day], from: trialEndDate)
         dateComponents.hour = 20
         dateComponents.minute = 0
@@ -366,13 +393,13 @@ class NotificationService: ObservableObject {
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
 
         let content = UNMutableNotificationContent()
-        content.title = "Your trial ends tonight"
-        content.body = "Don't lose access to 500+ meditations. Continue for just $0.96/week."
+        content.title = String(localized: "Your trial ends tonight")
+        content.body = String(localized: "Don't lose access to 500+ meditations. Continue for just $0.96/week.")
         content.sound = .default
-        content.categoryIdentifier = "TRIAL_DAY_3_PM"
+        content.categoryIdentifier = "TRIAL_DAY_7_PM"
 
         let request = UNNotificationRequest(
-            identifier: "trial-day-3-pm",
+            identifier: "trial-day-7-pm",
             content: content,
             trigger: trigger
         )
@@ -381,7 +408,7 @@ class NotificationService: ObservableObject {
     }
 
     func cancelTrialNotifications() {
-        let identifiers = ["trial-day-1", "trial-day-2", "trial-day-3-am", "trial-day-3-pm"]
+        let identifiers = ["trial-day-1", "trial-day-2", "trial-day-4", "trial-day-7-am", "trial-day-7-pm"]
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
     }
 
@@ -389,16 +416,16 @@ class NotificationService: ObservableObject {
 
     func scheduleReengagementSequence() {
         // Day 3 of inactivity
-        scheduleReengagement(days: 3, title: "We miss you", body: "A few minutes of calm is waiting for you.")
+        scheduleReengagement(days: 3, title: String(localized: "We miss you"), body: String(localized: "A few minutes of calm is waiting for you."))
 
         // Day 7 of inactivity
-        scheduleReengagement(days: 7, title: "It's been a week", body: "Your mind might need a moment of peace.")
+        scheduleReengagement(days: 7, title: String(localized: "It's been a week"), body: String(localized: "Your mind might need a moment of peace."))
 
         // Day 14 of inactivity
-        scheduleReengagement(days: 14, title: "Welcome back anytime", body: "Here's a free session, on us.")
+        scheduleReengagement(days: 14, title: String(localized: "Welcome back anytime"), body: String(localized: "Your calm space is waiting for you."))
 
         // Day 30 of inactivity (final message)
-        scheduleReengagement(days: 30, title: "We're here when you're ready", body: "Life gets busy. Your calm is waiting.")
+        scheduleReengagement(days: 30, title: String(localized: "We're here when you're ready"), body: String(localized: "Life gets busy. Your calm is waiting."))
     }
 
     private func scheduleReengagement(days: Int, title: String, body: String) {

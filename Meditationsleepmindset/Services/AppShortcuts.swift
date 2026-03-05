@@ -35,9 +35,11 @@ struct PlayMeditationIntent: AppIntent {
             videoID = await findRandomContent(ofType: nil)
         }
 
-        if let videoID {
+        if let videoID,
+           let encodedID = videoID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+           let url = URL(string: "meditation://content/\(encodedID)") {
             await MainActor.run {
-                AppStateManager.shared.handleDeepLink(URL(string: "meditation://content/\(videoID)")!)
+                AppStateManager.shared.handleDeepLink(url)
             }
         }
 
@@ -61,7 +63,7 @@ struct PlayMeditationIntent: AppIntent {
         let context = container.mainContext
         let descriptor = FetchDescriptor<Content>()
         guard let allContent = try? context.fetch(descriptor) else { return nil }
-        let filtered = type != nil ? allContent.filter({ $0.contentType.rawValue == type! }) : allContent
+        let filtered = type.map { t in allContent.filter({ $0.contentType.rawValue == t }) } ?? allContent
         return filtered.randomElement()?.youtubeVideoID
     }
 }

@@ -5,7 +5,7 @@
 
 import SwiftUI
 
-// MARK: - Mood Picker View
+// MARK: - Mood Picker View (kept for compatibility but welcome experience in ChatView is primary)
 
 struct ChatMoodPickerView: View {
     var onMoodSelected: (MoodLevel?) -> Void
@@ -16,7 +16,7 @@ struct ChatMoodPickerView: View {
         VStack(spacing: 32) {
             Spacer()
 
-            Image(systemName: "bubble.left.and.text.bubble.right")
+            Image(systemName: "sparkles")
                 .font(.system(size: 60))
                 .foregroundStyle(Theme.profileAccent)
 
@@ -68,7 +68,7 @@ struct ChatMoodPickerView: View {
                 onMoodSelected(nil)
             }
             .foregroundStyle(Theme.textSecondary)
-            .padding(.bottom, hasMiniPlayer ? 170 : 100) // Space for tab bar + mini player
+            .padding(.bottom, hasMiniPlayer ? 170 : 100)
         }
     }
 }
@@ -99,7 +99,7 @@ struct MoodLevelButton: View {
                     }
                 }
 
-                Text(mood.rawValue)
+                Text(mood.displayName)
                     .font(.caption2)
                     .fontWeight(isSelected ? .semibold : .regular)
                     .foregroundStyle(isSelected ? Theme.textPrimary : Theme.textSecondary)
@@ -115,26 +115,51 @@ struct MoodLevelButton: View {
 
 struct ChatBubble: View {
     let message: ChatMessage
-    @State private var showCopied = false
+    @State private var appeared = false
 
     private var isUser: Bool { message.role == .user }
 
     var body: some View {
-        HStack {
-            if isUser { Spacer(minLength: 60) }
+        HStack(alignment: .bottom, spacing: 8) {
+            if isUser { Spacer(minLength: 50) }
 
-            VStack(alignment: isUser ? .trailing : .leading, spacing: 4) {
+            // AI avatar for assistant messages
+            if !isUser {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Theme.profileAccent.opacity(0.8), Color(red: 0.4, green: 0.3, blue: 0.9).opacity(0.8)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 28, height: 28)
+
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+            }
+
+            VStack(alignment: isUser ? .trailing : .leading, spacing: 3) {
                 Text(message.content)
                     .font(.body)
                     .foregroundStyle(isUser ? .white : Theme.textPrimary)
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 14)
                     .padding(.vertical, 10)
                     .background(
                         isUser
-                            ? Theme.profileAccent
-                            : Theme.cardBackground
+                            ? AnyShapeStyle(
+                                LinearGradient(
+                                    colors: [Theme.profileAccent, Color(red: 0.5, green: 0.35, blue: 0.9)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            : AnyShapeStyle(Color.white.opacity(0.1))
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .clipShape(ChatBubbleShape(isUser: isUser))
                     .contextMenu {
                         Button {
                             UIPasteboard.general.string = message.content
@@ -145,12 +170,60 @@ struct ChatBubble: View {
                     }
 
                 Text(message.timestamp, style: .time)
-                    .font(.caption2)
+                    .font(.system(size: 10))
                     .foregroundStyle(Theme.textTertiary)
+                    .padding(.horizontal, 4)
             }
 
-            if !isUser { Spacer(minLength: 60) }
+            if !isUser { Spacer(minLength: 50) }
         }
+        .padding(.vertical, 2)
+        .opacity(appeared ? 1 : 0)
+        .offset(y: appeared ? 0 : 8)
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.25)) {
+                appeared = true
+            }
+        }
+    }
+}
+
+// MARK: - Chat Bubble Shape (rounded with tail)
+
+struct ChatBubbleShape: Shape {
+    let isUser: Bool
+
+    func path(in rect: CGRect) -> Path {
+        let radius: CGFloat = 16
+        let tailRadius: CGFloat = 6
+
+        var path = Path()
+
+        if isUser {
+            // User bubble: rounded on all corners except bottom-right
+            path.addRoundedRect(
+                in: rect,
+                cornerRadii: .init(
+                    topLeading: radius,
+                    bottomLeading: radius,
+                    bottomTrailing: tailRadius,
+                    topTrailing: radius
+                )
+            )
+        } else {
+            // AI bubble: rounded on all corners except bottom-left
+            path.addRoundedRect(
+                in: rect,
+                cornerRadii: .init(
+                    topLeading: radius,
+                    bottomLeading: tailRadius,
+                    bottomTrailing: radius,
+                    topTrailing: radius
+                )
+            )
+        }
+
+        return path
     }
 }
 
@@ -168,21 +241,32 @@ struct ChatInputBar: View {
     }
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 4) {
             if let remaining = remainingMessages, remaining < Int.max {
-                Text("\(remaining) messages remaining")
-                    .font(.caption2)
-                    .foregroundStyle(remaining <= 3 ? .orange : Theme.textTertiary)
+                HStack(spacing: 4) {
+                    Image(systemName: remaining <= 3 ? "exclamationmark.circle.fill" : "bubble.left.fill")
+                        .font(.system(size: 9))
+                    Text("\(remaining) messages remaining")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .foregroundStyle(remaining <= 3 ? .orange : Theme.textTertiary)
+                .padding(.top, 4)
             }
 
             HStack(spacing: 10) {
-                TextField("", text: $text, prompt: Text("Type a message...").foregroundStyle(.white.opacity(0.9)), axis: .vertical)
+                TextField("", text: $text, prompt: Text("Message Breathe AI...").foregroundStyle(.white.opacity(0.35)), axis: .vertical)
                     .focused(isFocused)
                     .lineLimit(1...4)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
-                    .background(Theme.cardBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .background(
+                        RoundedRectangle(cornerRadius: 22)
+                            .fill(Color.white.opacity(0.08))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 22)
+                                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                            )
+                    )
                     .foregroundStyle(Theme.textPrimary)
                     .tint(.white)
 
@@ -190,19 +274,33 @@ struct ChatInputBar: View {
                     HapticManager.light()
                     onSend()
                 } label: {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 32))
-                        .foregroundStyle(canSend ? .white : Theme.textTertiary)
+                    ZStack {
+                        Circle()
+                            .fill(canSend
+                                ? LinearGradient(
+                                    colors: [Theme.profileAccent, Color(red: 0.5, green: 0.35, blue: 0.9)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                                : LinearGradient(
+                                    colors: [Color.white.opacity(0.1), Color.white.opacity(0.1)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 36, height: 36)
+
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(canSend ? .white : Theme.textTertiary)
+                    }
                 }
                 .disabled(!canSend)
+                .scaleEffect(canSend ? 1.0 : 0.9)
+                .animation(.spring(response: 0.2), value: canSend)
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(.ultraThinMaterial.opacity(0.8))
-            )
-            .padding(.horizontal, 16)
         }
     }
 }
@@ -213,29 +311,47 @@ struct TypingIndicator: View {
     @State private var animating = false
 
     var body: some View {
-        HStack {
-            HStack(spacing: 4) {
+        HStack(alignment: .bottom, spacing: 8) {
+            // AI avatar
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Theme.profileAccent.opacity(0.8), Color(red: 0.4, green: 0.3, blue: 0.9).opacity(0.8)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 28, height: 28)
+
+                Image(systemName: "sparkles")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+
+            HStack(spacing: 5) {
                 ForEach(0..<3, id: \.self) { index in
                     Circle()
-                        .fill(Theme.textSecondary)
-                        .frame(width: 8, height: 8)
+                        .fill(Theme.profileAccent.opacity(0.7))
+                        .frame(width: 7, height: 7)
                         .scaleEffect(animating ? 1.0 : 0.5)
                         .opacity(animating ? 1.0 : 0.3)
                         .animation(
-                            .easeInOut(duration: 0.6)
+                            .easeInOut(duration: 0.5)
                             .repeatForever(autoreverses: true)
-                            .delay(Double(index) * 0.2),
+                            .delay(Double(index) * 0.15),
                             value: animating
                         )
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Theme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .background(Color.white.opacity(0.1))
+            .clipShape(ChatBubbleShape(isUser: false))
 
             Spacer()
         }
+        .padding(.vertical, 2)
         .onAppear { animating = true }
     }
 }
@@ -247,20 +363,28 @@ struct SuggestedContentCard: View {
     let onTap: () -> Void
 
     var body: some View {
-        HStack {
+        HStack(alignment: .bottom, spacing: 8) {
+            // Avatar spacer to align with bubbles
+            Color.clear.frame(width: 28, height: 28)
+
             Button(action: onTap) {
                 HStack(spacing: 12) {
-                    Image(systemName: "play.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(Theme.profileAccent)
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Theme.profileAccent.opacity(0.2))
+                            .frame(width: 40, height: 40)
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Suggested Meditation")
-                            .font(.caption)
-                            .foregroundStyle(Theme.textSecondary)
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 14))
+                            .foregroundStyle(Theme.profileAccent)
+                    }
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Recommended")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(Theme.profileAccent)
                         Text(title)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
+                            .font(.subheadline.weight(.medium))
                             .foregroundStyle(Theme.textPrimary)
                             .lineLimit(2)
                     }
@@ -268,60 +392,24 @@ struct SuggestedContentCard: View {
                     Spacer()
 
                     Image(systemName: "chevron.right")
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundStyle(Theme.textTertiary)
                 }
-                .padding()
-                .background(Theme.cardBackground)
-                .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadiusMedium))
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.white.opacity(0.08))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(Theme.profileAccent.opacity(0.2), lineWidth: 1)
+                        )
+                )
             }
             .buttonStyle(.plain)
 
             Spacer(minLength: 40)
         }
-    }
-}
-
-// MARK: - Therapist Referral Card
-
-struct TherapistReferralCard: View {
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Image(systemName: "person.2.fill")
-                        .foregroundStyle(.green)
-                    Text("Professional Support")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Theme.textPrimary)
-                }
-
-                Text("Connect with a licensed therapist who can provide personalized guidance.")
-                    .font(.caption)
-                    .foregroundStyle(Theme.textSecondary)
-
-                Button {
-                    if let url = URL(string: Constants.Chat.therapistReferralURL) {
-                        UIApplication.shared.open(url)
-                    }
-                } label: {
-                    Text("Learn More")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(.green)
-                        .clipShape(Capsule())
-                }
-            }
-            .padding()
-            .background(Theme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadiusMedium))
-
-            Spacer(minLength: 40)
-        }
+        .padding(.vertical, 2)
     }
 }
 
@@ -329,42 +417,59 @@ struct TherapistReferralCard: View {
 
 struct CrisisResourceView: View {
     var body: some View {
-        HStack {
+        HStack(alignment: .bottom, spacing: 8) {
+            Color.clear.frame(width: 28, height: 28)
+
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
-                    Image(systemName: "heart.fill")
-                        .foregroundStyle(.red)
+                    ZStack {
+                        Circle()
+                            .fill(Color.red.opacity(0.2))
+                            .frame(width: 32, height: 32)
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.red)
+                    }
                     Text("Crisis Resources")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.textPrimary)
                 }
+
+                Text("If you're in crisis, please reach out.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.textSecondary)
 
                 VStack(alignment: .leading, spacing: 8) {
                     CrisisButton(
                         label: "Call 988 Suicide & Crisis Lifeline",
+                        icon: "phone.fill",
                         action: { openURL("tel://\(Constants.CrisisResources.suicidePreventionHotline)") }
                     )
                     CrisisButton(
                         label: "Text HOME to \(Constants.CrisisResources.crisisTextLine)",
+                        icon: "message.fill",
                         action: { openURL("sms:\(Constants.CrisisResources.crisisTextLine)&body=HELLO") }
                     )
                     CrisisButton(
                         label: "Call \(Constants.CrisisResources.emergencyNumber) for Emergencies",
+                        icon: "staroflife.fill",
                         action: { openURL("tel://\(Constants.CrisisResources.emergencyNumber)") }
                     )
                 }
             }
-            .padding()
-            .background(Color.red.opacity(0.1))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.cornerRadiusMedium)
-                    .stroke(Color.red.opacity(0.3), lineWidth: 1)
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.red.opacity(0.06))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.red.opacity(0.2), lineWidth: 1)
+                    )
             )
-            .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadiusMedium))
 
             Spacer(minLength: 20)
         }
+        .padding(.vertical, 2)
     }
 
     private func openURL(_ string: String) {
@@ -378,15 +483,21 @@ struct CrisisResourceView: View {
 
 struct CrisisButton: View {
     let label: String
+    let icon: String
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Text(label)
-                .font(.caption)
-                .fontWeight(.medium)
-                .foregroundStyle(Theme.textPrimary)
-                .underline()
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.red.opacity(0.8))
+                    .frame(width: 16)
+                Text(label)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Theme.textPrimary)
+            }
         }
     }
 }
@@ -397,34 +508,51 @@ struct ChatPaywallPrompt: View {
     let onUpgrade: () -> Void
 
     var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "lock.fill")
-                .font(.title)
-                .foregroundStyle(Theme.profileAccent)
+        VStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(Theme.profileAccent.opacity(0.15))
+                    .frame(width: 48, height: 48)
+                Image(systemName: "lock.fill")
+                    .font(.title3)
+                    .foregroundStyle(Theme.profileAccent)
+            }
 
-            Text("You've reached your free message limit")
-                .font(.subheadline)
-                .fontWeight(.medium)
+            Text("You've reached your free limit")
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.textPrimary)
 
-            Text("Upgrade to Premium for unlimited conversations")
+            Text("Upgrade to Premium for unlimited conversations with Breathe AI")
                 .font(.caption)
                 .foregroundStyle(Theme.textSecondary)
+                .multilineTextAlignment(.center)
 
             Button(action: onUpgrade) {
                 Text("Upgrade to Premium")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 10)
-                    .background(Theme.profileAccent)
-                    .clipShape(Capsule())
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        LinearGradient(
+                            colors: [Theme.profileAccent, Color(red: 0.5, green: 0.35, blue: 0.9)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
             }
+            .padding(.horizontal, 16)
         }
-        .padding()
+        .padding(20)
         .frame(maxWidth: .infinity)
-        .background(Theme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.white.opacity(0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                )
+        )
     }
 }

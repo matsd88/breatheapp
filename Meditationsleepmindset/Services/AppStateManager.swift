@@ -6,7 +6,7 @@
 import Foundation
 import SwiftUI
 import UserNotifications
-import StoreKit
+import AppTrackingTransparency
 
 @MainActor
 class AppStateManager: ObservableObject {
@@ -17,7 +17,6 @@ class AppStateManager: ObservableObject {
     @Published var hasCompletedOnboarding: Bool
     @Published var appOpenCount: Int
     @Published var hasShownSharePrompt: Bool
-    @Published var hasShownRatingPrompt: Bool
     @Published var shouldShowShareSheet: Bool = false
     @Published var isFirstLaunch: Bool
     @Published var dailyReminderTime: Date?
@@ -45,7 +44,6 @@ class AppStateManager: ObservableObject {
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let appOpenCount = "appOpenCount"
         static let hasShownSharePrompt = "hasShownSharePrompt"
-        static let hasShownRatingPrompt = "hasShownRatingPrompt"
         static let isFirstLaunch = "isFirstLaunch"
         static let dailyReminderTime = "dailyReminderTime"
         static let skippedNotificationsDuringOnboarding = "skippedNotificationsDuringOnboarding"
@@ -64,7 +62,6 @@ class AppStateManager: ObservableObject {
         self.hasCompletedOnboarding = defaults.bool(forKey: Keys.hasCompletedOnboarding)
         self.appOpenCount = defaults.integer(forKey: Keys.appOpenCount)
         self.hasShownSharePrompt = defaults.bool(forKey: Keys.hasShownSharePrompt)
-        self.hasShownRatingPrompt = defaults.bool(forKey: Keys.hasShownRatingPrompt)
         self.dailyReminderTime = defaults.object(forKey: Keys.dailyReminderTime) as? Date
         self.skippedNotificationsDuringOnboarding = defaults.bool(forKey: Keys.skippedNotificationsDuringOnboarding)
         self.freeSessionsUsed = defaults.integer(forKey: Keys.freeSessionsUsed)
@@ -74,6 +71,9 @@ class AppStateManager: ObservableObject {
         if isFirstLaunch {
             defaults.set(true, forKey: Keys.isFirstLaunch)
         }
+
+        // Set onboarding user property on every launch (for Firebase segmentation)
+        FirebaseService.shared.setOnboardingStatus(hasCompletedOnboarding)
     }
 
     // MARK: - App Open Handling
@@ -93,8 +93,8 @@ class AppStateManager: ObservableObject {
             }
         }
 
-        // Rating and share prompts are triggered by session completion milestones only.
-        // See onSessionCompleted() for the strategy.
+        // Share prompts are triggered by session completion milestones.
+        // Rating prompts are handled by SmartRatingManager (streaks, badges, challenges).
     }
 
     // MARK: - Notification Permission
@@ -157,17 +157,7 @@ class AppStateManager: ObservableObject {
         }
     }
 
-    // MARK: - Rating & Share
-    func requestAppRating() {
-        guard !hasShownRatingPrompt else { return }
-
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-            SKStoreReviewController.requestReview(in: windowScene)
-            hasShownRatingPrompt = true
-            UserDefaults.standard.set(true, forKey: Keys.hasShownRatingPrompt)
-        }
-    }
-
+    // MARK: - Share
     func markSharePromptShown() {
         hasShownSharePrompt = true
         shouldShowShareSheet = false
@@ -178,6 +168,7 @@ class AppStateManager: ObservableObject {
     func completeOnboarding() {
         hasCompletedOnboarding = true
         UserDefaults.standard.set(true, forKey: Keys.hasCompletedOnboarding)
+        FirebaseService.shared.setOnboardingStatus(true)
     }
 
     /// Mark that user skipped notifications during onboarding (to prompt on 2nd app open)
@@ -202,11 +193,9 @@ class AppStateManager: ObservableObject {
     // MARK: - Free Session Tracking
 
     var hasReachedFreeSessionLimit: Bool {
-        #if DEBUG
+        // Session limit removed — free users get unlimited non-premium content.
+        // Premium content is gated via isPremium + 2-minute preview instead.
         return false
-        #else
-        return freeSessionsUsed >= Constants.Engagement.freeSessionLimit
-        #endif
     }
 
     func recordFreeSessionUsed() {
@@ -229,9 +218,8 @@ class AppStateManager: ObservableObject {
 
     // MARK: - Session Completed Trigger
     /// Call after a user completes a meditation session (80%+ listened).
-    /// Engagement prompts are staggered by session count:
-    ///  - 5th session → Share prompt (user has enough experience to recommend)
-    ///  - 8th session → Rating prompt via SKStoreReviewController
+    /// Share prompt at 5th session. Rating prompts are handled by SmartRatingManager
+    /// (triggered by streaks, badges, and challenge completions).
     func onSessionCompleted() {
         let completedKey = "totalCompletedSessions"
         let count = UserDefaults.standard.integer(forKey: completedKey) + 1
@@ -245,21 +233,17 @@ class AppStateManager: ObservableObject {
             }
         }
 
-        // After 8th completed session, request App Store rating
-        if count == 8 && !hasShownRatingPrompt {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
-                self?.requestAppRating()
-            }
-        }
-
         // Check if we should prompt for account sign-in
         AccountService.shared.checkSessionMilestone(sessions: count)
     }
 
     // MARK: - Favorite Content Trigger
     func onContentFavorited() {
-        // Favoriting is a lightweight action — no engagement popups.
-        // Share and rating prompts are tied to session milestones only.
+        // Track favorites count and check for sign-in prompt milestone
+        let key = "totalFavoritesCount"
+        let count = UserDefaults.standard.integer(forKey: key) + 1
+        UserDefaults.standard.set(count, forKey: key)
+        AccountService.shared.checkFavoriteMilestone(count: count)
     }
 
     // MARK: - Reinstall Detection
@@ -268,14 +252,22 @@ class AppStateManager: ObservableObject {
     /// Restores onboarding/subscription state so AppsFlyer doesn't misattribute returning users.
     func markAsReinstall() {
         isReinstall = true
-        // Skip onboarding for reinstalls — they've already completed it
-        if !hasCompletedOnboarding {
+        // Only skip onboarding if ATT has already been determined.
+        // iOS resets ATT status on uninstall, so reinstall users will have .notDetermined
+        // and must see onboarding again (including the ATT prompt at step 5).
+        // This ensures Apple reviewers always see the ATT permission request.
+        let attStatus = ATTrackingManager.trackingAuthorizationStatus
+        if attStatus != .notDetermined && !hasCompletedOnboarding {
             hasCompletedOnboarding = true
             UserDefaults.standard.set(true, forKey: Keys.hasCompletedOnboarding)
+            #if DEBUG
+            print("[AppStateManager] Reinstall detected, ATT already determined — skipping onboarding")
+            #endif
+        } else {
+            #if DEBUG
+            print("[AppStateManager] Reinstall detected, ATT not determined — showing onboarding for ATT prompt")
+            #endif
         }
-        #if DEBUG
-        print("[AppStateManager] Reinstall detected — skipping onboarding")
-        #endif
     }
 
     // MARK: - Deep Link Handling

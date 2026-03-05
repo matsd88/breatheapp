@@ -34,7 +34,9 @@ actor YouTubeSearchService {
     // MARK: - Search
 
     func search(query: String, continuation: String? = nil) async throws -> SearchResponse {
-        var urlComponents = URLComponents(string: baseURL)!
+        guard var urlComponents = URLComponents(string: baseURL) else {
+            throw URLError(.badURL)
+        }
         urlComponents.queryItems = [
             URLQueryItem(name: "key", value: apiKey),
             URLQueryItem(name: "contentCheckOk", value: "true"),
@@ -44,7 +46,10 @@ actor YouTubeSearchService {
             urlComponents.queryItems?.append(URLQueryItem(name: "query", value: query))
         }
 
-        var request = URLRequest(url: urlComponents.url!)
+        guard let requestURL = urlComponents.url else {
+            throw URLError(.badURL)
+        }
+        var request = URLRequest(url: requestURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("en-US,en", forHTTPHeaderField: "accept-language")

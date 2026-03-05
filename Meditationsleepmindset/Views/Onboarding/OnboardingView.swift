@@ -21,9 +21,9 @@ struct OnboardingView: View {
     @State private var selectedPainPoint: PainPoint?
     @State private var selectedGoals: Set<OnboardingGoal> = []
 
-    // 6 steps: Welcome(0), Goals(1), Breathing(2), Testimonials(3),
-    //          Notifications(4), Paywall(5)
-    private let totalSteps = 6
+    // 7 steps: Welcome(0), Goals(1), Breathing(2), Testimonials(3),
+    //          Notifications(4), Tracking/ATT(5), Paywall(6)
+    private let totalSteps = 7
 
     var body: some View {
         ZStack {
@@ -46,7 +46,7 @@ struct OnboardingView: View {
                         selectedGoals: $selectedGoals,
                         onContinue: { advanceStep() },
                         onBack: { goBack() },
-                        onSkip: { advanceStep() }
+                        onSkip: { skipStep() }
                     )
                     .transition(.asymmetric(
                         insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -57,7 +57,7 @@ struct OnboardingView: View {
                     OnboardingBreathingView(
                         onComplete: { advanceStep() },
                         onBack: { goBack() },
-                        onSkip: { advanceStep() }
+                        onSkip: { skipStep() }
                     )
                     .transition(.asymmetric(
                         insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -69,7 +69,7 @@ struct OnboardingView: View {
                     OnboardingTestimonialsView(
                         onContinue: { advanceStep() },
                         onBack: { goBack() },
-                        onSkip: { advanceStep() }
+                        onSkip: { skipStep() }
                     )
                     .transition(.asymmetric(
                         insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -81,7 +81,7 @@ struct OnboardingView: View {
                     NotificationPermissionView(
                         onContinue: { advanceStep() },
                         onBack: { goBack() },
-                        onSkip: { advanceStep() }
+                        onSkip: { skipStep() }
                     )
                     .transition(.asymmetric(
                         insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -89,6 +89,16 @@ struct OnboardingView: View {
                     ))
 
                 case 5:
+                    OnboardingTrackingPermissionView(
+                        onContinue: { advanceStep() },
+                        onBack: { goBack() }
+                    )
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing).combined(with: .opacity),
+                        removal: .move(edge: .leading).combined(with: .opacity)
+                    ))
+
+                case 6:
                     OnboardingPaywall(
                         painPoint: selectedPainPoint ?? .calm,
                         goals: selectedGoals,
@@ -113,12 +123,59 @@ struct OnboardingView: View {
             }
             .animation(.easeInOut(duration: 0.3), value: currentStep)
         }
+        .onAppear {
+            // Track first step viewed
+            let name = stepName(for: 0)
+            FirebaseService.shared.logOnboardingStepViewed(step: 0, stepName: name)
+            AppsFlyerService.shared.logOnboardingStep(step: 0, stepName: name, action: "step_viewed")
+        }
+    }
+
+    private func stepName(for step: Int) -> String {
+        switch step {
+        case 0: return "welcome_painpoint"
+        case 1: return "goal_selection"
+        case 2: return "breathing_exercise"
+        case 3: return "testimonials"
+        case 4: return "notifications"
+        case 5: return "tracking_permission"
+        case 6: return "paywall"
+        default: return "unknown"
+        }
     }
 
     private func advanceStep() {
         withAnimation {
             if currentStep < totalSteps - 1 {
+                // Log completion of current step
+                let name = stepName(for: currentStep)
+                FirebaseService.shared.logOnboardingStepCompleted(step: currentStep, stepName: name)
+                AppsFlyerService.shared.logOnboardingStep(step: currentStep, stepName: name, action: "step_completed")
+
                 currentStep += 1
+
+                // Log viewing of next step
+                let nextName = stepName(for: currentStep)
+                FirebaseService.shared.logOnboardingStepViewed(step: currentStep, stepName: nextName)
+                AppsFlyerService.shared.logOnboardingStep(step: currentStep, stepName: nextName, action: "step_viewed")
+            }
+        }
+    }
+
+    private func skipStep() {
+        withAnimation {
+            if currentStep < totalSteps - 1 {
+                // Log skip of current step
+                let name = stepName(for: currentStep)
+                FirebaseService.shared.logOnboardingStepSkipped(step: currentStep, stepName: name)
+                AppsFlyerService.shared.logOnboardingStep(step: currentStep, stepName: name, action: "step_skipped")
+
+                currentStep += 1
+
+                // Log viewing of next step
+                let nextName = stepName(for: currentStep)
+                FirebaseService.shared.logOnboardingStepViewed(step: currentStep, stepName: nextName)
+                AppsFlyerService.shared.logOnboardingStep(step: currentStep, stepName: nextName, action: "step_viewed")
             }
         }
     }
@@ -137,6 +194,9 @@ struct OnboardingView: View {
 
         // Track attribution event
         AppsFlyerService.shared.logCompleteRegistration()
+
+        // Track onboarding completed
+        FirebaseService.shared.logOnboardingCompleted()
 
         // Mark onboarding complete
         appState.completeOnboarding()

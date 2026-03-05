@@ -16,13 +16,23 @@ enum BreathingTechnique: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    var displayName: String {
+        switch self {
+        case .boxBreathing: return String(localized: "Box Breathing")
+        case .relaxing: return String(localized: "4-7-8 Relaxing")
+        case .wimHof: return String(localized: "Wim Hof")
+        case .alternateNostril: return String(localized: "Alternate Nostril")
+        case .energizing: return String(localized: "Energizing Breath")
+        }
+    }
+
     var subtitle: String {
         switch self {
-        case .boxBreathing: return "Equal rhythm for focus & calm"
-        case .relaxing: return "Long exhale to slow your heart rate"
-        case .wimHof: return "Rapid breaths to energize & reset"
-        case .alternateNostril: return "Balanced breathing for harmony"
-        case .energizing: return "Quick bursts to boost energy"
+        case .boxBreathing: return String(localized: "Equal rhythm for focus & calm")
+        case .relaxing: return String(localized: "Long exhale to slow your heart rate")
+        case .wimHof: return String(localized: "Rapid breaths to energize & reset")
+        case .alternateNostril: return String(localized: "Balanced breathing for harmony")
+        case .energizing: return String(localized: "Quick bursts to boost energy")
         }
     }
 
@@ -38,11 +48,11 @@ enum BreathingTechnique: String, CaseIterable, Identifiable {
 
     var description: String {
         switch self {
-        case .boxBreathing: return "Inhale, hold, exhale, and hold — each for 4 seconds. Used by Navy SEALs to stay calm under pressure."
-        case .relaxing: return "Inhale for 4, hold for 7, exhale for 8. Activates your parasympathetic nervous system for deep relaxation."
-        case .wimHof: return "30 rapid deep breaths followed by a breath hold. Increases oxygen levels and mental clarity."
-        case .alternateNostril: return "Breathe in through one nostril, out through the other. Balances left and right brain hemispheres."
-        case .energizing: return "Short, powerful exhales with passive inhales. Clears the mind and boosts energy quickly."
+        case .boxBreathing: return String(localized: "Inhale, hold, exhale, and hold — each for 4 seconds. Used by Navy SEALs to stay calm under pressure.")
+        case .relaxing: return String(localized: "Inhale for 4, hold for 7, exhale for 8. Activates your parasympathetic nervous system for deep relaxation.")
+        case .wimHof: return String(localized: "30 rapid deep breaths followed by a breath hold. Increases oxygen levels and mental clarity.")
+        case .alternateNostril: return String(localized: "Breathe in through one nostril, out through the other. Balances left and right brain hemispheres.")
+        case .energizing: return String(localized: "Short, powerful exhales with passive inhales. Clears the mind and boosts energy quickly.")
         }
     }
 
@@ -55,46 +65,46 @@ enum BreathingTechnique: String, CaseIterable, Identifiable {
         switch self {
         case .boxBreathing:
             return [
-                BreathPhase(name: "Breathe in", duration: 4, scale: 1.2),
-                BreathPhase(name: "Hold", duration: 4, scale: 1.2),
-                BreathPhase(name: "Breathe out", duration: 4, scale: 0.4),
-                BreathPhase(name: "Hold", duration: 4, scale: 0.4)
+                BreathPhase(name: String(localized: "Breathe in"), duration: 4, scale: 1.2),
+                BreathPhase(name: String(localized: "Hold"), duration: 4, scale: 1.2),
+                BreathPhase(name: String(localized: "Breathe out"), duration: 4, scale: 0.4),
+                BreathPhase(name: String(localized: "Hold"), duration: 4, scale: 0.4)
             ]
         case .relaxing:
             return [
-                BreathPhase(name: "Breathe in", duration: 4, scale: 1.2),
-                BreathPhase(name: "Hold", duration: 7, scale: 1.2),
-                BreathPhase(name: "Breathe out", duration: 8, scale: 0.4)
+                BreathPhase(name: String(localized: "Breathe in"), duration: 4, scale: 1.2),
+                BreathPhase(name: String(localized: "Hold"), duration: 7, scale: 1.2),
+                BreathPhase(name: String(localized: "Breathe out"), duration: 8, scale: 0.4)
             ]
         case .wimHof:
             return [
-                BreathPhase(name: "Breathe in deeply", duration: 2, scale: 1.2),
-                BreathPhase(name: "Breathe out", duration: 1, scale: 0.5),
-                BreathPhase(name: "Breathe in deeply", duration: 2, scale: 1.2),
-                BreathPhase(name: "Breathe out", duration: 1, scale: 0.5),
-                BreathPhase(name: "Breathe in deeply", duration: 2, scale: 1.2),
-                BreathPhase(name: "Breathe out", duration: 1, scale: 0.5),
-                BreathPhase(name: "Hold", duration: 10, scale: 0.3)
+                BreathPhase(name: String(localized: "Breathe in deeply"), duration: 2, scale: 1.2),
+                BreathPhase(name: String(localized: "Breathe out"), duration: 1, scale: 0.5),
+                BreathPhase(name: String(localized: "Breathe in deeply"), duration: 2, scale: 1.2),
+                BreathPhase(name: String(localized: "Breathe out"), duration: 1, scale: 0.5),
+                BreathPhase(name: String(localized: "Breathe in deeply"), duration: 2, scale: 1.2),
+                BreathPhase(name: String(localized: "Breathe out"), duration: 1, scale: 0.5),
+                BreathPhase(name: String(localized: "Hold"), duration: 10, scale: 0.3)
             ]
         case .alternateNostril:
             return [
-                BreathPhase(name: "Left nostril in", duration: 4, scale: 1.2),
-                BreathPhase(name: "Hold", duration: 4, scale: 1.2),
-                BreathPhase(name: "Right nostril out", duration: 4, scale: 0.4),
-                BreathPhase(name: "Right nostril in", duration: 4, scale: 1.2),
-                BreathPhase(name: "Hold", duration: 4, scale: 1.2),
-                BreathPhase(name: "Left nostril out", duration: 4, scale: 0.4)
+                BreathPhase(name: String(localized: "Left nostril in"), duration: 4, scale: 1.2),
+                BreathPhase(name: String(localized: "Hold"), duration: 4, scale: 1.2),
+                BreathPhase(name: String(localized: "Right nostril out"), duration: 4, scale: 0.4),
+                BreathPhase(name: String(localized: "Right nostril in"), duration: 4, scale: 1.2),
+                BreathPhase(name: String(localized: "Hold"), duration: 4, scale: 1.2),
+                BreathPhase(name: String(localized: "Left nostril out"), duration: 4, scale: 0.4)
             ]
         case .energizing:
             return [
-                BreathPhase(name: "Sharp exhale", duration: 1, scale: 0.4),
-                BreathPhase(name: "Passive inhale", duration: 1, scale: 1.0),
-                BreathPhase(name: "Sharp exhale", duration: 1, scale: 0.4),
-                BreathPhase(name: "Passive inhale", duration: 1, scale: 1.0),
-                BreathPhase(name: "Sharp exhale", duration: 1, scale: 0.4),
-                BreathPhase(name: "Passive inhale", duration: 1, scale: 1.0),
-                BreathPhase(name: "Deep breath in", duration: 3, scale: 1.2),
-                BreathPhase(name: "Slow exhale", duration: 4, scale: 0.4)
+                BreathPhase(name: String(localized: "Sharp exhale"), duration: 1, scale: 0.4),
+                BreathPhase(name: String(localized: "Passive inhale"), duration: 1, scale: 1.0),
+                BreathPhase(name: String(localized: "Sharp exhale"), duration: 1, scale: 0.4),
+                BreathPhase(name: String(localized: "Passive inhale"), duration: 1, scale: 1.0),
+                BreathPhase(name: String(localized: "Sharp exhale"), duration: 1, scale: 0.4),
+                BreathPhase(name: String(localized: "Passive inhale"), duration: 1, scale: 1.0),
+                BreathPhase(name: String(localized: "Deep breath in"), duration: 3, scale: 1.2),
+                BreathPhase(name: String(localized: "Slow exhale"), duration: 4, scale: 0.4)
             ]
         }
     }
@@ -122,6 +132,9 @@ struct OnboardingBreathingView: View {
     let onBack: () -> Void
     let onSkip: () -> Void
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    private var isRegular: Bool { sizeClass == .regular }
+
     // Stage: 0 = pick technique, 1 = breathing, 2 = mood capture
     @State private var stage = 0
     @State private var selectedTechnique: BreathingTechnique = .boxBreathing
@@ -138,11 +151,11 @@ struct OnboardingBreathingView: View {
     @State private var selectedMood: Int? = nil
 
     private let moodOptions: [OnboardingMoodOption] = [
-        .init(emoji: "😐", label: "Same", value: 1),
-        .init(emoji: "🙂", label: "A bit better", value: 2),
-        .init(emoji: "😌", label: "Calmer", value: 3),
-        .init(emoji: "✨", label: "Refreshed", value: 4),
-        .init(emoji: "🧘", label: "Peaceful", value: 5)
+        .init(emoji: "😐", label: String(localized: "Same"), value: 1),
+        .init(emoji: "🙂", label: String(localized: "A bit better"), value: 2),
+        .init(emoji: "😌", label: String(localized: "Calmer"), value: 3),
+        .init(emoji: "✨", label: String(localized: "Refreshed"), value: 4),
+        .init(emoji: "🧘", label: String(localized: "Peaceful"), value: 5)
     ]
 
     private var currentPhase: BreathPhase? {
@@ -195,19 +208,21 @@ struct OnboardingBreathingView: View {
                             stopTimer()
                             onSkip()
                         }
-                        .font(.body)
+                        .font(isRegular ? .title3 : .body)
                         .fontWeight(.medium)
                         .foregroundStyle(.white.opacity(0.85))
+                        .padding(.horizontal, isRegular ? 16 : 0)
+                        .padding(.vertical, isRegular ? 8 : 0)
                     }
                     .padding(.horizontal, 16)
 
                     // Progress indicator
-                    OnboardingProgressDotsView(current: 2, total: 6)
+                    OnboardingProgressDotsView(current: 2, total: 7)
                 }
 
                 Spacer()
             }
-            .frame(maxWidth: 500)
+            .frame(maxWidth: isRegular ? 800 : 500)
 
             // Stage content
             Group {
@@ -233,15 +248,15 @@ struct OnboardingBreathingView: View {
     // MARK: - Technique Picker (Stage 0)
 
     private var techniquePickerView: some View {
-        VStack(spacing: 32) {
+        VStack(spacing: isRegular ? 44 : 32) {
             VStack(spacing: 8) {
                 Text("Choose a technique")
-                    .font(.title2)
+                    .font(isRegular ? .title : .title2)
                     .fontWeight(.semibold)
                     .foregroundStyle(.white)
 
                 Text("We'll guide you through one cycle")
-                    .font(.body)
+                    .font(isRegular ? .title3 : .body)
                     .foregroundStyle(.white.opacity(0.7))
             }
 
@@ -259,7 +274,7 @@ struct OnboardingBreathingView: View {
                                 .frame(width: 44)
 
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(technique.rawValue)
+                                Text(technique.displayName)
                                     .font(.body)
                                     .fontWeight(.semibold)
                                     .foregroundStyle(.white)
@@ -310,7 +325,7 @@ struct OnboardingBreathingView: View {
             }
             .padding(.horizontal, 24)
         }
-        .frame(maxWidth: 500)
+        .frame(maxWidth: isRegular ? 800 : 500)
     }
 
     // MARK: - Breathing View (Stage 1)
@@ -424,7 +439,7 @@ struct OnboardingBreathingView: View {
                 }
             }
         }
-        .frame(maxWidth: 500)
+        .frame(maxWidth: isRegular ? 800 : 500)
     }
 
     // MARK: - Mood Capture (Stage 2)
@@ -502,7 +517,7 @@ struct OnboardingBreathingView: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 40)
         }
-        .frame(maxWidth: 500)
+        .frame(maxWidth: isRegular ? 800 : 500)
     }
 
     // MARK: - Breathing Logic
@@ -527,7 +542,8 @@ struct OnboardingBreathingView: View {
             return
         }
 
-        let phase = phases[currentPhaseIndex]
+        // Safe array access
+        guard let phase = phases[safe: currentPhaseIndex] else { return }
         countdown = Int(phase.duration)
 
         withAnimation(.easeInOut(duration: phase.duration)) {
@@ -536,12 +552,15 @@ struct OnboardingBreathingView: View {
 
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { t in
-            if countdown > 1 {
-                countdown -= 1
-            } else {
-                t.invalidate()
-                currentPhaseIndex += 1
-                runPhase()
+            Task { @MainActor in
+                if countdown > 1 {
+                    countdown -= 1
+                } else {
+                    t.invalidate()
+                    timer = nil
+                    currentPhaseIndex += 1
+                    runPhase()
+                }
             }
         }
     }

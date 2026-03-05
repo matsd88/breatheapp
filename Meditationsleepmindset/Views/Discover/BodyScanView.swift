@@ -9,6 +9,8 @@ import SwiftData
 struct BodyScanView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    private var isRegular: Bool { sizeClass == .regular }
 
     @State private var currentRegion: Int = -1 // -1 = intro
     @State private var timer: Timer?
@@ -137,13 +139,17 @@ struct BodyScanView: View {
 
             // Body outline with highlighted region
             ZStack {
-                // Body silhouette
+                // Body silhouette - adaptive sizing for iPad
+                let bodyWidth: CGFloat = isRegular ? 180 : 120
+                let bodyHeight: CGFloat = isRegular ? 500 : 350
+
                 bodyOutline
-                    .frame(width: 120, height: 350)
+                    .frame(width: bodyWidth, height: bodyHeight)
 
                 // Glow on current region
                 if currentRegion < regions.count {
                     let region = regions[currentRegion]
+                    let glowSize: CGFloat = isRegular ? 160 : 120
                     Circle()
                         .fill(
                             RadialGradient(
@@ -154,11 +160,11 @@ struct BodyScanView: View {
                                 ],
                                 center: .center,
                                 startRadius: 5,
-                                endRadius: 60
+                                endRadius: isRegular ? 80 : 60
                             )
                         )
-                        .frame(width: 120, height: 120)
-                        .offset(y: CGFloat(region.yPosition - 0.5) * 350)
+                        .frame(width: glowSize, height: glowSize)
+                        .offset(y: CGFloat(region.yPosition - 0.5) * bodyHeight)
                         .opacity(glowOpacity)
                         .animation(.easeInOut(duration: 2).repeatForever(autoreverses: true), value: glowOpacity)
                 }
@@ -316,11 +322,14 @@ struct BodyScanView: View {
         countdown = 30
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            if countdown > 1 {
-                countdown -= 1
-            } else {
-                timer?.invalidate()
-                advanceRegion()
+            Task { @MainActor in
+                if countdown > 1 {
+                    countdown -= 1
+                } else {
+                    timer?.invalidate()
+                    timer = nil
+                    advanceRegion()
+                }
             }
         }
     }

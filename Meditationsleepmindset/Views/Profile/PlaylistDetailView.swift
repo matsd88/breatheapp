@@ -10,12 +10,16 @@ struct PlaylistDetailView: View {
     let playlist: Playlist
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @Query private var playlistItems: [PlaylistItem]
     @Query private var allContent: [Content]
     @State private var selectedContent: Content?
     @State private var showRenameAlert = false
     @State private var editedName = ""
     @State private var showDeleteConfirmation = false
+    @State private var showSessionLimitPaywall = false
+
+    private var isRegular: Bool { sizeClass == .regular }
 
     private var itemsForPlaylist: [PlaylistItem] {
         playlistItems
@@ -62,13 +66,13 @@ struct PlaylistDetailView: View {
                                         Rectangle().fill(Theme.cardBackground)
                                     }
                                 )
-                                .frame(width: 180, height: 120)
+                                .frame(width: isRegular ? 240 : 180, height: isRegular ? 160 : 120)
                                 .clipped()
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                             } else {
                                 RoundedRectangle(cornerRadius: 12)
                                     .fill(Theme.cardBackground)
-                                    .frame(width: 180, height: 120)
+                                    .frame(width: isRegular ? 240 : 180, height: isRegular ? 160 : 120)
                                     .overlay(
                                         Image(systemName: "rectangle.stack")
                                             .font(.largeTitle)
@@ -77,12 +81,12 @@ struct PlaylistDetailView: View {
                             }
 
                             Text(playlist.name)
-                                .font(.title2)
+                                .font(isRegular ? .title : .title2)
                                 .fontWeight(.bold)
                                 .foregroundStyle(.white)
 
                             Text("\(itemsForPlaylist.count) item\(itemsForPlaylist.count == 1 ? "" : "s")  ·  \(totalDuration)")
-                                .font(.subheadline)
+                                .font(isRegular ? .body : .subheadline)
                                 .foregroundStyle(Theme.textSecondary)
 
                             // Play button
@@ -162,7 +166,7 @@ struct PlaylistDetailView: View {
                         Image(systemName: "xmark")
                             .font(.body.weight(.semibold))
                             .foregroundStyle(.white.opacity(0.7))
-                            .frame(width: 32, height: 32)
+                            .frame(width: isRegular ? 40 : 32, height: isRegular ? 40 : 32)
                             .background(Color.white.opacity(0.15))
                             .clipShape(Circle())
                     }
@@ -187,7 +191,7 @@ struct PlaylistDetailView: View {
                             .font(.body.weight(.semibold))
                             .foregroundStyle(.white.opacity(0.7))
                             .rotationEffect(.degrees(90))
-                            .frame(width: 32, height: 32)
+                            .frame(width: isRegular ? 40 : 32, height: isRegular ? 40 : 32)
                             .background(Color.white.opacity(0.15))
                             .clipShape(Circle())
                     }
@@ -216,13 +220,25 @@ struct PlaylistDetailView: View {
             .fullScreenCover(item: $selectedContent) { content in
                 MeditationPlayerView(content: content)
             }
+            .sheet(isPresented: $showSessionLimitPaywall) {
+                PremiumPaywallView(
+                    storeManager: StoreManager.shared,
+                    sessionLimitMessage: "This is a premium meditation. Subscribe to unlock the full library.",
+                    onSubscribed: { showSessionLimitPaywall = false }
+                )
+            }
         }
         .presentationBackground(Theme.profileGradient)
     }
 
     /// Build queue from ordered playlist items and play
     private func playFromPlaylist(_ content: Content) {
+        if !StoreManager.shared.isSubscribed && AppStateManager.shared.hasReachedFreeSessionLimit {
+            showSessionLimitPaywall = true
+            return
+        }
         let orderedContent = itemsForPlaylist.compactMap { contentFor(item: $0) }
+        guard !orderedContent.isEmpty else { return }
         let startIndex = orderedContent.firstIndex(where: { $0.id == content.id }) ?? 0
         AudioPlayerManager.shared.queue = orderedContent
         AudioPlayerManager.shared.currentIndex = startIndex
@@ -260,9 +276,12 @@ struct PlaylistItemRow: View {
     let content: Content
     let onTap: () -> Void
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    private var isRegular: Bool { sizeClass == .regular }
+
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 12) {
+            HStack(spacing: isRegular ? 16 : 12) {
                 CachedAsyncImage(
                     url: URL(string: content.thumbnailURLComputed),
                     failedIconName: content.contentType.iconName,
@@ -276,28 +295,28 @@ struct PlaylistItemRow: View {
                         Rectangle().fill(Theme.cardBackground)
                     }
                 )
-                .frame(width: 80, height: 55)
+                .frame(width: isRegular ? 110 : 80, height: isRegular ? 75 : 55)
                 .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(content.title)
-                        .font(.subheadline)
+                        .font(isRegular ? .body : .subheadline)
                         .fontWeight(.medium)
                         .foregroundStyle(Theme.textPrimary)
                         .lineLimit(1)
 
                     HStack(spacing: 6) {
                         Text(content.contentType.displayName)
-                            .font(.caption)
+                            .font(isRegular ? .subheadline : .caption)
                             .foregroundStyle(.white.opacity(0.7))
 
                         Text("·")
-                            .font(.caption)
+                            .font(isRegular ? .subheadline : .caption)
                             .foregroundStyle(Theme.textTertiary)
 
                         Text(content.durationFormatted)
-                            .font(.caption)
+                            .font(isRegular ? .subheadline : .caption)
                             .foregroundStyle(Theme.textSecondary)
                     }
                 }
@@ -305,11 +324,11 @@ struct PlaylistItemRow: View {
                 Spacer()
 
                 Image(systemName: "play.circle.fill")
-                    .font(.title2)
+                    .font(isRegular ? .title : .title2)
                     .foregroundStyle(.white)
             }
             .padding(.horizontal)
-            .padding(.vertical, 10)
+            .padding(.vertical, isRegular ? 12 : 10)
         }
         .buttonStyle(.plain)
     }

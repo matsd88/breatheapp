@@ -13,6 +13,7 @@ struct ContentActionSheet: View {
     let onAddToPlaylist: (() -> Void)?
     let onShare: () -> Void
     @Binding var isPresented: Bool
+    @State private var actionTask: Task<Void, Never>?
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -67,7 +68,10 @@ struct ContentActionSheet: View {
                         iconColor: isFavorite ? .red : .white
                     ) {
                         isPresented = false
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        actionTask?.cancel()
+                        actionTask = Task {
+                            try? await Task.sleep(nanoseconds: 300_000_000)
+                            guard !Task.isCancelled else { return }
                             onToggleFavorite()
                         }
                     }
@@ -80,7 +84,10 @@ struct ContentActionSheet: View {
                             iconColor: .white
                         ) {
                             isPresented = false
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            actionTask?.cancel()
+                            actionTask = Task {
+                                try? await Task.sleep(nanoseconds: 300_000_000)
+                                guard !Task.isCancelled else { return }
                                 onAddToPlaylist()
                             }
                         }
@@ -93,7 +100,10 @@ struct ContentActionSheet: View {
                         iconColor: .white
                     ) {
                         isPresented = false
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        actionTask?.cancel()
+                        actionTask = Task {
+                            try? await Task.sleep(nanoseconds: 300_000_000)
+                            guard !Task.isCancelled else { return }
                             onShare()
                         }
                     }
@@ -118,6 +128,9 @@ struct ContentActionSheet: View {
             )
             .padding(.bottom, -24) // Extend past safe area
             .transition(.move(edge: .bottom))
+        }
+        .onDisappear {
+            actionTask?.cancel()
         }
     }
 }

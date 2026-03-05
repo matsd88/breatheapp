@@ -6,8 +6,21 @@
 import SwiftUI
 import SwiftData
 
+enum DiscoverSheetType: Identifiable {
+    case sessionLimit, programs
+    case addToPlaylist(Content)
+    var id: String {
+        switch self {
+        case .sessionLimit: return "sessionLimit"
+        case .programs: return "programs"
+        case .addToPlaylist(let c): return "playlist-\(c.youtubeVideoID)"
+        }
+    }
+}
+
 struct DiscoverView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @Query(sort: \Content.title) private var allContent: [Content]
     @Query private var favorites: [FavoriteContent]
     @Binding var initialCategory: ContentType?
@@ -16,12 +29,13 @@ struct DiscoverView: View {
     @State private var selectedCategory: ContentType?
     @State private var isSearchActive = false
     @State private var showScrollToTop = false
-    @State private var contentForPlaylistAdd: Content?
+    @State private var activeDiscoverSheet: DiscoverSheetType?
     @State private var showBreathingExercises = false
     @State private var showBodyScan = false
     @State private var showFocusTimer = false
-    @State private var showPrograms = false
     @State private var showYouTubeSearch = false
+    @State private var showAIMeditation = false
+    @State private var showMicroMoments = false
 
     init(initialCategory: Binding<ContentType?> = .constant(nil)) {
         self._initialCategory = initialCategory
@@ -77,11 +91,17 @@ struct DiscoverView: View {
                                 // Programs (commented out for initial release)
                                 // DiscoverProgramsPreview(onSeeAll: { showPrograms = true })
 
+                                // Micro Moments Banner
+                                MicroMomentsBanner {
+                                    showMicroMoments = true
+                                }
+
                                 // Tools Section
                                 DiscoverToolsSection(
                                     onBreathing: { showBreathingExercises = true },
                                     onBodyScan: { showBodyScan = true },
                                     onFocusTimer: { showFocusTimer = true },
+                                    onAIMeditation: { showAIMeditation = true },
                                     onYouTubeSearch: Constants.isCuratorMode ? { showYouTubeSearch = true } : nil
                                 )
 
@@ -106,7 +126,7 @@ struct DiscoverView: View {
                                                 withAnimation { showScrollToTop = reached }
                                             },
                                             onAddToPlaylist: { content in
-                                                contentForPlaylistAdd = content
+                                                activeDiscoverSheet = .addToPlaylist(content)
                                             },
                                             isFavorite: isFavorite,
                                             onFavorite: toggleFavorite,
@@ -128,7 +148,7 @@ struct DiscoverView: View {
                                                 },
                                                 expanded: false,
                                                 onAddToPlaylist: { content in
-                                                    contentForPlaylistAdd = content
+                                                    activeDiscoverSheet = .addToPlaylist(content)
                                                 },
                                                 isFavorite: isFavorite,
                                                 onFavorite: toggleFavorite,
@@ -167,26 +187,37 @@ struct DiscoverView: View {
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
-            .fullScreenCover(item: $selectedContent) { content in
-                MeditationPlayerView(content: content)
-            }
-            .sheet(item: $contentForPlaylistAdd) { content in
-                AddToPlaylistSheet(content: content)
-            }
-            .sheet(isPresented: $showPrograms) {
-                ProgramsListView()
+            .sheet(item: $activeDiscoverSheet) { sheet in
+                switch sheet {
+                case .sessionLimit:
+                    PremiumPaywallView(
+                        storeManager: StoreManager.shared,
+                        sessionLimitMessage: "This is a premium meditation. Subscribe to unlock the full library.",
+                        onSubscribed: { activeDiscoverSheet = nil }
+                    )
+                case .programs:
+                    ProgramsListView()
+                case .addToPlaylist(let content):
+                    AddToPlaylistSheet(content: content)
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: .dismissAllSheetsAndPlay)) { _ in
-                showPrograms = false
+                activeDiscoverSheet = nil
             }
-            .sheet(isPresented: $showBreathingExercises) {
+            .fullScreenCover(isPresented: $showBreathingExercises) {
                 BreathingExercisesListView()
             }
             .fullScreenCover(isPresented: $showBodyScan) {
                 BodyScanView()
             }
-            .sheet(isPresented: $showFocusTimer) {
+            .fullScreenCover(isPresented: $showFocusTimer) {
                 FocusTimerView()
+            }
+            .fullScreenCover(isPresented: $showAIMeditation) {
+                AIGeneratedMeditationView()
+            }
+            .fullScreenCover(isPresented: $showMicroMoments) {
+                MicroMomentsView()
             }
             // YouTube search — commented out for App Store release
             // .sheet(isPresented: $showYouTubeSearch) {
@@ -237,17 +268,23 @@ struct DiscoverView: View {
             content: content,
             isFavorite: isFavorite(content),
             onToggleFavorite: { toggleFavorite(content) },
-            onAddToPlaylist: { contentForPlaylistAdd = content },
+            onAddToPlaylist: { activeDiscoverSheet = .addToPlaylist(content) },
             onShare: { shareContent(content) }
         )
     }
 
     /// Play content with a queue for auto-play
     private func playContent(_ content: Content, from queue: [Content]) {
+        if !StoreManager.shared.isSubscribed && AppStateManager.shared.hasReachedFreeSessionLimit {
+            activeDiscoverSheet = .sessionLimit
+            return
+        }
         let startIndex = queue.firstIndex(where: { $0.id == content.id }) ?? 0
-        AudioPlayerManager.shared.queue = queue
-        AudioPlayerManager.shared.currentIndex = startIndex
-        selectedContent = content
+        let manager = AudioPlayerManager.shared
+        manager.queue = queue
+        manager.currentIndex = startIndex
+        manager.currentContent = content
+        manager.shouldPresentPlayer = true
     }
 
     private func shareContent(_ content: Content) {
@@ -390,12 +427,14 @@ struct SearchResultRow: View {
                             .font(.caption)
                             .foregroundStyle(.white.opacity(0.7))
 
-                        Text("•")
-                            .foregroundStyle(Theme.textTertiary)
+                        if !content.durationFormatted.isEmpty {
+                            Text("•")
+                                .foregroundStyle(Theme.textTertiary)
 
-                        Text(content.durationFormatted)
-                            .font(.caption)
-                            .foregroundStyle(Theme.textSecondary)
+                            Text(content.durationFormatted)
+                                .font(.caption)
+                                .foregroundStyle(Theme.textSecondary)
+                        }
                     }
                 }
 
@@ -603,7 +642,7 @@ struct ContentCategorySection: View {
                                     sortOption = option
                                 }
                             } label: {
-                                Label(option.rawValue, systemImage: sortOption == option ? "checkmark" : "")
+                                Label(option.displayName, systemImage: sortOption == option ? "checkmark" : "")
                             }
                         }
                     } label: {
@@ -763,6 +802,15 @@ enum SortOption: String, CaseIterable {
     case shortest = "Shortest First"
     case longest = "Longest First"
     case alphabetical = "A – Z"
+
+    var displayName: String {
+        switch self {
+        case .defaultOrder: return String(localized: "Default")
+        case .shortest: return String(localized: "Shortest First")
+        case .longest: return String(localized: "Longest First")
+        case .alphabetical: return String(localized: "A – Z")
+        }
+    }
 }
 
 struct DiscoverContentListView: View {
@@ -771,7 +819,7 @@ struct DiscoverContentListView: View {
     @Query private var favorites: [FavoriteContent]
     let contentType: ContentType
     @State private var selectedContent: Content?
-    @State private var contentForPlaylistAdd: Content?
+    @State private var activeListSheet: DiscoverSheetType?
     @State private var displayedCount: Int = 15  // Start with 15 items
     @State private var isLoadingMore: Bool = false
     @State private var showScrollToTop = false
@@ -838,7 +886,7 @@ struct DiscoverContentListView: View {
                                             sortOption = option
                                         }
                                     } label: {
-                                        Label(option.rawValue, systemImage: sortOption == option ? "checkmark" : "")
+                                        Label(option.displayName, systemImage: sortOption == option ? "checkmark" : "")
                                     }
                                 }
                             } label: {
@@ -855,13 +903,13 @@ struct DiscoverContentListView: View {
                                 SearchResultRow(
                                     content: content,
                                     onTap: { playContent(content, from: filteredContent) },
-                                    onAddToPlaylist: { contentForPlaylistAdd = content },
+                                    onAddToPlaylist: { activeListSheet = .addToPlaylist(content) },
                                     isFavorite: isFavorite(content),
                                     onFavorite: { toggleFavorite(content) },
                                     onShare: { shareContent(content) },
                                     onMore: { showActionSheet(for: content) }
                                 )
-                                .id(index == 0 ? "listTop" : "item_\(index)")
+                                .id(index == 0 ? "listTop" : content.youtubeVideoID)
                                 .onAppear {
                                     // Load more when approaching the end
                                     if content.id == displayedContent.last?.id && hasMoreContent {
@@ -924,11 +972,18 @@ struct DiscoverContentListView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbarColorScheme(.dark, for: .navigationBar)
-        .fullScreenCover(item: $selectedContent) { content in
-            MeditationPlayerView(content: content)
-        }
-        .sheet(item: $contentForPlaylistAdd) { content in
-            AddToPlaylistSheet(content: content)
+        .sheet(item: $activeListSheet) { sheet in
+            switch sheet {
+            case .sessionLimit:
+                PremiumPaywallView(
+                    storeManager: StoreManager.shared,
+                    sessionLimitMessage: "This is a premium meditation. Subscribe to unlock the full library."
+                )
+            case .programs:
+                ProgramsListView()
+            case .addToPlaylist(let content):
+                AddToPlaylistSheet(content: content)
+            }
         }
     }
 
@@ -978,17 +1033,23 @@ struct DiscoverContentListView: View {
             content: content,
             isFavorite: isFavorite(content),
             onToggleFavorite: { toggleFavorite(content) },
-            onAddToPlaylist: { contentForPlaylistAdd = content },
+            onAddToPlaylist: { activeListSheet = .addToPlaylist(content) },
             onShare: { shareContent(content) }
         )
     }
 
     /// Play content with a queue for auto-play
     private func playContent(_ content: Content, from queue: [Content]) {
+        if !StoreManager.shared.isSubscribed && AppStateManager.shared.hasReachedFreeSessionLimit {
+            activeListSheet = .sessionLimit
+            return
+        }
         let startIndex = queue.firstIndex(where: { $0.id == content.id }) ?? 0
-        AudioPlayerManager.shared.queue = queue
-        AudioPlayerManager.shared.currentIndex = startIndex
-        selectedContent = content
+        let manager = AudioPlayerManager.shared
+        manager.queue = queue
+        manager.currentIndex = startIndex
+        manager.currentContent = content
+        manager.shouldPresentPlayer = true
     }
 
     private func shareContent(_ content: Content) {
@@ -1079,7 +1140,7 @@ struct UnguidedTimerView: View {
             if let sound = selectedSound, sound != .silence {
                 HStack(spacing: 8) {
                     Image(systemName: sound.iconName)
-                    Text(sound.rawValue)
+                    Text(sound.displayName)
                 }
                 .font(.subheadline)
                 .foregroundStyle(Theme.textSecondary)
@@ -1170,7 +1231,7 @@ struct UnguidedTimerView: View {
                             VStack(spacing: 4) {
                                 Image(systemName: sound.iconName)
                                     .font(.body)
-                                Text(sound.rawValue)
+                                Text(sound.displayName)
                                     .font(.caption2)
                             }
                             .foregroundStyle(selectedSound == sound ? .white : Theme.textPrimary)
@@ -1223,11 +1284,14 @@ struct UnguidedTimerView: View {
             ambientSoundService.play(sound: sound)
         }
 
+        timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            if timeRemaining > 0 {
-                timeRemaining -= 1
-            } else {
-                completeSession()
+            Task { @MainActor in
+                if timeRemaining > 0 {
+                    timeRemaining -= 1
+                } else {
+                    completeSession()
+                }
             }
         }
     }
@@ -1238,10 +1302,12 @@ struct UnguidedTimerView: View {
             timer = nil
         } else {
             timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-                if timeRemaining > 0 {
-                    timeRemaining -= 1
-                } else {
-                    completeSession()
+                Task { @MainActor in
+                    if timeRemaining > 0 {
+                        timeRemaining -= 1
+                    } else {
+                        completeSession()
+                    }
                 }
             }
         }
@@ -1379,6 +1445,7 @@ struct DiscoverToolsSection: View {
     let onBreathing: () -> Void
     let onBodyScan: () -> Void
     let onFocusTimer: () -> Void
+    var onAIMeditation: (() -> Void)? = nil
     var onYouTubeSearch: (() -> Void)? = nil
 
     var body: some View {
@@ -1391,6 +1458,18 @@ struct DiscoverToolsSection: View {
                         subtitle: "Search YouTube",
                         color: .red,
                         action: onYouTubeSearch
+                    )
+                }
+
+                // AI-Generated Meditation - Premium feature
+                if let onAIMeditation {
+                    DiscoverToolCard(
+                        icon: "wand.and.stars",
+                        title: "Create Your Own",
+                        subtitle: "AI meditation",
+                        color: Theme.profileAccent,
+                        isPremiumFeature: true,
+                        action: onAIMeditation
                     )
                 }
 
@@ -1429,6 +1508,7 @@ struct DiscoverToolCard: View {
     let title: String
     let subtitle: String
     let color: Color
+    var isPremiumFeature: Bool = false
     let action: () -> Void
 
     var body: some View {
@@ -1437,28 +1517,54 @@ struct DiscoverToolCard: View {
             action()
         } label: {
             VStack(alignment: .leading, spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(color.opacity(0.2))
-                        .frame(width: 44, height: 44)
+                HStack {
+                    ZStack {
+                        Circle()
+                            .fill(color.opacity(0.2))
+                            .frame(width: 44, height: 44)
 
-                    Image(systemName: icon)
-                        .font(.title3)
-                        .foregroundStyle(color)
+                        Image(systemName: icon)
+                            .font(.title3)
+                            .foregroundStyle(color)
+                    }
+
+                    Spacer()
+
+                    if isPremiumFeature {
+                        Image(systemName: "sparkles")
+                            .font(.caption)
+                            .foregroundStyle(.yellow)
+                    }
                 }
 
                 Text(title)
                     .font(.subheadline.bold())
                     .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
 
                 Text(subtitle)
                     .font(.caption2)
                     .foregroundStyle(Theme.textSecondary)
+                    .lineLimit(1)
             }
-            .frame(width: sizeClass == .regular ? 150 : 120, alignment: .leading)
+            .frame(width: sizeClass == .regular ? 150 : 120, height: sizeClass == .regular ? 110 : 95, alignment: .leading)
             .padding(14)
             .background(Theme.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(
+                isPremiumFeature ?
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(
+                            LinearGradient(
+                                colors: [color.opacity(0.5), color.opacity(0.2)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                    : nil
+            )
         }
         .buttonStyle(.plain)
     }

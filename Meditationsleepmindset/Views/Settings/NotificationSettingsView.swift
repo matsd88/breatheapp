@@ -226,6 +226,8 @@ struct NotificationSettingsView: View {
                     }
                 }
                 .padding()
+                .frame(maxWidth: 600)
+                .frame(maxWidth: .infinity)
             }
         }
         .navigationTitle("Notifications")
@@ -253,10 +255,14 @@ struct NotificationSettingsView: View {
         }
     }
 
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.timeStyle = .short
+        return f
+    }()
+
     private func timeString(from date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+        Self.timeFormatter.string(from: date)
     }
 }
 
@@ -295,7 +301,7 @@ struct TimePickerSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
     }
 }
 

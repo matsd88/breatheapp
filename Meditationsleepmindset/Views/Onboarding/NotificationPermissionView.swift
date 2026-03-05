@@ -8,8 +8,11 @@ import SwiftUI
 struct NotificationPermissionView: View {
     @StateObject private var notificationService = NotificationService.shared
     @EnvironmentObject var appState: AppStateManager
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var selectedTime = Date()
     @State private var showTimePicker = false
+
+    private var isRegular: Bool { sizeClass == .regular }
 
     let onContinue: () -> Void
     let onBack: () -> Void
@@ -37,14 +40,16 @@ struct NotificationPermissionView: View {
                     Button("Skip") {
                         onSkip()
                     }
-                    .font(.body)
+                    .font(isRegular ? .title3 : .body)
                     .fontWeight(.medium)
                     .foregroundStyle(.white.opacity(0.85))
+                    .padding(.horizontal, isRegular ? 16 : 0)
+                    .padding(.vertical, isRegular ? 8 : 0)
                 }
                 .padding(.horizontal, 16)
 
                 // Progress indicator
-                OnboardingProgressDotsView(current: 3, total: 6)
+                OnboardingProgressDotsView(current: 4, total: 7)
 
                 Spacer()
 
@@ -67,20 +72,19 @@ struct NotificationPermissionView: View {
                         .frame(width: 120, height: 120)
 
                     Image(systemName: "bell.badge.fill")
-                        .font(.system(size: 50, weight: .light))
+                        .font(.system(size: isRegular ? 64 : 50, weight: .light))
                         .foregroundStyle(.white)
                         .shadow(color: Theme.profileAccent.opacity(0.5), radius: 10)
                 }
 
                 // Headline
-                VStack(spacing: 12) {
+                VStack(spacing: isRegular ? 16 : 12) {
                     Text("Stay on Track")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
+                        .font(isRegular ? .system(size: 44, weight: .bold) : .largeTitle.bold())
                         .foregroundStyle(.white)
 
                     Text("Would you like a gentle reminder\nto meditate each day?")
-                        .font(.body)
+                        .font(isRegular ? .title3 : .body)
                         .foregroundStyle(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
                 }
@@ -165,14 +169,14 @@ struct NotificationPermissionView: View {
                         onSkip()
                     } label: {
                         Text("Maybe later")
-                            .font(.body)
+                            .font(isRegular ? .title3 : .body)
                             .foregroundStyle(.white.opacity(0.7))
                     }
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
             }
-            .frame(maxWidth: 500)
+            .frame(maxWidth: isRegular ? 800 : 500)
         }
         .onAppear {
             // Default to 8 PM

@@ -7,6 +7,7 @@ import Foundation
 import AVFoundation
 import MediaPlayer
 import Combine
+import ActivityKit
 
 @MainActor
 class AudioPlayerManager: ObservableObject {
@@ -27,7 +28,7 @@ class AudioPlayerManager: ObservableObject {
         var next: RepeatMode {
             switch self {
             case .off: return .one
-            case .one: return .off
+            case .one: return .all
             case .all: return .off
             }
         }
@@ -92,6 +93,16 @@ class AudioPlayerManager: ObservableObject {
     private var isAutoRetrying = false
     /// Debounce rapid next/previous taps
     private var isSkipping = false
+    /// Buffer stall recovery: fires when buffer is empty for too long
+    private var bufferStallTimer: Timer?
+    private static let bufferStallTimeout: TimeInterval = 30
+    /// Crossfade: old player that's fading out
+    private var crossfadePlayer: AVPlayer?
+    private var crossfadeTimer: Timer?
+    private var fadeInTimer: Timer?
+
+    /// Tracks which video ID is actually loaded into the AVPlayer (vs. currentContent which can be set early)
+    private(set) var loadedVideoID: String?
 
     private init() {
         setupAudioSession()
@@ -276,6 +287,7 @@ class AudioPlayerManager: ObservableObject {
 
     /// Load a queue and start playing from a specific index
     func loadQueue(_ items: [Content], startIndex: Int) {
+        guard !items.isEmpty else { return } // Guard against empty queue crash
         queue = items
         currentIndex = max(0, min(startIndex, items.count - 1))
         updateRemoteCommandState()
@@ -308,7 +320,7 @@ class AudioPlayerManager: ObservableObject {
         guard let content = queue[safe: currentIndex] else { return }
 
         Task {
-            await loadContent(content, videoMode: isVideoMode)
+            await loadContentWithCrossfade(content, videoMode: isVideoMode)
             play()
         }
     }
@@ -369,7 +381,7 @@ class AudioPlayerManager: ObservableObject {
             updateRemoteCommandState()
             if let content = queue.first {
                 Task {
-                    await loadContent(content, videoMode: isVideoMode)
+                    await loadContentWithCrossfade(content, videoMode: isVideoMode)
                     play()
                 }
             }
@@ -382,6 +394,11 @@ class AudioPlayerManager: ObservableObject {
             // Track ended, no auto-play or no next track
             isPlaying = false
             updateNowPlayingInfo(force: true)
+            // End Live Activity with completion state
+            Task {
+                await LiveActivityManager.shared.endActivity(showFinalState: true)
+            }
+            liveActivityStarted = false
             return
         }
 
@@ -394,6 +411,7 @@ class AudioPlayerManager: ObservableObject {
         cleanupPlayer()
 
         currentContent = content
+        loadedVideoID = content.youtubeVideoID
         isVideoMode = videoMode
         isLoading = true
         error = nil
@@ -420,29 +438,54 @@ class AudioPlayerManager: ObservableObject {
             prefetchedPlayerItem = nil
             prefetchedVideoID = nil
 
-            // Check disk cache for faster loading
-            if let cachedURL = await VideoCache.shared.getCachedURL(for: content.youtubeVideoID, audioOnly: audioOnly) {
-                #if DEBUG
-                print("[AudioPlayerManager] Using cached file for \(content.youtubeVideoID)")
-                #endif
-                setupPlayer(with: cachedURL)
-                prefetchNextInQueue()
-                return
+            // Race disk cache vs stream URL extraction — use whichever resolves first
+            let videoID = content.youtubeVideoID
+            let playURL: URL = try await withThrowingTaskGroup(of: URL?.self) { group in
+                // Task 1: Check disk cache (fast if file exists)
+                group.addTask {
+                    if let cachedURL = await VideoCache.shared.getCachedURL(for: videoID, audioOnly: audioOnly) {
+                        #if DEBUG
+                        print("[AudioPlayerManager] Disk cache hit for \(videoID)")
+                        #endif
+                        return cachedURL
+                    }
+                    return nil // No cache — let stream URL win
+                }
+
+                // Task 2: Extract stream URL from YouTube (network)
+                group.addTask {
+                    let url = try await MediaStreamService.shared.getStreamURL(for: videoID, audioOnly: audioOnly)
+                    #if DEBUG
+                    print("[AudioPlayerManager] Stream URL ready for \(videoID)")
+                    #endif
+                    return url
+                }
+
+                // Use first non-nil successful result
+                for try await result in group {
+                    if let url = result {
+                        group.cancelAll()
+                        return url
+                    }
+                }
+                throw YouTubeError.extractionFailed
             }
 
-            // Fall back to streaming from YouTube
-            let streamURL = try await YouTubeService.shared.getStreamURL(
-                for: content.youtubeVideoID,
-                audioOnly: audioOnly
-            )
+            setupPlayer(with: playURL)
 
-            setupPlayer(with: streamURL)
-
-            // Safety timeout: if still loading after 15s, show error and allow retry
+            // Safety timeout: if still loading after 10s, show error and allow retry
+            // Reduced from 20s for better UX - users abandon after ~8-10s
             let contentID = content.youtubeVideoID
+            let contentTitle = content.title
             Task { @MainActor [weak self] in
-                try? await Task.sleep(nanoseconds: 15_000_000_000)
+                try? await Task.sleep(nanoseconds: 10_000_000_000)
                 guard let self, self.isLoading, self.currentContent?.youtubeVideoID == contentID else { return }
+                FirebaseService.shared.logPlaybackFailed(
+                    videoID: contentID,
+                    reason: "loading_timeout_10s",
+                    retryCount: self.currentRetryCount,
+                    contentTitle: contentTitle
+                )
                 self.error = "Playback timed out. Tap retry to try again."
                 self.isLoading = false
             }
@@ -467,21 +510,20 @@ class AudioPlayerManager: ObservableObject {
                 print("[AudioPlayerManager] Video mode failed, trying audio-only fallback...")
                 #endif
                 do {
-                    // Check audio cache first
-                    if let cachedAudio = await VideoCache.shared.getCachedURL(for: content.youtubeVideoID, audioOnly: true) {
-                        #if DEBUG
-                        print("[AudioPlayerManager] Using cached audio fallback for \(content.youtubeVideoID)")
-                        #endif
-                        isVideoMode = false
-                        setupPlayer(with: cachedAudio)
-                        prefetchNextInQueue()
-                        return
+                    // Race cache vs network for audio fallback
+                    let fallbackVideoID = content.youtubeVideoID
+                    let audioURL: URL = try await withThrowingTaskGroup(of: URL?.self) { group in
+                        group.addTask {
+                            await VideoCache.shared.getCachedURL(for: fallbackVideoID, audioOnly: true)
+                        }
+                        group.addTask {
+                            try await MediaStreamService.shared.getStreamURL(for: fallbackVideoID, audioOnly: true)
+                        }
+                        for try await result in group {
+                            if let url = result { group.cancelAll(); return url }
+                        }
+                        throw YouTubeError.extractionFailed
                     }
-
-                    let audioURL = try await YouTubeService.shared.getStreamURL(
-                        for: content.youtubeVideoID,
-                        audioOnly: true
-                    )
                     isVideoMode = false
                     setupPlayer(with: audioURL)
 
@@ -508,16 +550,76 @@ class AudioPlayerManager: ObservableObject {
                         content.youtubeVideoID = replacement.videoID
                         if let dur = replacement.durationSeconds { content.durationSeconds = dur }
                     }
+                    FirebaseService.shared.logPlaybackFailed(
+                        videoID: content.youtubeVideoID,
+                        reason: "all_fallbacks_failed_video_mode",
+                        retryCount: currentRetryCount,
+                        contentTitle: content.title
+                    )
                     self.error = error.localizedDescription
                     self.contentUnavailable = true
                     self.isLoading = false
                 }
             } else {
+                // Audio-only extraction failed — try progressive (video+audio) as fallback
+                #if DEBUG
+                print("[AudioPlayerManager] Audio-only failed, trying progressive stream fallback...")
+                #endif
+                do {
+                    let fallbackVideoID = content.youtubeVideoID
+                    let progressiveURL: URL = try await withThrowingTaskGroup(of: URL?.self) { group in
+                        group.addTask {
+                            await VideoCache.shared.getCachedURL(for: fallbackVideoID, audioOnly: false)
+                        }
+                        group.addTask {
+                            try await MediaStreamService.shared.getStreamURL(for: fallbackVideoID, audioOnly: false)
+                        }
+                        for try await result in group {
+                            if let url = result { group.cancelAll(); return url }
+                        }
+                        throw YouTubeError.extractionFailed
+                    }
+                    isVideoMode = false // Still treat as audio playback (no video UI)
+                    setupPlayer(with: progressiveURL)
+                    prefetchNextInQueue()
+                    return
+                } catch {
+                    #if DEBUG
+                    print("[AudioPlayerManager] Progressive fallback also failed: \(error.localizedDescription)")
+                    #endif
+                }
+
                 // Update Content record if replacement was applied at YouTubeService level
                 if let replacement = await ContentHealthService.shared.replacement(for: content.youtubeVideoID) {
                     content.youtubeVideoID = replacement.videoID
                     if let dur = replacement.durationSeconds { content.durationSeconds = dur }
                 }
+
+                // Auto-retry once on extraction failure with fresh cache
+                if !isAutoRetrying && currentRetryCount < Self.maxAutoRetries {
+                    currentRetryCount += 1
+                    isAutoRetrying = true
+                    #if DEBUG
+                    print("[AudioPlayerManager] Extraction failed - auto-retrying (\(currentRetryCount)/\(Self.maxAutoRetries)) with fresh cache...")
+                    #endif
+                    // Clear ALL cache for this video and try again after a short delay
+                    await MediaStreamService.shared.evictCacheEntry(for: content.youtubeVideoID)
+                    await VideoCache.shared.evictCacheEntry(for: content.youtubeVideoID)
+                    try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s delay before retry
+                    isAutoRetrying = false
+                    await loadContent(content, videoMode: isVideoMode)
+                    if player != nil && self.error == nil {
+                        play()
+                    }
+                    return
+                }
+
+                FirebaseService.shared.logPlaybackFailed(
+                    videoID: content.youtubeVideoID,
+                    reason: "all_fallbacks_failed_audio_mode",
+                    retryCount: currentRetryCount,
+                    contentTitle: content.title
+                )
                 self.error = error.localizedDescription
                 self.contentUnavailable = true
                 self.isLoading = false
@@ -534,55 +636,59 @@ class AudioPlayerManager: ObservableObject {
         let videoID = nextContent.youtubeVideoID
 
         Task.detached(priority: .utility) {
-            // Step 1: Check disk cache first, or get stream URL
-            var playableURL: URL?
-            if let cachedURL = await VideoCache.shared.getCachedURL(for: videoID, audioOnly: audioOnly) {
-                playableURL = cachedURL
-            } else {
-                do {
-                    let streamURL = try await YouTubeService.shared.getStreamURL(for: videoID, audioOnly: audioOnly)
-                    playableURL = streamURL
-                    #if DEBUG
-                    print("[AudioPlayerManager] Prefetched stream URL for next: \(nextContent.title)")
-                    #endif
-                } catch {
-                    #if DEBUG
-                    print("[AudioPlayerManager] Next-track URL prefetch failed: \(error.localizedDescription)")
-                    #endif
-                    return
+            // Step 1: Race disk cache vs stream URL extraction
+            let playableURL: URL?
+            do {
+                playableURL = try await withThrowingTaskGroup(of: URL?.self) { group in
+                    group.addTask {
+                        await VideoCache.shared.getCachedURL(for: videoID, audioOnly: audioOnly)
+                    }
+                    group.addTask {
+                        try await MediaStreamService.shared.getStreamURL(for: videoID, audioOnly: audioOnly)
+                    }
+                    for try await result in group {
+                        if let url = result { group.cancelAll(); return url }
+                    }
+                    throw YouTubeError.extractionFailed
                 }
+            } catch {
+                #if DEBUG
+                print("[AudioPlayerManager] Next-track prefetch failed: \(error.localizedDescription)")
+                #endif
+                return
             }
 
             // Step 2: Pre-build AVPlayerItem with preloaded keys so next track loads instantly
-            if let url = playableURL {
-                let asset = AVURLAsset(url: url, options: [
-                    AVURLAssetPreferPreciseDurationAndTimingKey: false
-                ])
-                // Pre-load playable key so it's ready when we switch
-                _ = try? await asset.load(.isPlayable, .duration)
-                let item = AVPlayerItem(asset: asset)
-                item.preferredForwardBufferDuration = 1.0
-                await MainActor.run {
-                    self.prefetchedPlayerItem = item
-                    self.prefetchedVideoID = videoID
-                    #if DEBUG
-                    print("[AudioPlayerManager] Pre-built AVPlayerItem for next: \(nextContent.title)")
-                    #endif
-                }
+            guard let url = playableURL else { return }
+            // Bail if queue changed while extracting
+            let stillNext = await MainActor.run { self.queue[safe: self.currentIndex + 1]?.youtubeVideoID == videoID }
+            guard stillNext else { return }
+            let asset = AVURLAsset(url: url, options: [
+                AVURLAssetPreferPreciseDurationAndTimingKey: false
+            ])
+            _ = try? await asset.load(.isPlayable, .duration)
+            let item = AVPlayerItem(asset: asset)
+            item.preferredForwardBufferDuration = 0.5
+            await MainActor.run {
+                // Final check before storing
+                guard self.queue[safe: self.currentIndex + 1]?.youtubeVideoID == videoID else { return }
+                self.prefetchedPlayerItem = item
+                self.prefetchedVideoID = videoID
+                #if DEBUG
+                print("[AudioPlayerManager] Pre-built AVPlayerItem for next: \(nextContent.title)")
+                #endif
             }
 
             // Step 3: Download file to disk cache in background (for future launches)
-            if playableURL != nil {
-                do {
-                    _ = try await VideoCache.shared.cacheVideo(videoID: videoID, audioOnly: audioOnly)
-                    #if DEBUG
-                    print("[AudioPlayerManager] Cached next track: \(nextContent.title)")
-                    #endif
-                } catch {
-                    #if DEBUG
-                    print("[AudioPlayerManager] Next-track cache failed: \(error.localizedDescription)")
-                    #endif
-                }
+            do {
+                _ = try await VideoCache.shared.cacheVideo(videoID: videoID, audioOnly: audioOnly)
+                #if DEBUG
+                print("[AudioPlayerManager] Cached next track: \(nextContent.title)")
+                #endif
+            } catch {
+                #if DEBUG
+                print("[AudioPlayerManager] Next-track cache failed: \(error.localizedDescription)")
+                #endif
             }
         }
     }
@@ -598,7 +704,7 @@ class AudioPlayerManager: ObservableObject {
         let upcomingIDs = queue[startIdx..<endIdx].map { $0.youtubeVideoID }
 
         Task.detached(priority: .utility) {
-            await YouTubeService.shared.prefetchStreamURLs(for: upcomingIDs, audioOnly: audioOnly)
+            await MediaStreamService.shared.prefetchStreamURLs(for: upcomingIDs, audioOnly: audioOnly)
             #if DEBUG
             print("[AudioPlayerManager] Prefetched \(upcomingIDs.count) upcoming queue URLs")
             #endif
@@ -636,7 +742,7 @@ class AudioPlayerManager: ObservableObject {
         playerItem = AVPlayerItem(asset: asset)
 
         // Minimal initial buffer — start playback ASAP, buffer more as we play
-        playerItem?.preferredForwardBufferDuration = 1.0
+        playerItem?.preferredForwardBufferDuration = 0.5
 
         player = AVPlayer(playerItem: playerItem)
         // Let AVPlayer start as soon as it has minimum buffer rather than waiting for "safe" amount
@@ -676,6 +782,7 @@ class AudioPlayerManager: ObservableObject {
                 guard let self else { return }
                 if bufferEmpty && self.isPlaying {
                     self.isBuffering = true
+                    self.startBufferStallTimer()
                 }
                 #if DEBUG
                 if bufferEmpty && self.isPlaying && self.currentTime < 1 {
@@ -692,6 +799,7 @@ class AudioPlayerManager: ObservableObject {
                 guard let self else { return }
                 if likelyToKeepUp {
                     self.isBuffering = false
+                    self.cancelBufferStallTimer()
                     if self.isPlaying && self.player?.rate == 0 {
                         self.player?.play()
                         self.player?.rate = self.playbackRate
@@ -703,9 +811,10 @@ class AudioPlayerManager: ObservableObject {
         // Time observer
         let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         timeObserver = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-            Task { @MainActor in
-                self?.currentTime = time.seconds
-                self?.updateNowPlayingInfo()
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.currentTime = time.seconds
+                self.updateNowPlayingInfo()
             }
         }
 
@@ -733,6 +842,15 @@ class AudioPlayerManager: ObservableObject {
         guard !isAutoRetrying,
               currentRetryCount < Self.maxAutoRetries,
               let content = currentContent else {
+            // Retries exhausted — log to analytics
+            if let content = currentContent {
+                FirebaseService.shared.logPlaybackFailed(
+                    videoID: content.youtubeVideoID,
+                    reason: "player_item_failed: \(failureError)",
+                    retryCount: currentRetryCount,
+                    contentTitle: content.title
+                )
+            }
             error = failureError
             isLoading = false
             return
@@ -747,7 +865,7 @@ class AudioPlayerManager: ObservableObject {
 
         Task {
             // Evict the stale cached URL
-            await YouTubeService.shared.evictCacheEntry(for: content.youtubeVideoID)
+            await MediaStreamService.shared.evictCacheEntry(for: content.youtubeVideoID)
             // Reload
             await loadContent(content, videoMode: isVideoMode)
             isAutoRetrying = false
@@ -755,6 +873,55 @@ class AudioPlayerManager: ObservableObject {
                 play()
             }
         }
+    }
+
+    // MARK: - Buffer Stall Recovery
+
+    private func startBufferStallTimer() {
+        cancelBufferStallTimer()
+        let contentID = currentContent?.youtubeVideoID
+        bufferStallTimer = Timer.scheduledTimer(withTimeInterval: Self.bufferStallTimeout, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self,
+                      self.isBuffering,
+                      self.currentContent?.youtubeVideoID == contentID else { return }
+
+                self.cancelBufferStallTimer()
+
+                // Log to analytics
+                if let content = self.currentContent {
+                    FirebaseService.shared.logPlaybackFailed(
+                        videoID: content.youtubeVideoID,
+                        reason: "buffer_stall_timeout",
+                        retryCount: self.currentRetryCount,
+                        contentTitle: content.title
+                    )
+                }
+
+                // Auto-retry if possible, otherwise show error
+                if !self.isAutoRetrying && self.currentRetryCount < Self.maxAutoRetries,
+                   let content = self.currentContent {
+                    self.currentRetryCount += 1
+                    self.isAutoRetrying = true
+                    await MediaStreamService.shared.evictCacheEntry(for: content.youtubeVideoID)
+                    await VideoCache.shared.evictCacheEntry(for: content.youtubeVideoID)
+                    await self.loadContent(content, videoMode: self.isVideoMode)
+                    self.isAutoRetrying = false
+                    if self.player != nil && self.error == nil {
+                        self.play()
+                    }
+                } else {
+                    self.error = "Playback stalled. Tap retry to try again."
+                    self.isBuffering = false
+                    self.isLoading = false
+                }
+            }
+        }
+    }
+
+    private func cancelBufferStallTimer() {
+        bufferStallTimer?.invalidate()
+        bufferStallTimer = nil
     }
 
     /// Use a pre-built AVPlayerItem for instant playback (from prefetch)
@@ -791,14 +958,30 @@ class AudioPlayerManager: ObservableObject {
             }
             .store(in: &cancellables)
 
+        // Observe buffer state — detect stalls and show buffering indicator
+        item.publisher(for: \.isPlaybackBufferEmpty)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] bufferEmpty in
+                guard let self else { return }
+                if bufferEmpty && self.isPlaying {
+                    self.isBuffering = true
+                    self.startBufferStallTimer()
+                }
+            }
+            .store(in: &cancellables)
+
         // Observe playback likely to keep up (stall recovery)
         item.publisher(for: \.isPlaybackLikelyToKeepUp)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] likelyToKeepUp in
                 guard let self else { return }
-                if likelyToKeepUp && self.isPlaying && self.player?.rate == 0 {
-                    self.player?.play()
-                    self.player?.rate = self.playbackRate
+                if likelyToKeepUp {
+                    self.isBuffering = false
+                    self.cancelBufferStallTimer()
+                    if self.isPlaying && self.player?.rate == 0 {
+                        self.player?.play()
+                        self.player?.rate = self.playbackRate
+                    }
                 }
             }
             .store(in: &cancellables)
@@ -806,9 +989,10 @@ class AudioPlayerManager: ObservableObject {
         // Time observer
         let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         timeObserver = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-            Task { @MainActor in
-                self?.currentTime = time.seconds
-                self?.updateNowPlayingInfo()
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.currentTime = time.seconds
+                self.updateNowPlayingInfo()
             }
         }
 
@@ -832,12 +1016,14 @@ class AudioPlayerManager: ObservableObject {
         player?.rate = playbackRate
         isPlaying = true
         updateNowPlayingInfo(force: true)
+        updateLiveActivity()
     }
 
     func pause() {
         player?.pause()
         isPlaying = false
         updateNowPlayingInfo(force: true)
+        updateLiveActivity()
     }
 
     func togglePlayPause() {
@@ -849,8 +1035,12 @@ class AudioPlayerManager: ObservableObject {
     }
 
     func seek(to time: TimeInterval) {
+        guard !isLoading, player?.currentItem != nil else {
+            // Update UI position even if we can't seek yet
+            currentTime = time
+            return
+        }
         let cmTime = CMTime(seconds: time, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
-        // Use small tolerance for responsive seeking (exact precision not needed for meditation audio)
         let tolerance = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         player?.seek(to: cmTime, toleranceBefore: tolerance, toleranceAfter: tolerance)
         currentTime = time
@@ -875,6 +1065,40 @@ class AudioPlayerManager: ObservableObject {
         updateNowPlayingInfo(force: true)
     }
 
+    // MARK: - Live Activity
+
+    /// Track whether we've started a Live Activity for the current content
+    private var liveActivityStarted = false
+
+    /// Start or update the Live Activity for current playback
+    private func updateLiveActivity() {
+        guard let content = currentContent else { return }
+
+        // Start Live Activity if not already started for this content
+        if !liveActivityStarted && isPlaying && duration > 0 {
+            LiveActivityManager.shared.startActivity(
+                sessionId: content.id.uuidString,
+                videoId: content.youtubeVideoID,
+                title: content.title,
+                contentType: content.contentType.displayName,
+                duration: duration
+            )
+            liveActivityStarted = true
+            return
+        }
+
+        // Update existing Live Activity
+        if liveActivityStarted {
+            LiveActivityManager.shared.updateActivity(
+                currentTime: currentTime,
+                duration: duration,
+                isPlaying: isPlaying,
+                title: content.title,
+                contentType: content.contentType.displayName
+            )
+        }
+    }
+
     // MARK: - Now Playing Info
     private func updateNowPlayingInfo(force: Bool = false) {
         guard let content = currentContent else { return }
@@ -883,6 +1107,9 @@ class AudioPlayerManager: ObservableObject {
         let currentSecond = Int(currentTime)
         if !force && currentSecond == lastNowPlayingSecond { return }
         lastNowPlayingSecond = currentSecond
+
+        // Update Live Activity alongside Now Playing info
+        updateLiveActivity()
 
         var info = [String: Any]()
 
@@ -938,8 +1165,8 @@ class AudioPlayerManager: ObservableObject {
 
                 if remaining <= 0 {
                     self.fadeOutAndStop()
-                } else if remaining <= 30 {
-                    // Start fading out in last 30 seconds
+                } else if remaining <= 30 && self.crossfadePlayer == nil && self.fadeInTimer == nil {
+                    // Start fading out in last 30 seconds (skip if crossfade or fade-in is active)
                     let volume = Float(remaining / 30)
                     self.player?.volume = volume
                 }
@@ -966,19 +1193,29 @@ class AudioPlayerManager: ObservableObject {
     func stop() {
         pause()
         cleanupPlayer()
+        stopCrossfade()
         currentContent = nil
         queue = []
         currentIndex = 0
         cachedArtwork = nil
         cachedArtworkVideoID = nil
         updateRemoteCommandState()
+        // Stop ambient sounds when main player stops
+        AmbientSoundManager.shared.stopAll()
+        // End Live Activity
+        Task {
+            await LiveActivityManager.shared.endActivity(showFinalState: false)
+        }
     }
 
     private func cleanupPlayer() {
         // Stop playback immediately to prevent dual audio
         player?.pause()
-        player?.replaceCurrentItem(with: nil)
+        fadeInTimer?.invalidate()
+        fadeInTimer = nil
+        cancelBufferStallTimer()
 
+        // Remove observers BEFORE nilling the player reference
         if let observer = timeObserver {
             player?.removeTimeObserver(observer)
             timeObserver = nil
@@ -987,12 +1224,148 @@ class AudioPlayerManager: ObservableObject {
             NotificationCenter.default.removeObserver(observer)
             endOfPlaybackObserver = nil
         }
+        player?.replaceCurrentItem(with: nil)
         player = nil
         playerItem = nil
+        loadedVideoID = nil
         currentTime = 0
         duration = 0
         isPlaying = false
         isBuffering = false
         cancellables.removeAll()
+        liveActivityStarted = false
+    }
+
+    // MARK: - Crossfade
+
+    /// Move current player to crossfade slot and fade it out over 3 seconds
+    private func beginCrossfade() {
+        // Clean up any existing crossfade
+        stopCrossfade()
+
+        guard let oldPlayer = player else { return }
+
+        // Detach old player from observation but keep it playing
+        if let observer = timeObserver {
+            oldPlayer.removeTimeObserver(observer)
+            timeObserver = nil
+        }
+        if let observer = endOfPlaybackObserver {
+            NotificationCenter.default.removeObserver(observer)
+            endOfPlaybackObserver = nil
+        }
+        cancellables.removeAll()
+
+        // Move to crossfade slot
+        crossfadePlayer = oldPlayer
+        player = nil
+        playerItem = nil
+
+        // Fade out over 3 seconds (30 steps at 0.1s intervals)
+        let initialVolume = max(oldPlayer.volume, 0.01) // Prevent zero division
+        var stepsRemaining = 30
+        crossfadeTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] timer in
+            Task { @MainActor in
+                guard let self, self.crossfadePlayer != nil else { timer.invalidate(); return }
+                stepsRemaining -= 1
+                if stepsRemaining <= 0 {
+                    self.stopCrossfade()
+                } else {
+                    self.crossfadePlayer?.volume = initialVolume * Float(stepsRemaining) / 30.0
+                }
+            }
+        }
+    }
+
+    private func stopCrossfade() {
+        crossfadeTimer?.invalidate()
+        crossfadeTimer = nil
+        crossfadePlayer?.pause()
+        crossfadePlayer = nil
+    }
+
+    /// Load content with crossfade from current track (used for queue advances)
+    func loadContentWithCrossfade(_ content: Content, videoMode: Bool = false) async {
+        // Start fading out old track
+        beginCrossfade()
+
+        // Now load new content (this sets up new player)
+        currentContent = content
+        loadedVideoID = content.youtubeVideoID
+        isVideoMode = videoMode
+        isLoading = true
+        error = nil
+        contentUnavailable = false
+        if !isAutoRetrying {
+            currentRetryCount = 0
+        }
+
+        do {
+            let audioOnly = !videoMode
+
+            if let prefetchedItem = prefetchedPlayerItem,
+               prefetchedVideoID == content.youtubeVideoID {
+                prefetchedPlayerItem = nil
+                prefetchedVideoID = nil
+                setupPlayerWithItem(prefetchedItem)
+                // Fade in new player
+                player?.volume = 0
+                fadeInPlayer()
+                prefetchNextInQueue()
+                return
+            }
+            prefetchedPlayerItem = nil
+            prefetchedVideoID = nil
+
+            // Race disk cache vs stream URL for crossfade
+            let cfVideoID = content.youtubeVideoID
+            let cfURL: URL = try await withThrowingTaskGroup(of: URL?.self) { group in
+                group.addTask {
+                    await VideoCache.shared.getCachedURL(for: cfVideoID, audioOnly: audioOnly)
+                }
+                group.addTask {
+                    try await MediaStreamService.shared.getStreamURL(for: cfVideoID, audioOnly: audioOnly)
+                }
+                for try await result in group {
+                    if let url = result { group.cancelAll(); return url }
+                }
+                throw YouTubeError.extractionFailed
+            }
+            // Guard: if user tapped next again during extraction, bail out
+            guard currentContent?.youtubeVideoID == cfVideoID else { return }
+            setupPlayer(with: cfURL)
+            // Volume fade-in happens in finishPlayerSetup won't apply here since it's async
+            // We set initial volume after player is ready via observation
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                guard self?.currentContent?.youtubeVideoID == cfVideoID else { return }
+                self?.player?.volume = 0
+                self?.fadeInPlayer()
+            }
+            prefetchNextInQueue()
+        } catch {
+            // Crossfade failed — stop old player immediately
+            stopCrossfade()
+            self.error = error.localizedDescription
+            isLoading = false
+        }
+    }
+
+    private func fadeInPlayer() {
+        guard player != nil else { return }
+        fadeInTimer?.invalidate()
+        var stepsRemaining = 20
+        fadeInTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] timer in
+            Task { @MainActor in
+                guard let self, let currentPlayer = self.player else { timer.invalidate(); return }
+                stepsRemaining -= 1
+                if stepsRemaining <= 0 {
+                    currentPlayer.volume = 1.0
+                    timer.invalidate()
+                    self.fadeInTimer = nil
+                } else {
+                    currentPlayer.volume = 1.0 - Float(stepsRemaining) / 20.0
+                }
+            }
+        }
     }
 }

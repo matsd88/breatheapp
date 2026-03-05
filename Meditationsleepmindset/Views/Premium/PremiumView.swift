@@ -10,6 +10,9 @@ import StoreKit
 struct PremiumView: View {
     @Query private var userProfiles: [UserProfile]
     @StateObject private var storeManager = StoreManager.shared
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    private var isRegular: Bool { sizeClass == .regular }
 
     private var userProfile: UserProfile? {
         userProfiles.first
@@ -32,7 +35,7 @@ struct PremiumView: View {
                         .padding(.bottom, 16)
                 }
             } else {
-                PremiumPaywallView(storeManager: storeManager)
+                PremiumPaywallView(storeManager: storeManager, showDismissButton: false)
                     .frame(maxWidth: 700)
                     .frame(maxWidth: .infinity)
             }
@@ -48,6 +51,7 @@ struct PremiumPaywallView: View {
     @ObservedObject var storeManager: StoreManager
     var sessionLimitMessage: String? = nil
     var onSubscribed: (() -> Void)? = nil
+    var showDismissButton: Bool = true
     @State private var selectedPlan: PremiumSubscriptionPlan = .annual
     @State private var showingPrivacyPolicy = false
     @State private var showingTermsOfService = false
@@ -55,31 +59,36 @@ struct PremiumPaywallView: View {
     @State private var countdownSeconds: Int = 86400
     @State private var countdownTimer: Timer?
     @State private var previewIndex = 0
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    private var isRegular: Bool { sizeClass == .regular }
 
     // Feature preview cards
-    private let previewCards: [(image: String, title: String, description: String)] = [
-        ("moon.stars.fill", "100+ Sleep Stories", "Drift off with narrated stories designed for deep sleep"),
-        ("waveform.path.ecg", "Guided Meditations", "Sessions from 3 to 60 minutes for every mood"),
-        ("music.note.list", "Calming Soundscapes", "Rain, ocean waves, forest — mix your own"),
-        ("brain.head.profile", "Mindset Coaching", "Daily coaching to build resilience and positivity")
-    ]
+    private var previewCards: [(image: String, title: String, description: String)] {[
+        ("moon.stars.fill", String(localized: "100+ Sleep Stories"), String(localized: "Drift off with narrated stories designed for deep sleep")),
+        ("waveform.path.ecg", String(localized: "Guided Meditations"), String(localized: "Sessions from 3 to 60 minutes for every mood")),
+        ("music.note.list", String(localized: "Calming Soundscapes"), String(localized: "Rain, ocean waves, forest — mix your own")),
+        ("brain.head.profile", String(localized: "Mindset Coaching"), String(localized: "Daily coaching to build resilience and positivity"))
+    ]}
 
     // Before/after metrics
-    private let beforeAfterItems: [(label: String, before: String, after: String, icon: String)] = [
-        ("Sleep Quality", "Poor", "Great", "moon.fill"),
-        ("Stress Level", "High", "Low", "heart.fill"),
-        ("Daily Streak", "0 days", "30 days", "flame.fill"),
-        ("Mindfulness", "Never", "Daily", "brain.head.profile")
-    ]
+    private var beforeAfterItems: [(label: String, before: String, after: String, icon: String)] {[
+        (String(localized: "Sleep Quality"), String(localized: "Poor"), String(localized: "Great"), "moon.fill"),
+        (String(localized: "Stress Level"), String(localized: "High"), String(localized: "Low"), "heart.fill"),
+        (String(localized: "Daily Streak"), String(localized: "0 days"), String(localized: "30 days"), "flame.fill"),
+        (String(localized: "Mindfulness"), String(localized: "Never"), String(localized: "Daily"), "brain.head.profile")
+    ]}
 
     var body: some View {
+        ZStack(alignment: .topTrailing) {
         ScrollView {
             VStack(spacing: 18) {
-                // Urgency countdown banner
-                urgencyBanner
-
                 // Feature preview cards (swipeable)
                 featurePreviewSection
+
+                // Urgency countdown banner
+                urgencyBanner
 
                 // Header text
                 VStack(spacing: 10) {
@@ -136,8 +145,14 @@ struct PremiumPaywallView: View {
 
                 // Subscribe button
                 Button {
+                    FirebaseService.shared.logPaywallSubscribeTapped(plan: selectedPlan.rawValue)
                     Task {
-                        let products = storeManager.subscriptions
+                        var products = storeManager.subscriptions
+                        if products.isEmpty {
+                            await storeManager.loadProducts()
+                            products = storeManager.subscriptions
+                        }
+
                         let selectedProduct: Product?
 
                         switch selectedPlan {
@@ -154,6 +169,9 @@ struct PremiumPaywallView: View {
                             if storeManager.isSubscribed {
                                 onSubscribed?()
                             }
+                        } else {
+                            storeManager.error = "Unable to load subscription options. Please check your internet connection and try again."
+                            storeManager.showError = true
                         }
                     }
                 } label: {
@@ -163,9 +181,9 @@ struct PremiumPaywallView: View {
                                 .tint(.white)
                         } else {
                             VStack(spacing: 2) {
-                                Text("Start My 3-Day Free Trial")
+                                Text("Start My 7-Day Free Trial")
                                     .fontWeight(.semibold)
-                                Text("then auto-renews")
+                                Text("then \(selectedPlan.price), auto-renews")
                                     .font(.caption)
                                     .opacity(0.8)
                             }
@@ -176,6 +194,7 @@ struct PremiumPaywallView: View {
                     .background(.white)
                     .foregroundStyle(.black)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .contentShape(Rectangle())
                 }
                 .disabled(storeManager.isPurchasing)
                 .padding(.horizontal, 24)
@@ -215,16 +234,24 @@ struct PremiumPaywallView: View {
                 .foregroundStyle(.white.opacity(0.4))
                 .padding(.top, 20)
             }
-            .frame(maxWidth: 500)
+            .frame(maxWidth: isRegular ? 800 : 500)
+            .frame(maxWidth: .infinity)
         }
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 animateFeatures = true
             }
             startCountdown()
+            FirebaseService.shared.logPaywallViewed(source: "settings")
+        }
+        .task {
+            if storeManager.subscriptions.isEmpty {
+                await storeManager.loadProducts()
+            }
         }
         .onDisappear {
             countdownTimer?.invalidate()
+            countdownTimer = nil
         }
         .sheet(isPresented: $showingPrivacyPolicy) {
             NavigationStack {
@@ -261,6 +288,27 @@ struct PremiumPaywallView: View {
         } message: {
             Text(storeManager.error ?? "Something went wrong. Please try again.")
         }
+
+            // Dismiss X button (top-right corner)
+            if showDismissButton {
+                Button {
+                    FirebaseService.shared.logPaywallDismissed(source: "settings")
+                    SmartRatingManager.recordPaywallDismiss()
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: isRegular ? 14 : 12, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.7))
+                        .frame(width: isRegular ? 40 : 32, height: isRegular ? 40 : 32)
+                        .background(Color.white.opacity(0.15))
+                        .clipShape(Circle())
+                }
+                .padding(.top, 12)
+                .padding(.trailing, 16)
+            }
+        } // ZStack
+        .background(Theme.profileGradient.ignoresSafeArea())
+        .presentationBackground(Theme.profileGradient)
     }
 
     // MARK: - Urgency Countdown Banner
@@ -295,6 +343,10 @@ struct PremiumPaywallView: View {
     }
 
     private func startCountdown() {
+        // Invalidate any existing timer first to prevent duplicates
+        countdownTimer?.invalidate()
+        countdownTimer = nil
+
         let key = "paywallCountdownExpiry"
         let now = Date()
         if let stored = UserDefaults.standard.object(forKey: key) as? Date, stored > now {
@@ -306,8 +358,10 @@ struct PremiumPaywallView: View {
         }
 
         countdownTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            if countdownSeconds > 0 {
-                countdownSeconds -= 1
+            Task { @MainActor in
+                if countdownSeconds > 0 {
+                    countdownSeconds -= 1
+                }
             }
         }
     }
@@ -361,31 +415,35 @@ struct PremiumPaywallView: View {
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .always))
-        .frame(height: 190)
+        .frame(height: 230)
     }
 
     // MARK: - Before / After Comparison
 
     private var beforeAfterSection: some View {
-        VStack(spacing: 12) {
+        // Adaptive widths for iPad
+        let labelWidth: CGFloat = isRegular ? 160 : 120
+        let valueWidth: CGFloat = isRegular ? 90 : 70
+
+        return VStack(spacing: 12) {
             // Header row
             HStack {
                 Text("")
-                    .frame(width: 120, alignment: .leading)
+                    .frame(width: labelWidth, alignment: .leading)
                 Spacer()
                 Text("Day 1")
-                    .font(.caption)
+                    .font(isRegular ? .subheadline : .caption)
                     .fontWeight(.semibold)
                     .foregroundStyle(.white.opacity(0.5))
-                    .frame(width: 70)
+                    .frame(width: valueWidth)
                 Image(systemName: "arrow.right")
-                    .font(.caption)
+                    .font(isRegular ? .subheadline : .caption)
                     .foregroundStyle(.white.opacity(0.3))
                 Text("Day 30")
-                    .font(.caption)
+                    .font(isRegular ? .subheadline : .caption)
                     .fontWeight(.semibold)
                     .foregroundStyle(.green)
-                    .frame(width: 70)
+                    .frame(width: valueWidth)
             }
             .padding(.horizontal, 24)
 
@@ -393,30 +451,30 @@ struct PremiumPaywallView: View {
                 HStack {
                     HStack(spacing: 8) {
                         Image(systemName: item.icon)
-                            .font(.caption)
+                            .font(isRegular ? .subheadline : .caption)
                             .foregroundStyle(.white.opacity(0.6))
                         Text(item.label)
-                            .font(.subheadline)
+                            .font(isRegular ? .body : .subheadline)
                             .foregroundStyle(.white)
                     }
-                    .frame(width: 120, alignment: .leading)
+                    .frame(width: labelWidth, alignment: .leading)
 
                     Spacer()
 
                     Text(item.before)
-                        .font(.caption)
+                        .font(isRegular ? .subheadline : .caption)
                         .foregroundStyle(.white.opacity(0.4))
-                        .frame(width: 70)
+                        .frame(width: valueWidth)
 
                     Image(systemName: "arrow.right")
-                        .font(.caption2)
+                        .font(isRegular ? .caption : .caption2)
                         .foregroundStyle(.white.opacity(0.2))
 
                     Text(item.after)
-                        .font(.caption)
+                        .font(isRegular ? .subheadline : .caption)
                         .fontWeight(.semibold)
                         .foregroundStyle(.green)
-                        .frame(width: 70)
+                        .frame(width: valueWidth)
                 }
                 .padding(.horizontal, 24)
                 .opacity(animateFeatures ? 1 : 0)
@@ -447,9 +505,9 @@ enum PremiumSubscriptionPlan: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .annual: return "Annual"
-        case .monthly: return "Monthly"
-        case .weekly: return "Weekly"
+        case .annual: return String(localized: "Annual")
+        case .monthly: return String(localized: "Monthly")
+        case .weekly: return String(localized: "Weekly")
         }
     }
 
@@ -463,7 +521,7 @@ enum PremiumSubscriptionPlan: String, CaseIterable, Identifiable {
 
     var subtitle: String? {
         switch self {
-        case .annual: return "Just $0.96/week"
+        case .annual: return String(localized: "Just $0.96/week")
         case .monthly: return nil
         case .weekly: return nil
         }
@@ -471,8 +529,8 @@ enum PremiumSubscriptionPlan: String, CaseIterable, Identifiable {
 
     var badge: String? {
         switch self {
-        case .annual: return "BEST VALUE"
-        case .monthly: return "MOST POPULAR"
+        case .annual: return String(localized: "BEST VALUE")
+        case .monthly: return String(localized: "MOST POPULAR")
         case .weekly: return nil
         }
     }
@@ -515,10 +573,14 @@ struct PremiumPlanOptionView: View {
                             Text(badge)
                                 .font(.caption2)
                                 .fontWeight(.bold)
-                                .foregroundStyle(plan == .annual ? .black : .white)
+                                .foregroundStyle(.white)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(plan == .annual ? .white : Theme.profileAccent)
+                                .background(Color.white.opacity(0.15))
+                                .overlay(
+                                    Capsule()
+                                        .stroke(Color.white.opacity(0.4), lineWidth: 1)
+                                )
                                 .clipShape(Capsule())
                         }
                     }

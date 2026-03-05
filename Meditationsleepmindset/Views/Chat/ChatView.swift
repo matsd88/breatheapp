@@ -16,7 +16,44 @@ struct ChatView: View {
     @State private var isKeyboardVisible = false
     @State private var showingClearConfirmation = false
     @State private var showingMoodTrend = false
+    @State private var showQuickActions = false
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    private var isRegular: Bool { sizeClass == .regular }
     @FocusState private var isInputFocused: Bool
+
+    // Quick prompt suggestions based on time of day
+    private var quickPrompts: [(icon: String, text: String)] {
+        let hour = Calendar.current.component(.hour, from: Date())
+        if hour >= 21 || hour < 5 {
+            return [
+                ("moon.fill", "Help me fall asleep"),
+                ("wind", "Calm my racing thoughts"),
+                ("book.fill", "Tell me a bedtime story"),
+                ("sparkles", "Gratitude reflection")
+            ]
+        } else if hour < 12 {
+            return [
+                ("sun.rise.fill", "Set my intention for today"),
+                ("figure.mind.and.body", "Morning meditation"),
+                ("bolt.heart.fill", "Boost my energy"),
+                ("face.smiling", "I need motivation")
+            ]
+        } else if hour < 17 {
+            return [
+                ("brain.head.profile", "Help me focus"),
+                ("leaf.fill", "Quick stress relief"),
+                ("lungs.fill", "Breathing exercise"),
+                ("heart.fill", "Self-compassion check-in")
+            ]
+        } else {
+            return [
+                ("sunset.fill", "Wind down my day"),
+                ("figure.cooldown", "Release tension"),
+                ("cup.and.saucer.fill", "Evening reflection"),
+                ("sparkles", "Gratitude practice")
+            ]
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -24,10 +61,8 @@ struct ChatView: View {
                 Theme.profileGradient.ignoresSafeArea()
 
                 if chatService.needsMoodCheckIn && chatService.chatHistory.isEmpty {
-                    // No history at all — full screen mood picker
-                    ChatMoodPickerView(onMoodSelected: { mood in
-                        chatService.startSession(mood: mood, in: modelContext)
-                    }, hasMiniPlayer: AudioPlayerManager.shared.currentContent != nil)
+                    // No history — full-screen welcome experience
+                    chatWelcomeExperience
                 } else {
                     chatInterface
                 }
@@ -51,7 +86,8 @@ struct ChatView: View {
             .sheet(isPresented: $showingPaywall) {
                 PremiumPaywallView(
                     storeManager: storeManager,
-                    sessionLimitMessage: "You've used all \(Constants.Chat.freeMessageLimit) free messages. Upgrade to continue chatting with Breathe AI."
+                    sessionLimitMessage: "You've used all \(Constants.Chat.freeMessageLimit) free messages. Upgrade to continue chatting with Breathe AI.",
+                    onSubscribed: { showingPaywall = false }
                 )
             }
             .fullScreenCover(item: $selectedContent) { content in
@@ -86,6 +122,159 @@ struct ChatView: View {
         }
     }
 
+    // MARK: - Welcome Experience (replaces plain mood picker)
+
+    private var chatWelcomeExperience: some View {
+        ScrollView {
+            VStack(spacing: isRegular ? 36 : 28) {
+                Spacer().frame(height: isRegular ? 60 : 40)
+
+                // AI icon
+                Image(systemName: "sparkles")
+                    .font(.system(size: isRegular ? 52 : 40, weight: .medium))
+                    .foregroundStyle(Theme.profileAccent)
+                    .padding(.bottom, 4)
+
+                // Title & subtitle
+                VStack(spacing: isRegular ? 12 : 8) {
+                    Text("Breathe AI")
+                        .font(.system(size: isRegular ? 36 : 28, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+
+                    Text("Your personal wellness companion")
+                        .font(isRegular ? .body : .subheadline)
+                        .foregroundStyle(Theme.textSecondary)
+                }
+
+                // Mood check-in card
+                VStack(spacing: isRegular ? 20 : 16) {
+                    Text("How are you feeling right now?")
+                        .font(isRegular ? .body.weight(.medium) : .subheadline.weight(.medium))
+                        .foregroundStyle(Theme.textSecondary)
+
+                    HStack(spacing: isRegular ? 16 : 12) {
+                        ForEach(MoodLevel.allCases) { mood in
+                            Button {
+                                HapticManager.selection()
+                                chatService.startSession(mood: mood, in: modelContext)
+                            } label: {
+                                VStack(spacing: isRegular ? 8 : 6) {
+                                    Text(mood.emoji)
+                                        .font(.system(size: isRegular ? 42 : 32))
+                                    Text(mood.displayName)
+                                        .font(.system(size: isRegular ? 13 : 10, weight: .medium))
+                                        .foregroundStyle(Theme.textSecondary)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, isRegular ? 18 : 14)
+                                .background(
+                                    RoundedRectangle(cornerRadius: isRegular ? 20 : 16)
+                                        .fill(Color.white.opacity(0.06))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: isRegular ? 20 : 16)
+                                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                                        )
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 4)
+                }
+                .padding(isRegular ? 28 : 20)
+                .background(
+                    RoundedRectangle(cornerRadius: isRegular ? 24 : 20)
+                        .fill(.ultraThinMaterial.opacity(0.5))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: isRegular ? 24 : 20)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
+                )
+                .padding(.horizontal)
+
+                // Or skip and jump right in
+                Button {
+                    HapticManager.light()
+                    chatService.startSession(mood: nil, in: modelContext)
+                } label: {
+                    Text("Skip & start chatting")
+                        .font(isRegular ? .body : .subheadline)
+                        .foregroundStyle(Theme.textTertiary)
+                }
+
+                // Quick start topics
+                VStack(alignment: .leading, spacing: isRegular ? 16 : 12) {
+                    Text("Or try one of these")
+                        .font(isRegular ? .subheadline.weight(.medium) : .caption.weight(.medium))
+                        .foregroundStyle(Theme.textTertiary)
+                        .padding(.leading, 4)
+
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: isRegular ? 14 : 10) {
+                        ForEach(quickPrompts, id: \.text) { prompt in
+                            Button {
+                                HapticManager.medium()
+                                chatService.startSession(mood: nil, in: modelContext)
+                                // Send prompt after a brief delay for session to initialize
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    messageText = prompt.text
+                                    sendMessage()
+                                }
+                            } label: {
+                                HStack(spacing: isRegular ? 10 : 8) {
+                                    Image(systemName: prompt.icon)
+                                        .font(isRegular ? .subheadline : .caption)
+                                        .foregroundStyle(Theme.profileAccent)
+                                        .frame(width: isRegular ? 24 : 20)
+
+                                    Text(prompt.text)
+                                        .font(isRegular ? .subheadline : .caption)
+                                        .foregroundStyle(Theme.textPrimary)
+                                        .lineLimit(1)
+
+                                    Spacer()
+                                }
+                                .padding(.horizontal, isRegular ? 16 : 12)
+                                .padding(.vertical, isRegular ? 14 : 11)
+                                .background(
+                                    RoundedRectangle(cornerRadius: isRegular ? 14 : 12)
+                                        .fill(Color.white.opacity(0.06))
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .padding(.horizontal)
+
+                // Capabilities badges
+                VStack(spacing: 12) {
+                    HStack(spacing: isRegular ? 24 : 16) {
+                        capabilityBadge(icon: "brain.head.profile", label: "Evidence-based")
+                        capabilityBadge(icon: "lock.shield.fill", label: "Private & safe")
+                        capabilityBadge(icon: "clock.fill", label: "Available 24/7")
+                    }
+                }
+                .padding(.top, 8)
+
+                Spacer().frame(height: AudioPlayerManager.shared.currentContent != nil ? 170 : 100)
+            }
+            .frame(maxWidth: isRegular ? 700 : 600)
+            .frame(maxWidth: .infinity)
+        }
+        .scrollIndicators(.hidden)
+    }
+
+    private func capabilityBadge(icon: String, label: String) -> some View {
+        HStack(spacing: isRegular ? 6 : 4) {
+            Image(systemName: icon)
+                .font(.system(size: isRegular ? 13 : 10))
+                .foregroundStyle(Theme.textTertiary)
+            Text(label)
+                .font(.system(size: isRegular ? 13 : 10))
+                .foregroundStyle(Theme.textTertiary)
+        }
+    }
+
     // MARK: - Mood Trend Sheet
     struct MoodTrendSheet: View {
         let moodHistory: [ChatService.DayMood]
@@ -109,14 +298,20 @@ struct ChatView: View {
                                     if let mood = day.mood {
                                         Text(mood.emoji)
                                             .font(.title2)
-                                        RoundedRectangle(cornerRadius: 4)
-                                            .fill(mood.color)
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [mood.color, mood.color.opacity(0.5)],
+                                                    startPoint: .top,
+                                                    endPoint: .bottom
+                                                )
+                                            )
                                             .frame(width: 32, height: barHeight(for: mood))
                                     } else {
                                         Text("—")
                                             .font(.title2)
                                             .foregroundStyle(Theme.textTertiary)
-                                        RoundedRectangle(cornerRadius: 4)
+                                        RoundedRectangle(cornerRadius: 6)
                                             .fill(Color.white.opacity(0.1))
                                             .frame(width: 32, height: 20)
                                     }
@@ -140,6 +335,8 @@ struct ChatView: View {
 
                         Spacer()
                     }
+                    .frame(maxWidth: 600)
+                    .frame(maxWidth: .infinity)
                 }
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
@@ -154,7 +351,7 @@ struct ChatView: View {
                     }
                 }
             }
-            .presentationDetents([.medium])
+            .presentationDetents([.medium, .large])
             .presentationBackground(Color(red: 0.09, green: 0.17, blue: 0.31))
         }
 
@@ -168,10 +365,15 @@ struct ChatView: View {
             }
         }
 
-        private func dayLabel(_ date: Date) -> String {
+        // Cached DateFormatter for performance
+        private static let dayFormatter: DateFormatter = {
             let formatter = DateFormatter()
             formatter.dateFormat = "EEE"
-            return formatter.string(from: date)
+            return formatter
+        }()
+
+        private func dayLabel(_ date: Date) -> String {
+            Self.dayFormatter.string(from: date)
         }
     }
 
@@ -185,7 +387,7 @@ struct ChatView: View {
             // Messages ScrollView
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(spacing: 12) {
+                    LazyVStack(spacing: 4) {
                         // Full chat history with date dividers
                         ForEach(chatService.chatHistory) { item in
                             switch item {
@@ -195,12 +397,17 @@ struct ChatView: View {
                             case .message(let message):
                                 chatBubbleView(for: message)
                                     .id(item.id)
+                                    .transition(.asymmetric(
+                                        insertion: .opacity.combined(with: .move(edge: .bottom)),
+                                        removal: .opacity
+                                    ))
                             }
                         }
 
                         if chatService.isLoading {
                             TypingIndicator()
                                 .id("typing")
+                                .transition(.opacity.combined(with: .scale(scale: 0.8)))
                         }
 
                         // Retry button for failed messages
@@ -211,16 +418,20 @@ struct ChatView: View {
                             } label: {
                                 HStack(spacing: 6) {
                                     Image(systemName: "arrow.clockwise")
-                                    Text("Retry")
+                                    Text("Tap to retry")
                                 }
-                                .font(.subheadline.weight(.medium))
+                                .font(.caption.weight(.medium))
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
-                                .background(Theme.profileAccent)
-                                .clipShape(Capsule())
+                                .background(
+                                    Capsule()
+                                        .fill(Color.red.opacity(0.3))
+                                        .overlay(Capsule().stroke(Color.red.opacity(0.4), lineWidth: 1))
+                                )
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.leading, 44)
                             .id("retry")
                         }
 
@@ -238,8 +449,10 @@ struct ChatView: View {
                         }
                     }
                     .padding(.horizontal)
-                    .padding(.top, 12)
+                    .padding(.top, 8)
                     .padding(.bottom, chatScrollBottomPadding)
+                    .frame(maxWidth: 700)
+                    .frame(maxWidth: .infinity)
                 }
                 .onChange(of: chatService.chatHistory.count) { _, _ in
                     scrollToBottom(proxy: proxy)
@@ -263,7 +476,12 @@ struct ChatView: View {
 
             Spacer(minLength: 0)
 
-            // Input Bar - positioned above the tab bar
+            // Quick prompts strip (shown when input is empty and not loading)
+            if !chatService.hasReachedFreeLimit && !chatService.needsMoodCheckIn && messageText.isEmpty && !chatService.isLoading && chatService.messages.count <= 2 {
+                quickPromptsStrip
+            }
+
+            // Input Bar
             if !chatService.hasReachedFreeLimit && !chatService.needsMoodCheckIn {
                 ChatInputBar(
                     text: $messageText,
@@ -277,18 +495,60 @@ struct ChatView: View {
         }
     }
 
+    // MARK: - Quick Prompts Strip
+
+    private var quickPromptsStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(quickPrompts, id: \.text) { prompt in
+                    Button {
+                        HapticManager.light()
+                        messageText = prompt.text
+                        sendMessage()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: prompt.icon)
+                                .font(.system(size: 11))
+                                .foregroundStyle(Theme.profileAccent)
+                            Text(prompt.text)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(Theme.textPrimary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .fill(Color.white.opacity(0.08))
+                                .overlay(
+                                    Capsule()
+                                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                                )
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 6)
+        }
+    }
+
     // MARK: - Date Divider
 
     private func chatDateDivider(date: Date) -> some View {
-        HStack {
-            VStack { Divider().background(Color.white.opacity(0.15)) }
+        HStack(spacing: 12) {
+            Rectangle()
+                .fill(Color.white.opacity(0.08))
+                .frame(height: 0.5)
             Text(ChatService.dateDividerLabel(for: date))
-                .font(.caption)
+                .font(.caption2.weight(.medium))
                 .foregroundStyle(Theme.textTertiary)
                 .fixedSize()
-            VStack { Divider().background(Color.white.opacity(0.15)) }
+            Rectangle()
+                .fill(Color.white.opacity(0.08))
+                .frame(height: 0.5)
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 12)
     }
 
     // MARK: - Inline Mood Check-In
@@ -309,7 +569,7 @@ struct ChatView: View {
                         VStack(spacing: 4) {
                             Text(mood.emoji)
                                 .font(.title2)
-                            Text(mood.rawValue)
+                            Text(mood.displayName)
                                 .font(.caption2)
                                 .foregroundStyle(Theme.textSecondary)
                         }
@@ -339,39 +599,69 @@ struct ChatView: View {
     // MARK: - Header
 
     private var chatHeader: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: 12) {
+            // AI avatar
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Theme.profileAccent, Color(red: 0.4, green: 0.3, blue: 0.9)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 36, height: 36)
+
+                Image(systemName: "sparkles")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+
+            VStack(alignment: .leading, spacing: 1) {
                 Text("Breathe AI")
                     .font(.headline)
                     .foregroundStyle(Theme.textPrimary)
 
-                Text("AI Wellness Chat")
-                    .font(.caption)
-                    .foregroundStyle(Theme.textSecondary)
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(.green)
+                        .frame(width: 6, height: 6)
+                    Text("Online")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.textSecondary)
+                }
             }
 
             Spacer()
 
+            // Mood trend button
+            Button {
+                HapticManager.light()
+                showingMoodTrend = true
+            } label: {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.system(size: 15))
+                    .foregroundStyle(Theme.textSecondary)
+                    .frame(width: 36, height: 36)
+                    .background(Color.white.opacity(0.08))
+                    .clipShape(Circle())
+            }
+
+            // New chat button
             Button {
                 HapticManager.light()
                 chatService.endSession(in: modelContext)
             } label: {
                 Image(systemName: "plus.message")
-                    .font(.title3)
+                    .font(.system(size: 15))
                     .foregroundStyle(Theme.textSecondary)
                     .frame(width: 36, height: 36)
+                    .background(Color.white.opacity(0.08))
+                    .clipShape(Circle())
             }
 
             if !chatService.chatHistory.isEmpty {
                 Menu {
-                    Button {
-                        showingMoodTrend = true
-                    } label: {
-                        Label("Mood Trend", systemImage: "chart.line.uptrend.xyaxis")
-                    }
-
-                    Divider()
-
                     Button(role: .destructive) {
                         showingClearConfirmation = true
                     } label: {
@@ -379,14 +669,21 @@ struct ChatView: View {
                     }
                 } label: {
                     Image(systemName: "ellipsis")
-                        .font(.title3)
+                        .font(.system(size: 15))
                         .foregroundStyle(Theme.textSecondary)
                         .frame(width: 36, height: 36)
+                        .background(Color.white.opacity(0.08))
+                        .clipShape(Circle())
                 }
             }
         }
-        .padding(.horizontal)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(
+            Rectangle()
+                .fill(.ultraThinMaterial.opacity(0.3))
+                .ignoresSafeArea(edges: .top)
+        )
     }
 
     // MARK: - Send Message
@@ -422,7 +719,7 @@ struct ChatView: View {
                 }
             )
         case .therapistReferral:
-            TherapistReferralCard()
+            EmptyView()
         case .crisisAlert:
             CrisisResourceView()
         case .moodCheckIn:
@@ -439,7 +736,7 @@ struct ChatView: View {
     /// Bottom padding for the ScrollView content area
     private var chatScrollBottomPadding: CGFloat {
         if isKeyboardVisible { return 80 }
-        let tabBarHeight: CGFloat = 80
+        let tabBarHeight: CGFloat = isRegular ? 90 : 80
         let inputBarHeight: CGFloat = 80
         let miniPlayerHeight: CGFloat = hasMiniPlayer ? 85 : 0
         return tabBarHeight + inputBarHeight + miniPlayerHeight
@@ -447,7 +744,7 @@ struct ChatView: View {
 
     /// Bottom padding for the input bar (above tab bar + mini player)
     private var inputBarBottomPadding: CGFloat {
-        let tabBarHeight: CGFloat = 75
+        let tabBarHeight: CGFloat = isRegular ? 85 : 75
         let miniPlayerHeight: CGFloat = hasMiniPlayer ? 85 : 0
         return tabBarHeight + miniPlayerHeight
     }
@@ -456,6 +753,10 @@ struct ChatView: View {
 
     private func loadContent(id: UUID?) {
         guard let id = id else { return }
+        if !storeManager.isSubscribed && AppStateManager.shared.hasReachedFreeSessionLimit {
+            showingPaywall = true
+            return
+        }
         let descriptor = FetchDescriptor<Content>(
             predicate: #Predicate { $0.id == id }
         )

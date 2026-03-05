@@ -25,6 +25,10 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         if AppDelegate.allowLandscape {
             return .allButUpsideDown
         }
+        // iPad should support all orientations; only lock portrait on iPhone
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            return .allButUpsideDown
+        }
         return .portrait
     }
 

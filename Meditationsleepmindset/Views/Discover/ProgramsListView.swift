@@ -64,6 +64,8 @@ struct ProgramsListView: View {
                         Spacer(minLength: 40)
                     }
                     .padding(.top, 12)
+                    .frame(maxWidth: 700)
+                    .frame(maxWidth: .infinity)
                 }
             }
             .navigationTitle("Programs")
@@ -104,19 +106,21 @@ struct ProgramCard: View {
     let program: Program
     let progress: ProgramProgress?
     let onTap: () -> Void
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    private var isRegular: Bool { sizeClass == .regular }
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 14) {
+            HStack(spacing: isRegular ? 18 : 14) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 12)
+                    RoundedRectangle(cornerRadius: isRegular ? 14 : 12)
                         .fill(program.contentType == .sleepStory
                             ? Color.indigo.opacity(0.3)
                             : Color.cyan.opacity(0.2))
-                        .frame(width: 60, height: 60)
+                        .frame(width: isRegular ? 80 : 60, height: isRegular ? 80 : 60)
 
                     Image(systemName: program.iconName)
-                        .font(.title2)
+                        .font(isRegular ? .title : .title2)
                         .foregroundStyle(program.contentType == .sleepStory ? .indigo : .cyan)
                 }
 

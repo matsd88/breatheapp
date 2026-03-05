@@ -159,12 +159,6 @@ class ChatService: ObservableObject {
         context.insert(userMessage)
         messages.append(userMessage)
 
-        // Increment message count and sync to iCloud
-        messagesSentCount += 1
-        UserDefaults.standard.set(messagesSentCount, forKey: Constants.UserDefaultsKeys.chatMessagesSentCount)
-        cloudStore.set(Int64(messagesSentCount), forKey: "cloud_chatMessagesSentCount")
-        cloudStore.synchronize()
-
         // Add to conversation history
         conversationHistory.append(.init(role: "user", content: text))
 
@@ -193,6 +187,11 @@ class ChatService: ObservableObject {
                 context.insert(assistantMessage)
                 messages.append(assistantMessage)
                 conversationHistory.append(.init(role: "assistant", content: responseText))
+
+                // Increment message count only on success and sync to iCloud
+                messagesSentCount += 1
+                UserDefaults.standard.set(messagesSentCount, forKey: Constants.UserDefaultsKeys.chatMessagesSentCount)
+                cloudStore.set(Int64(messagesSentCount), forKey: "cloud_chatMessagesSentCount")
 
                 // Check for content suggestions in response
                 checkForContentSuggestions(responseText, sessionID: session.id, in: context)
@@ -249,7 +248,7 @@ class ChatService: ObservableObject {
         for content in allContent {
             guard content.title.count > 5,
                   responseText.localizedCaseInsensitiveContains(content.title) else { continue }
-            if bestMatch == nil || content.title.count > bestMatch!.title.count {
+            if content.title.count > (bestMatch?.title.count ?? 0) {
                 bestMatch = content
             }
         }
@@ -266,21 +265,6 @@ class ChatService: ObservableObject {
             context.insert(suggestionMessage)
             messages.append(suggestionMessage)
         }
-    }
-
-    // MARK: - Therapist Referral
-
-    func addTherapistReferral(in context: ModelContext) {
-        guard let session = currentSession else { return }
-        let referralMessage = ChatMessage(
-            sessionID: session.id,
-            role: .assistant,
-            type: .therapistReferral,
-            content: "Consider speaking with a licensed therapist for personalized support."
-        )
-        context.insert(referralMessage)
-        messages.append(referralMessage)
-        try? context.save()
     }
 
     // MARK: - History Management
@@ -349,7 +333,6 @@ class ChatService: ObservableObject {
         }
 
         var items: [ChatHistoryItem] = []
-        let calendar = Calendar.current
         var lastDateKey: String?
 
         for session in sessions {
@@ -422,10 +405,11 @@ class ChatService: ObservableObject {
             }
         }
 
-        // Build 7-day array
+        // Build 7-day array (today first, oldest last)
+        let today = calendar.startOfDay(for: Date())
         var result: [DayMood] = []
         for dayOffset in 0..<7 {
-            guard let date = calendar.date(byAdding: .day, value: dayOffset, to: sevenDaysAgo) else { continue }
+            guard let date = calendar.date(byAdding: .day, value: -dayOffset, to: today) else { continue }
             let key = formatter.string(from: date)
             let mood = moodByDay[key]?.mood
             result.append(DayMood(date: date, mood: mood))
@@ -463,9 +447,8 @@ class ChatService: ObservableObject {
     private func trimConversationHistory() {
         // Keep system prompt (first element) + last N messages
         let maxHistory = Constants.Chat.maxConversationHistory
-        guard conversationHistory.count > maxHistory + 1 else { return }
-
-        let systemPrompt = conversationHistory[0]
+        guard conversationHistory.count > maxHistory + 1,
+              let systemPrompt = conversationHistory.first else { return }
         let recentMessages = Array(conversationHistory.suffix(maxHistory))
         conversationHistory = [systemPrompt] + recentMessages
     }

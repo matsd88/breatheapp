@@ -11,6 +11,9 @@ struct OnboardingPersonalizedSummaryView: View {
     let onContinue: () -> Void
     let onBack: () -> Void
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    private var isRegular: Bool { sizeClass == .regular }
+
     @State private var animateItems = false
 
     private var recommendations: [(icon: String, text: String, color: Color)] {
@@ -84,19 +87,19 @@ struct OnboardingPersonalizedSummaryView: View {
                 Spacer()
 
                 // Header
-                VStack(spacing: 12) {
+                VStack(spacing: isRegular ? 16 : 12) {
                     Image(systemName: "sparkles")
-                        .font(.system(size: 40))
+                        .font(.system(size: isRegular ? 52 : 40))
                         .foregroundStyle(.yellow)
 
                     Text("Your personalized plan")
-                        .font(.title2)
+                        .font(isRegular ? .title : .title2)
                         .fontWeight(.bold)
                         .foregroundStyle(.white)
 
                     if let msg = moodMessage {
                         Text(msg)
-                            .font(.subheadline)
+                            .font(isRegular ? .body : .subheadline)
                             .foregroundStyle(.white.opacity(0.7))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 24)
@@ -149,7 +152,7 @@ struct OnboardingPersonalizedSummaryView: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
             }
-            .frame(maxWidth: 500)
+            .frame(maxWidth: isRegular ? 800 : 500)
         }
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {

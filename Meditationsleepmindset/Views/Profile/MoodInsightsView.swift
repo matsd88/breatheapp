@@ -17,6 +17,14 @@ struct MoodInsightsView: View {
         case week = "Week"
         case month = "Month"
         case allTime = "All Time"
+
+        var displayName: String {
+            switch self {
+            case .week: return String(localized: "Week")
+            case .month: return String(localized: "Month")
+            case .allTime: return String(localized: "All Time")
+            }
+        }
     }
 
     private var filteredSessions: [MeditationSession] {
@@ -103,7 +111,7 @@ struct MoodInsightsView: View {
                         // Time range picker
                         Picker("Time Range", selection: $timeRange) {
                             ForEach(TimeRange.allCases, id: \.self) { range in
-                                Text(range.rawValue).tag(range)
+                                Text(range.displayName).tag(range)
                             }
                         }
                         .pickerStyle(.segmented)
@@ -129,6 +137,8 @@ struct MoodInsightsView: View {
                         Spacer(minLength: 40)
                     }
                     .padding(.top, 12)
+                    .frame(maxWidth: 700)
+                    .frame(maxWidth: .infinity)
                 }
             }
             .navigationTitle("Mood Insights")
@@ -151,8 +161,7 @@ struct MoodInsightsView: View {
                 }
             }
         }
-        .presentationDetents([.large])
-        .presentationBackground(Color(red: 0.08, green: 0.15, blue: 0.28))
+        .preferredColorScheme(.dark)
     }
 
     // MARK: - Empty State
@@ -209,7 +218,7 @@ struct MoodInsightsView: View {
 
             VStack(spacing: 6) {
                 if let topMood = postMoodCounts.first {
-                    Text(topMood.mood.rawValue)
+                    Text(topMood.mood.displayName)
                         .font(.title3.bold())
                         .foregroundStyle(.white)
                 } else {

@@ -18,30 +18,33 @@ struct OnboardingTestimonialsView: View {
     let onBack: () -> Void
     let onSkip: () -> Void
 
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    private var isRegular: Bool { sizeClass == .regular }
+
     @State private var currentIndex = 0
     @State private var autoScrollTimer: Timer?
 
     private let testimonials: [Testimonial] = [
         Testimonial(
-            quote: "I haven't slept this well in years. The sleep stories are incredible.",
+            quote: "The AI meditations feel like they were made just for me. I haven't slept this well in years.",
             author: "Sarah M.",
             detail: "Using Breathe for 3 months",
             rating: 5
         ),
         Testimonial(
-            quote: "My anxiety has noticeably decreased. I look forward to my daily sessions.",
+            quote: "Micro-Moments are a game changer — a quick 2-minute reset between meetings and my anxiety melts away.",
             author: "James R.",
             detail: "Using Breathe for 6 months",
             rating: 5
         ),
         Testimonial(
-            quote: "The mindset coaching changed how I start my mornings. I feel more in control.",
+            quote: "The offline packs and Apple Watch support mean I can meditate anywhere — even on flights.",
             author: "Priya K.",
             detail: "Using Breathe for 2 months",
             rating: 5
         ),
         Testimonial(
-            quote: "I tried other apps but Breathe actually made meditation stick. The streak feature keeps me coming back.",
+            quote: "Breathe AI is like having a wellness coach in my pocket. The guided programs changed my mornings completely.",
             author: "David L.",
             detail: "Using Breathe for 4 months",
             rating: 5
@@ -70,37 +73,39 @@ struct OnboardingTestimonialsView: View {
                     Button("Skip") {
                         onSkip()
                     }
-                    .font(.body)
+                    .font(isRegular ? .title3 : .body)
                     .fontWeight(.medium)
                     .foregroundStyle(.white.opacity(0.85))
+                    .padding(.horizontal, isRegular ? 16 : 0)
+                    .padding(.vertical, isRegular ? 8 : 0)
                 }
                 .padding(.horizontal, 16)
 
-                OnboardingProgressDotsView(current: 4, total: 6)
+                OnboardingProgressDotsView(current: 3, total: 7)
 
                 Spacer()
 
                 // Header
-                VStack(spacing: 8) {
+                VStack(spacing: isRegular ? 12 : 8) {
                     Text("Loved by thousands")
-                        .font(.title2)
+                        .font(isRegular ? .title : .title2)
                         .fontWeight(.bold)
                         .foregroundStyle(.white)
 
                     Text("See what our community says")
-                        .font(.body)
+                        .font(isRegular ? .title3 : .body)
                         .foregroundStyle(.white.opacity(0.7))
                 }
 
                 // Testimonial card
                 TabView(selection: $currentIndex) {
                     ForEach(Array(testimonials.enumerated()), id: \.element.id) { index, testimonial in
-                        TestimonialCard(testimonial: testimonial)
+                        TestimonialCard(testimonial: testimonial, isRegular: isRegular)
                             .tag(index)
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .always))
-                .frame(height: 240)
+                .frame(height: isRegular ? 300 : 240)
                 .padding(.horizontal, 8)
 
                 // Stars row
@@ -108,7 +113,7 @@ struct OnboardingTestimonialsView: View {
                     ForEach(0..<5, id: \.self) { _ in
                         Image(systemName: "star.fill")
                             .foregroundStyle(.yellow)
-                            .font(.system(size: 16))
+                            .font(.system(size: isRegular ? 20 : 16))
                     }
                 }
                 .padding(.top, 8)
@@ -128,10 +133,11 @@ struct OnboardingTestimonialsView: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)
             }
-            .frame(maxWidth: 500)
+            .frame(maxWidth: isRegular ? 800 : 500)
         }
         .onAppear {
             // Auto-scroll every 4 seconds
+            autoScrollTimer?.invalidate()
             autoScrollTimer = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { _ in
                 withAnimation(.easeInOut) {
                     currentIndex = (currentIndex + 1) % testimonials.count
@@ -140,45 +146,47 @@ struct OnboardingTestimonialsView: View {
         }
         .onDisappear {
             autoScrollTimer?.invalidate()
+            autoScrollTimer = nil
         }
     }
 }
 
 struct TestimonialCard: View {
     let testimonial: Testimonial
+    var isRegular: Bool = false
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: isRegular ? 20 : 16) {
             // Stars
             HStack(spacing: 4) {
                 ForEach(0..<testimonial.rating, id: \.self) { _ in
                     Image(systemName: "star.fill")
                         .foregroundStyle(.yellow)
-                        .font(.system(size: 14))
+                        .font(.system(size: isRegular ? 18 : 14))
                 }
             }
 
             // Quote
             Text("\"\(testimonial.quote)\"")
-                .font(.body)
+                .font(isRegular ? .title3 : .body)
                 .fontWeight(.medium)
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
-                .lineSpacing(4)
+                .lineSpacing(isRegular ? 6 : 4)
 
             // Author
             VStack(spacing: 2) {
                 Text(testimonial.author)
-                    .font(.subheadline)
+                    .font(isRegular ? .body : .subheadline)
                     .fontWeight(.semibold)
                     .foregroundStyle(.white)
 
                 Text(testimonial.detail)
-                    .font(.caption)
+                    .font(isRegular ? .subheadline : .caption)
                     .foregroundStyle(.white.opacity(0.5))
             }
         }
-        .padding(24)
+        .padding(isRegular ? 32 : 24)
         .frame(maxWidth: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 20)

@@ -63,7 +63,10 @@ final class ProgramDay {
     }
 
     var thumbnailURL: String {
-        "https://img.youtube.com/vi/\(youtubeVideoID)/mqdefault.jpg"
+        if VideoService.useR2 {
+            return "https://pub-7b886d08f03c4e4ebcee90f70a22739e.r2.dev/videos/\(youtubeVideoID)/thumb.jpg"
+        }
+        return "https://img.youtube.com/vi/\(youtubeVideoID)/mqdefault.jpg"
     }
 }
 

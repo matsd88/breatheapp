@@ -164,6 +164,7 @@ struct OnboardingPaywall: View {
                                     withAnimation(.spring(response: 0.2)) {
                                         selectedPlan = plan
                                     }
+                                    FirebaseService.shared.logPaywallPlanSelected(plan: plan.rawValue)
                                 }
                             }
                         }
@@ -171,11 +172,22 @@ struct OnboardingPaywall: View {
 
                         // Subscribe button
                         Button {
+                            FirebaseService.shared.logPaywallSubscribeTapped(plan: selectedPlan.rawValue)
+                            AppsFlyerService.shared.logPaywallEvent(eventName: "paywall_subscribe_tapped", plan: selectedPlan.rawValue)
                             Task {
+                                if storeManager.subscriptions.isEmpty {
+                                    await storeManager.loadProducts()
+                                }
+
                                 if let product = storeKitProduct(for: selectedPlan) ?? storeManager.subscriptions.first {
                                     await storeManager.purchase(product)
+                                    if storeManager.isSubscribed {
+                                        onSubscribe()
+                                    }
+                                } else {
+                                    storeManager.error = "Unable to load subscription options. Please check your internet connection and try again."
+                                    storeManager.showError = true
                                 }
-                                onSubscribe()
                             }
                         } label: {
                             HStack {
@@ -184,7 +196,7 @@ struct OnboardingPaywall: View {
                                         .tint(.white)
                                 } else {
                                     VStack(spacing: 2) {
-                                        Text("Start My 3-Day Free Trial")
+                                        Text("Start My 7-Day Free Trial")
                                             .fontWeight(.semibold)
                                         Text(selectedPlanPriceDescription)
                                             .font(.caption)
@@ -197,6 +209,7 @@ struct OnboardingPaywall: View {
                             .background(.white)
                             .foregroundStyle(.black)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .contentShape(Rectangle())
                         }
                         .disabled(storeManager.isPurchasing)
                         .padding(.horizontal, 24)
@@ -242,12 +255,22 @@ struct OnboardingPaywall: View {
                         .padding(.top, 20)
                     }
                     .frame(maxWidth: isRegular ? 800 : 500)
+                    .frame(maxWidth: .infinity)
                 }
                 .onAppear {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                         animateFeatures = true
                     }
                     startCountdown()
+
+                    // Track paywall viewed
+                    FirebaseService.shared.logPaywallViewed(source: "onboarding")
+                    AppsFlyerService.shared.logPaywallEvent(eventName: "paywall_viewed")
+                }
+                .task {
+                    if storeManager.subscriptions.isEmpty {
+                        await storeManager.loadProducts()
+                    }
                 }
                 .onDisappear {
                     countdownTimer?.invalidate()
@@ -257,6 +280,9 @@ struct OnboardingPaywall: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
+                        FirebaseService.shared.logPaywallDismissed(source: "onboarding")
+                        AppsFlyerService.shared.logPaywallEvent(eventName: "paywall_dismissed")
+                        SmartRatingManager.recordPaywallDismiss()
                         onDismiss()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
@@ -396,7 +422,7 @@ struct OnboardingPaywall: View {
             case .week: period = "week"
             default: period = "period"
             }
-            return "After the 3-day free trial, you will be charged \(product.displayPrice)/\(period). Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account."
+            return "After the 7-day free trial, you will be charged \(product.displayPrice)/\(period). Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account."
         }
         return "Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account."
     }

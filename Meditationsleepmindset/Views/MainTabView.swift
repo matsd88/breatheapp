@@ -12,6 +12,16 @@ enum AppTab: String, CaseIterable {
     case profile = "You"
     case chat = "Chat"
 
+    var displayName: String {
+        switch self {
+        case .home: return String(localized: "Home")
+        case .sleep: return String(localized: "Sleep")
+        case .discover: return String(localized: "Discover")
+        case .profile: return String(localized: "You")
+        case .chat: return String(localized: "Chat")
+        }
+    }
+
     var iconName: String {
         switch self {
         case .home: return "house"
@@ -90,7 +100,7 @@ struct CustomTabItem: View {
                 Image(systemName: isSelected ? tab.selectedIconName : tab.iconName)
                     .font(.system(size: 20))
 
-                Text(tab.rawValue)
+                Text(tab.displayName)
                     .font(.caption2)
                     .fontWeight(.medium)
             }
@@ -115,6 +125,7 @@ struct MainTabView: View {
     @StateObject private var playerManager = AudioPlayerManager.shared
     @StateObject private var storeManager = StoreManager.shared
     @StateObject private var networkMonitor = NetworkMonitor.shared
+    @StateObject private var challengeService = ChallengeService.shared
     @EnvironmentObject var appState: AppStateManager
     @State private var actionSheetData: ActionSheetManager.SheetData?
 
@@ -129,20 +140,29 @@ struct MainTabView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            // Content views based on selected tab
-            Group {
-                switch selectedTab {
-                case .home:
-                    HomeView()
-                case .sleep:
-                    SleepView()
-                case .discover:
-                    DiscoverView()
-                case .profile:
-                    ProfileView()
-                case .chat:
-                    ChatView()
-                }
+            // All tabs stay alive — hidden tabs use opacity(0) to avoid destroy/recreate overhead
+            // zIndex ensures active tab is always topmost for reliable hit testing on iPad
+            ZStack {
+                HomeView()
+                    .zIndex(selectedTab == .home ? 1 : 0)
+                    .opacity(selectedTab == .home ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .home)
+                SleepView()
+                    .zIndex(selectedTab == .sleep ? 1 : 0)
+                    .opacity(selectedTab == .sleep ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .sleep)
+                DiscoverView()
+                    .zIndex(selectedTab == .discover ? 1 : 0)
+                    .opacity(selectedTab == .discover ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .discover)
+                ProfileView()
+                    .zIndex(selectedTab == .profile ? 1 : 0)
+                    .opacity(selectedTab == .profile ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .profile)
+                ChatView()
+                    .zIndex(selectedTab == .chat ? 1 : 0)
+                    .opacity(selectedTab == .chat ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .chat)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(.bottom, playerManager.currentContent != nil && !showFullPlayer ? 70 : 0)
@@ -179,8 +199,8 @@ struct MainTabView: View {
                     endPoint: .bottom
                 )
                 .frame(height: 160)
-                .allowsHitTesting(false)
             }
+            .allowsHitTesting(false)
             .ignoresSafeArea()
 
             // Solid background color below tab bar to match app theme
@@ -258,9 +278,19 @@ struct MainTabView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .dismissAllSheetsAndPlay)) { _ in
             // Wait for all sheets to finish dismissing, then open full player
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            Task {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                guard !Task.isCancelled else { return }
                 showFullPlayer = true
             }
+        }
+        .overlay {
+            // Challenge celebration overlay (shown on top of everything)
+            ChallengeCelebrationOverlay(challengeService: challengeService)
+        }
+        .onAppear {
+            // Check and rotate challenges on app launch
+            challengeService.checkAndRotateChallenges()
         }
     }
 }

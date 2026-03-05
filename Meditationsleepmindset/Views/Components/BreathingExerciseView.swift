@@ -13,6 +13,7 @@ struct BreathingExerciseView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var sizeClass
 
     @State private var currentPhaseIndex = 0
     @State private var currentCycle = 0
@@ -23,6 +24,7 @@ struct BreathingExerciseView: View {
     @State private var ringRotation: Double = 0
     @State private var isComplete = false
     @State private var startTime = Date()
+    @State private var particlePositions: [(x: CGFloat, y: CGFloat, size: CGFloat, opacity: Double)] = []
 
     private var currentPhase: BreathPhase? {
         let phases = technique.phases
@@ -35,17 +37,26 @@ struct BreathingExerciseView: View {
             Theme.profileGradient
                 .ignoresSafeArea()
 
-            // Ambient particles
+            // Ambient particles (stable positions)
             GeometryReader { geometry in
-                ForEach(0..<8, id: \.self) { index in
+                ForEach(Array(particlePositions.enumerated()), id: \.offset) { _, particle in
                     Circle()
-                        .fill(Color.white.opacity(Double.random(in: 0.05...0.15)))
-                        .frame(width: CGFloat.random(in: 3...8))
-                        .position(
-                            x: CGFloat.random(in: 0...geometry.size.width),
-                            y: CGFloat.random(in: 0...geometry.size.height)
-                        )
+                        .fill(Color.white.opacity(particle.opacity))
+                        .frame(width: particle.size)
+                        .position(x: particle.x, y: particle.y)
                         .blur(radius: 2)
+                }
+                .onAppear {
+                    if particlePositions.isEmpty {
+                        particlePositions = (0..<8).map { _ in
+                            (
+                                x: CGFloat.random(in: 0...geometry.size.width),
+                                y: CGFloat.random(in: 0...geometry.size.height),
+                                size: CGFloat.random(in: 3...8),
+                                opacity: Double.random(in: 0.05...0.15)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -58,16 +69,9 @@ struct BreathingExerciseView: View {
             // Top bar
             VStack {
                 HStack {
-                    Button {
+                    SheetCloseButton {
                         stopTimer()
                         dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.title3)
-                            .foregroundStyle(.white.opacity(0.7))
-                            .frame(width: 44, height: 44)
-                            .background(Color.white.opacity(0.1))
-                            .clipShape(Circle())
                     }
 
                     Spacer()
@@ -105,7 +109,7 @@ struct BreathingExerciseView: View {
     private var breathingView: some View {
         VStack(spacing: 32) {
             VStack(spacing: 8) {
-                Text(technique.rawValue)
+                Text(technique.displayName)
                     .font(.title2)
                     .fontWeight(.semibold)
                     .foregroundStyle(.white)
@@ -116,6 +120,12 @@ struct BreathingExerciseView: View {
             }
 
             // Breathing circle (same animation as onboarding)
+            // Adaptive sizing for iPad
+            let baseSize: CGFloat = sizeClass == .regular ? 480 : 360
+            let ringSize: CGFloat = sizeClass == .regular ? 320 : 240
+            let innerRingSize: CGFloat = sizeClass == .regular ? 280 : 210
+            let coreSize: CGFloat = sizeClass == .regular ? 240 : 180
+
             ZStack {
                 Circle()
                     .fill(
@@ -126,11 +136,11 @@ struct BreathingExerciseView: View {
                                 Color.clear
                             ],
                             center: .center,
-                            startRadius: 80,
-                            endRadius: 180
+                            startRadius: baseSize * 0.22,
+                            endRadius: baseSize * 0.5
                         )
                     )
-                    .frame(width: 360, height: 360)
+                    .frame(width: baseSize, height: baseSize)
                     .scaleEffect(circleScale)
                     .opacity(glowPulse)
 
@@ -146,15 +156,15 @@ struct BreathingExerciseView: View {
                             ],
                             center: .center
                         ),
-                        lineWidth: 2
+                        lineWidth: sizeClass == .regular ? 3 : 2
                     )
-                    .frame(width: 240, height: 240)
+                    .frame(width: ringSize, height: ringSize)
                     .scaleEffect(circleScale * 1.1)
                     .rotationEffect(.degrees(ringRotation))
 
                 Circle()
                     .stroke(Color.white.opacity(0.15), lineWidth: 1)
-                    .frame(width: 210, height: 210)
+                    .frame(width: innerRingSize, height: innerRingSize)
                     .scaleEffect(circleScale * 1.05)
 
                 Circle()
@@ -167,12 +177,12 @@ struct BreathingExerciseView: View {
                             ],
                             center: .center,
                             startRadius: 0,
-                            endRadius: 100
+                            endRadius: coreSize * 0.56
                         )
                     )
-                    .frame(width: 180, height: 180)
+                    .frame(width: coreSize, height: coreSize)
                     .scaleEffect(circleScale)
-                    .shadow(color: Theme.profileAccent.opacity(0.3), radius: 30)
+                    .shadow(color: Theme.profileAccent.opacity(0.3), radius: sizeClass == .regular ? 40 : 30)
 
                 Circle()
                     .stroke(
@@ -184,21 +194,21 @@ struct BreathingExerciseView: View {
                             startPoint: .top,
                             endPoint: .bottom
                         ),
-                        lineWidth: 2
+                        lineWidth: sizeClass == .regular ? 3 : 2
                     )
-                    .frame(width: 180, height: 180)
+                    .frame(width: coreSize, height: coreSize)
                     .scaleEffect(circleScale)
 
                 VStack(spacing: 8) {
                     if let phase = currentPhase {
                         Text(phase.name)
-                            .font(.title3)
+                            .font(sizeClass == .regular ? .title : .title3)
                             .fontWeight(.medium)
                             .foregroundStyle(.white)
                     }
 
                     Text("\(countdown)")
-                        .font(.system(size: 48, weight: .light, design: .rounded))
+                        .font(.system(size: sizeClass == .regular ? 64 : 48, weight: .light, design: .rounded))
                         .foregroundStyle(.white)
                         .monospacedDigit()
                 }
@@ -221,7 +231,7 @@ struct BreathingExerciseView: View {
                 .fontWeight(.bold)
                 .foregroundStyle(.white)
 
-            Text("\(totalCycles) cycles of \(technique.rawValue) complete")
+            Text("\(totalCycles) cycles of \(technique.displayName) complete")
                 .font(.body)
                 .foregroundStyle(.white.opacity(0.7))
 
@@ -275,7 +285,8 @@ struct BreathingExerciseView: View {
             return
         }
 
-        let phase = phases[currentPhaseIndex]
+        // Safe array access
+        guard let phase = phases[safe: currentPhaseIndex] else { return }
         countdown = Int(phase.duration)
 
         // Haptic pulse on each breathing phase transition
@@ -287,12 +298,15 @@ struct BreathingExerciseView: View {
 
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { t in
-            if countdown > 1 {
-                countdown -= 1
-            } else {
-                t.invalidate()
-                currentPhaseIndex += 1
-                runPhase()
+            Task { @MainActor in
+                if countdown > 1 {
+                    countdown -= 1
+                } else {
+                    t.invalidate()
+                    timer = nil
+                    currentPhaseIndex += 1
+                    runPhase()
+                }
             }
         }
     }

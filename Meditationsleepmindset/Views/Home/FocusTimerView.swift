@@ -9,6 +9,7 @@ import SwiftData
 struct FocusTimerView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @StateObject private var ambientManager = AmbientSoundManager.shared
 
     @State private var workMinutes: Int = 25
@@ -36,25 +37,20 @@ struct FocusTimerView: View {
                     setupView
                 }
             }
+            .frame(maxWidth: sizeClass == .regular ? 700 : 600)
+            .frame(maxWidth: .infinity)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
+                    SheetCloseButton {
                         stopSession()
                         dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(.white.opacity(0.7))
-                            .frame(width: 32, height: 32)
-                            .background(Color.white.opacity(0.15))
-                            .clipShape(Circle())
                     }
                 }
             }
         }
-        .presentationDetents(isRunning ? [.large] : [.fraction(0.75), .large])
+        .presentationDetents(isRunning || sizeClass == .regular ? [.large] : [.fraction(0.75), .large])
         .presentationDragIndicator(.visible)
         .onDisappear {
             stopSession()
@@ -89,17 +85,17 @@ struct FocusTimerView: View {
                         .foregroundStyle(Theme.textSecondary)
 
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
+                        HStack(spacing: sizeClass == .regular ? 14 : 10) {
                             ForEach(workOptions, id: \.self) { min in
                                 Button {
                                     workMinutes = min
                                 } label: {
                                     Text("\(min)m")
-                                        .font(.body.weight(.medium))
+                                        .font(sizeClass == .regular ? .body.weight(.semibold) : .body.weight(.medium))
                                         .foregroundStyle(workMinutes == min ? .white : Theme.textPrimary)
-                                        .frame(width: 52, height: 44)
+                                        .frame(width: sizeClass == .regular ? 68 : 52, height: sizeClass == .regular ? 54 : 44)
                                         .background(workMinutes == min ? Color.orange.opacity(0.4) : Theme.cardBackground)
-                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                        .clipShape(RoundedRectangle(cornerRadius: sizeClass == .regular ? 12 : 10))
                                 }
                             }
                         }
@@ -113,17 +109,17 @@ struct FocusTimerView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Theme.textSecondary)
 
-                    HStack(spacing: 10) {
+                    HStack(spacing: sizeClass == .regular ? 14 : 10) {
                         ForEach(breakOptions, id: \.self) { min in
                             Button {
                                 breakMinutes = min
                             } label: {
                                 Text("\(min)m")
-                                    .font(.body.weight(.medium))
+                                    .font(sizeClass == .regular ? .body.weight(.semibold) : .body.weight(.medium))
                                     .foregroundStyle(breakMinutes == min ? .white : Theme.textPrimary)
-                                    .frame(width: 52, height: 44)
+                                    .frame(width: sizeClass == .regular ? 68 : 52, height: sizeClass == .regular ? 54 : 44)
                                     .background(breakMinutes == min ? Color.green.opacity(0.3) : Theme.cardBackground)
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    .clipShape(RoundedRectangle(cornerRadius: sizeClass == .regular ? 12 : 10))
                             }
                         }
                     }
@@ -228,30 +224,33 @@ struct FocusTimerView: View {
                 .font(.title3.weight(.medium))
                 .foregroundStyle(isBreak ? .green : .orange)
 
-            // Timer ring
+            // Timer ring - adaptive for iPad
+            let timerSize: CGFloat = sizeClass == .regular ? 350 : 250
+            let timerFontSize: CGFloat = sizeClass == .regular ? 64 : 48
+
             ZStack {
                 Circle()
-                    .stroke(Theme.cardBackground, lineWidth: 8)
-                    .frame(width: 250, height: 250)
+                    .stroke(Theme.cardBackground, lineWidth: sizeClass == .regular ? 12 : 8)
+                    .frame(width: timerSize, height: timerSize)
 
                 Circle()
                     .trim(from: 0, to: progress)
                     .stroke(
                         isBreak ? Color.green : Color.orange,
-                        style: StrokeStyle(lineWidth: 8, lineCap: .round)
+                        style: StrokeStyle(lineWidth: sizeClass == .regular ? 12 : 8, lineCap: .round)
                     )
-                    .frame(width: 250, height: 250)
+                    .frame(width: timerSize, height: timerSize)
                     .rotationEffect(.degrees(-90))
                     .animation(.linear(duration: 1), value: progress)
 
                 VStack(spacing: 8) {
                     Text(timeFormatted)
-                        .font(.system(size: 48, weight: .light, design: .rounded))
+                        .font(.system(size: timerFontSize, weight: .light, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(.white)
 
                     Text("remaining")
-                        .font(.subheadline)
+                        .font(sizeClass == .regular ? .body : .subheadline)
                         .foregroundStyle(Theme.textSecondary)
                 }
             }
@@ -271,15 +270,18 @@ struct FocusTimerView: View {
 
             Spacer()
 
-            // Controls
-            HStack(spacing: 32) {
+            // Controls - adaptive for iPad
+            let smallButtonSize: CGFloat = sizeClass == .regular ? 72 : 56
+            let largeButtonSize: CGFloat = sizeClass == .regular ? 88 : 72
+
+            HStack(spacing: sizeClass == .regular ? 48 : 32) {
                 Button {
                     stopSession()
                 } label: {
                     Image(systemName: "stop.fill")
-                        .font(.title2)
+                        .font(sizeClass == .regular ? .title : .title2)
                         .foregroundStyle(.white)
-                        .frame(width: 56, height: 56)
+                        .frame(width: smallButtonSize, height: smallButtonSize)
                         .background(Color.red.opacity(0.4))
                         .clipShape(Circle())
                 }
@@ -288,9 +290,9 @@ struct FocusTimerView: View {
                     togglePause()
                 } label: {
                     Image(systemName: timer != nil ? "pause.fill" : "play.fill")
-                        .font(.title)
+                        .font(sizeClass == .regular ? .largeTitle : .title)
                         .foregroundStyle(.black)
-                        .frame(width: 72, height: 72)
+                        .frame(width: largeButtonSize, height: largeButtonSize)
                         .background(.white)
                         .clipShape(Circle())
                 }
@@ -350,12 +352,14 @@ struct FocusTimerView: View {
     private func startTimer() {
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            if timeRemaining > 0 {
-                timeRemaining -= 1
-            } else {
-                timer?.invalidate()
-                timer = nil
-                phaseComplete()
+            Task { @MainActor in
+                if timeRemaining > 0 {
+                    timeRemaining -= 1
+                } else {
+                    timer?.invalidate()
+                    timer = nil
+                    phaseComplete()
+                }
             }
         }
     }
@@ -425,5 +429,8 @@ struct FocusTimerView: View {
         modelContext.insert(session)
         try? modelContext.save()
         StreakService.shared.recordSession(durationMinutes: workMinutes, context: modelContext)
+
+        // Update challenge progress for focus timer
+        ChallengeService.shared.recordFocusTimerSession()
     }
 }

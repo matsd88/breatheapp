@@ -30,10 +30,15 @@ class AmbientSoundManager: ObservableObject {
     @Published var volumes: [String: Double] = [:]
     @Published var isLoading: [String: Bool] = [:]
     @Published var errors: [String: String] = [:]
+    @Published var sleepModeEnabled: Bool = false
+    @Published var sleepModeDuration: TimeInterval = 30 * 60 // default 30 min
 
     private var players: [String: AVPlayer] = [:]
     private var playerObservers: [String: Any] = [:]
     private var loopObservers: [String: NSObjectProtocol] = [:]
+    private var sleepModeTimer: Timer?
+    private var sleepModeStartTime: Date?
+    private var originalVolumes: [String: Double] = [:]
 
     let availableSounds: [AmbientSound] = [
         AmbientSound(id: "rain", name: "Rain", iconName: "cloud.rain.fill", youtubeVideoID: "yIQd2Ya0Ziw"),
@@ -184,6 +189,13 @@ class AmbientSoundManager: ObservableObject {
     }
 
     func resetAll() {
+        if sleepModeEnabled {
+            sleepModeTimer?.invalidate()
+            sleepModeTimer = nil
+            sleepModeEnabled = false
+            sleepModeStartTime = nil
+            originalVolumes.removeAll()
+        }
         for sound in availableSounds {
             if activeSounds.contains(sound.id) {
                 stopSound(sound)
@@ -210,5 +222,84 @@ class AmbientSoundManager: ObservableObject {
 
     func isLoadingSound(_ sound: AmbientSound) -> Bool {
         isLoading[sound.id] ?? false
+    }
+
+    // MARK: - Sleep Mode
+
+    func enableSleepMode(duration: TimeInterval) {
+        sleepModeDuration = duration
+        sleepModeEnabled = true
+        sleepModeStartTime = Date()
+
+        // Store original volumes for restoration
+        originalVolumes = volumes
+
+        // Start a timer that fires every second to manage the fade
+        sleepModeTimer?.invalidate()
+        sleepModeTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.sleepModeTimerTick()
+            }
+        }
+    }
+
+    func disableSleepMode() {
+        sleepModeTimer?.invalidate()
+        sleepModeTimer = nil
+        sleepModeEnabled = false
+        sleepModeStartTime = nil
+
+        // Restore original volumes
+        for (soundID, volume) in originalVolumes {
+            volumes[soundID] = volume
+            players[soundID]?.volume = Float(volume)
+        }
+        originalVolumes.removeAll()
+    }
+
+    private func sleepModeTimerTick() {
+        guard sleepModeEnabled, let startTime = sleepModeStartTime else { return }
+
+        let elapsed = Date().timeIntervalSince(startTime)
+        let fadeStartPoint = sleepModeDuration * 0.7 // Start fading at 70%
+        let remaining = sleepModeDuration - elapsed
+
+        if remaining <= 0 {
+            // Time's up — stop all sounds and clean up sleep mode state
+            sleepModeTimer?.invalidate()
+            sleepModeTimer = nil
+            sleepModeEnabled = false
+            sleepModeStartTime = nil
+            originalVolumes.removeAll()
+            stopAll()
+            return
+        }
+
+        if elapsed >= fadeStartPoint {
+            // In the fade zone — gradually reduce volume
+            let fadeZoneDuration = sleepModeDuration * 0.3
+            let fadeElapsed = elapsed - fadeStartPoint
+            let fadeFraction = 1.0 - (fadeElapsed / fadeZoneDuration) // 1.0 → 0.0
+
+            for (soundID, originalVolume) in originalVolumes {
+                let newVolume = originalVolume * max(0, fadeFraction)
+                volumes[soundID] = newVolume
+                players[soundID]?.volume = Float(newVolume)
+            }
+
+            // Drop sounds one by one as volume gets low
+            let activeSoundIDs = Array(activeSounds).sorted()
+            if fadeFraction < 0.3 && activeSoundIDs.count > 2 {
+                // Drop the first sound
+                if let soundToStop = availableSounds.first(where: { $0.id == activeSoundIDs.first }) {
+                    stopSound(soundToStop)
+                }
+            } else if fadeFraction < 0.15 && activeSoundIDs.count > 1 {
+                // Drop another sound
+                if let soundToStop = availableSounds.first(where: { $0.id == activeSoundIDs.first }) {
+                    stopSound(soundToStop)
+                }
+            }
+        }
     }
 }

@@ -32,23 +32,21 @@ struct AnimatedBackgroundView: View {
 // MARK: - Rain Background
 
 struct RainBackgroundView: View {
-    @State private var drops: [RainDrop] = []
-    @State private var timer: Timer?
-
-    struct RainDrop: Identifiable {
-        let id = UUID()
-        var x: CGFloat
-        var y: CGFloat
-        var speed: Double
-        var opacity: Double
-    }
+    // Store drop data as simple arrays for Canvas — no @State mutation needed per frame
+    @State private var dropData: [(x: CGFloat, baseY: CGFloat, speed: Double, opacity: Double)] = []
+    @State private var startTime: Date = .now
 
     var body: some View {
         GeometryReader { geo in
-            TimelineView(.animation(minimumInterval: 0.03)) { timeline in
+            TimelineView(.animation(minimumInterval: 0.05)) { timeline in
+                let elapsed = timeline.date.timeIntervalSince(startTime)
+
                 Canvas { context, size in
-                    for drop in drops {
-                        let rect = CGRect(x: drop.x, y: drop.y, width: 1.5, height: 15)
+                    for drop in dropData {
+                        // Compute position from elapsed time — no @State mutation needed
+                        let totalTravel = size.height + 20
+                        let y = ((drop.baseY + elapsed * drop.speed * 60).truncatingRemainder(dividingBy: totalTravel)) - 20
+                        let rect = CGRect(x: drop.x, y: y, width: 1.5, height: 15)
                         context.opacity = drop.opacity
                         context.fill(
                             Path(roundedRect: rect, cornerRadius: 1),
@@ -58,34 +56,17 @@ struct RainBackgroundView: View {
                 }
             }
             .onAppear {
-                initializeDrops(in: geo.size)
-                startAnimation(in: geo.size)
-            }
-            .onDisappear {
-                timer?.invalidate()
-                timer = nil
-            }
-        }
-    }
-
-    private func initializeDrops(in size: CGSize) {
-        drops = (0..<50).map { _ in
-            RainDrop(
-                x: CGFloat.random(in: 0...size.width),
-                y: CGFloat.random(in: -size.height...size.height),
-                speed: Double.random(in: 3...8),
-                opacity: Double.random(in: 0.1...0.3)
-            )
-        }
-    }
-
-    private func startAnimation(in size: CGSize) {
-        timer = Timer.scheduledTimer(withTimeInterval: 0.03, repeats: true) { _ in
-            for i in drops.indices {
-                drops[i].y += drops[i].speed
-                if drops[i].y > size.height {
-                    drops[i].y = -20
-                    drops[i].x = CGFloat.random(in: 0...size.width)
+                guard dropData.isEmpty else { return }
+                startTime = .now
+                let height = geo.size.height
+                let width = geo.size.width
+                dropData = (0..<50).map { _ in
+                    (
+                        x: CGFloat.random(in: 0...width),
+                        baseY: CGFloat.random(in: 0...(height + 20)),
+                        speed: Double.random(in: 3...8),
+                        opacity: Double.random(in: 0.1...0.3)
+                    )
                 }
             }
         }
@@ -175,62 +156,40 @@ struct AuroraBackgroundView: View {
 // MARK: - Stars Background
 
 struct StarsBackgroundView: View {
-    @State private var stars: [Star] = []
-    @State private var timer: Timer?
-
-    struct Star: Identifiable {
-        let id = UUID()
-        var x: CGFloat
-        var y: CGFloat
-        var size: CGFloat
-        var opacity: Double
-        var twinkleSpeed: Double
-    }
+    // Store star data as simple arrays — twinkle driven by TimelineView + sin(), no Timer needed
+    @State private var starData: [(x: CGFloat, y: CGFloat, size: CGFloat, baseOpacity: Double, twinkleSpeed: Double, phase: Double)] = []
 
     var body: some View {
         GeometryReader { geo in
-            TimelineView(.animation(minimumInterval: 0.1)) { _ in
+            TimelineView(.animation(minimumInterval: 0.1)) { timeline in
+                let t = timeline.date.timeIntervalSinceReferenceDate
+
                 Canvas { context, size in
-                    for star in stars {
+                    for star in starData {
+                        let opacity = star.baseOpacity + 0.15 * sin(t * star.twinkleSpeed + star.phase)
                         let rect = CGRect(
                             x: star.x - star.size / 2,
                             y: star.y - star.size / 2,
                             width: star.size,
                             height: star.size
                         )
-                        context.opacity = star.opacity
+                        context.opacity = max(0.1, min(0.7, opacity))
                         context.fill(Circle().path(in: rect), with: .color(.white))
                     }
                 }
             }
             .onAppear {
-                initializeStars(in: geo.size)
-                startTwinkling()
-            }
-            .onDisappear {
-                timer?.invalidate()
-                timer = nil
-            }
-        }
-    }
-
-    private func initializeStars(in size: CGSize) {
-        stars = (0..<80).map { _ in
-            Star(
-                x: CGFloat.random(in: 0...size.width),
-                y: CGFloat.random(in: 0...size.height),
-                size: CGFloat.random(in: 1...3),
-                opacity: Double.random(in: 0.2...0.6),
-                twinkleSpeed: Double.random(in: 1...3)
-            )
-        }
-    }
-
-    private func startTwinkling() {
-        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-            for i in stars.indices {
-                let newOpacity = stars[i].opacity + Double.random(in: -0.1...0.1)
-                stars[i].opacity = max(0.1, min(0.7, newOpacity))
+                guard starData.isEmpty else { return }
+                starData = (0..<80).map { _ in
+                    (
+                        x: CGFloat.random(in: 0...geo.size.width),
+                        y: CGFloat.random(in: 0...geo.size.height),
+                        size: CGFloat.random(in: 1...3),
+                        baseOpacity: Double.random(in: 0.2...0.6),
+                        twinkleSpeed: Double.random(in: 1...3),
+                        phase: Double.random(in: 0...(2 * .pi))
+                    )
+                }
             }
         }
     }

@@ -24,15 +24,22 @@ class ThemeManager: ObservableObject {
     }
 
     private let cloudStore = NSUbiquitousKeyValueStore.default
+    private var cloudObserver: Any?
 
     private init() {
         loadSavedPreferences()
         setupCloudSync()
     }
 
+    deinit {
+        if let observer = cloudObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+
     private func setupCloudSync() {
         // Listen for iCloud changes from other devices
-        NotificationCenter.default.addObserver(
+        cloudObserver = NotificationCenter.default.addObserver(
             forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
             object: cloudStore,
             queue: .main
@@ -41,9 +48,6 @@ class ThemeManager: ObservableObject {
                 self?.handleCloudUpdate(notification)
             }
         }
-
-        // Trigger initial sync
-        cloudStore.synchronize()
     }
 
     private func handleCloudUpdate(_ notification: Notification) {
@@ -82,8 +86,6 @@ class ThemeManager: ObservableObject {
             // Sync local to cloud
             cloudStore.set(selectedBackgroundIDRaw, forKey: CloudKeys.backgroundID)
         }
-
-        cloudStore.synchronize()
     }
 
     private func loadFromCloud() {
@@ -107,7 +109,6 @@ class ThemeManager: ObservableObject {
     func setTheme(_ themeID: PlayerThemeID) {
         selectedThemeIDRaw = themeID.rawValue
         cloudStore.set(themeID.rawValue, forKey: CloudKeys.themeID)
-        cloudStore.synchronize()
 
         withAnimation(.easeInOut(duration: 0.5)) {
             currentTheme = PlayerTheme.theme(for: themeID)
@@ -117,7 +118,6 @@ class ThemeManager: ObservableObject {
     func setBackground(_ backgroundID: AnimatedBackgroundID) {
         selectedBackgroundIDRaw = backgroundID.rawValue
         cloudStore.set(backgroundID.rawValue, forKey: CloudKeys.backgroundID)
-        cloudStore.synchronize()
 
         withAnimation(.easeInOut(duration: 0.3)) {
             currentBackground = backgroundID

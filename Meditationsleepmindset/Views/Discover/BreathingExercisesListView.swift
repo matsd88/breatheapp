@@ -86,6 +86,8 @@ struct BreathingExercisesListView: View {
                     }
                     .padding(.horizontal)
                     .padding(.bottom, 40)
+                    .frame(maxWidth: 700)
+                    .frame(maxWidth: .infinity)
                 }
             }
             .navigationTitle("Breathing")
@@ -111,8 +113,7 @@ struct BreathingExercisesListView: View {
                 BreathingExerciseView(technique: technique, totalCycles: selectedCycles)
             }
         }
-        .presentationDetents([.large])
-        .presentationBackground(sheetBackground)
+        .background(sheetBackground)
     }
 }
 
@@ -162,7 +163,7 @@ private struct BreathingTechniqueCard: View {
                     }
 
                     VStack(alignment: .leading, spacing: 5) {
-                        Text(technique.rawValue)
+                        Text(technique.displayName)
                             .font(.headline)
                             .foregroundStyle(.white)
 

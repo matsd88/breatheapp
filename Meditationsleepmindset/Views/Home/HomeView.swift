@@ -17,18 +17,47 @@ struct HomeView: View {
 
     @State private var selectedMood: Mood?
     @State private var selectedContent: Content?
-    @State private var selectedPlaylist: Playlist?
-    @State private var showingTimer = false
-    @State private var showingRecentlyPlayedList = false
-    @State private var contentForPlaylistAdd: Content?
+    @State private var activeHomeSheet: HomeSheetType?
     @State private var cachedRecommendations: [Content] = HomeView.savedRecommendations
     @State private var lastRecommendationSeed: Int = 0
     @State private var isLoadingRecommendations = false
     @State private var recommendationTask: Task<Void, Never>?
+    @State private var dailyMix: [Content] = HomeView.savedDailyMix
+
+    // MARK: - Memoized derived state (rebuilt on data changes, not every render)
+    @State private var cachedFavoriteIDSet: Set<UUID> = []
+    @State private var cachedFavoriteVideoIDSet: Set<String> = []
+    @State private var cachedFavoriteContents: [Content] = []
+    @State private var cachedPlaylistItemsByID: [UUID: [PlaylistItem]] = [:]
+    @State private var cachedRecentlyPlayed: [Content] = []
+    @State private var cachedContinueListening: (content: Content, session: MeditationSession)?
+
+    enum HomeSheetType: Identifiable {
+        case sessionLimit
+        case unguidedTimer
+        case playlist(Playlist)
+        case recentlyPlayed
+        case addToPlaylist(Content)
+        case shareStreak
+
+        var id: String {
+            switch self {
+            case .sessionLimit: return "sessionLimit"
+            case .unguidedTimer: return "unguidedTimer"
+            case .playlist(let p): return "playlist-\(p.id)"
+            case .recentlyPlayed: return "recentlyPlayed"
+            case .addToPlaylist(let c): return "playlist-\(c.youtubeVideoID)"
+            case .shareStreak: return "shareStreak"
+            }
+        }
+    }
     @StateObject private var streakService = StreakService.shared
+    @StateObject private var personalizationService = PersonalizationService.shared
 
     // Static cache so recommendations persist across tab switches
     private static var savedRecommendations: [Content] = []
+    private static var savedDailyMix: [Content] = []
+    private static var dailyMixDateKey: String = ""
 
     // Pre-computed index for faster tag lookups
     @State private var tagToContentIndex: [String: Set<UUID>] = [:]
@@ -69,9 +98,9 @@ struct HomeView: View {
         guard let painPoint = userPainPoint else { return [] }
         switch painPoint {
         case PainPoint.sleep.rawValue:
-            return [.sleepStory, .asmr, .soundscape]
+            return [.sleepStory, .asmr, .soundscape, .music]
         case PainPoint.anxiety.rawValue:
-            return [.meditation, .soundscape, .asmr]
+            return [.meditation, .soundscape, .asmr, .music]
         case PainPoint.racing.rawValue:
             return [.meditation, .soundscape, .mindset]
         case PainPoint.calm.rawValue:
@@ -111,6 +140,7 @@ struct HomeView: View {
                 types.insert(.sleepStory)
                 types.insert(.asmr)
                 types.insert(.soundscape)
+                types.insert(.music)
             case "Wake up refreshed":
                 types.insert(.meditation)
                 types.insert(.mindset)
@@ -121,6 +151,7 @@ struct HomeView: View {
                 types.insert(.meditation)
                 types.insert(.soundscape)
                 types.insert(.asmr)
+                types.insert(.music)
             case "Build a meditation habit":
                 types.insert(.meditation)
             default:
@@ -155,39 +186,39 @@ struct HomeView: View {
         var greeting: String {
             switch self {
             case .morning:
-                return "Good Morning"
+                return String(localized: "Good Morning")
             case .afternoon:
-                return "Good Afternoon"
+                return String(localized: "Good Afternoon")
             case .evening:
-                return "Good Evening"
+                return String(localized: "Good Evening")
             case .night:
-                return "Good Night"
+                return String(localized: "Good Night")
             }
         }
 
         var contextualSuggestion: String {
             switch self {
             case .morning:
-                return "Start your day with a mindful moment"
+                return String(localized: "Start your day with a mindful moment")
             case .afternoon:
-                return "A short break can refresh your focus"
+                return String(localized: "A short break can refresh your focus")
             case .evening:
-                return "Wind down with a calming session"
+                return String(localized: "Wind down with a calming session")
             case .night:
-                return "Relax into a peaceful sleep"
+                return String(localized: "Relax into a peaceful sleep")
             }
         }
 
         var motivationalMessage: String {
             switch self {
             case .morning:
-                return "Start your day with intention"
+                return String(localized: "Start your day with intention")
             case .afternoon:
-                return "Take a moment for yourself"
+                return String(localized: "Take a moment for yourself")
             case .evening:
-                return "Unwind and find your calm"
+                return String(localized: "Unwind and find your calm")
             case .night:
-                return "Prepare for restful sleep"
+                return String(localized: "Prepare for restful sleep")
             }
         }
 
@@ -231,46 +262,25 @@ struct HomeView: View {
         return remaining <= 5 ? "\(remaining) day\(remaining == 1 ? "" : "s")" : nil
     }
 
-    private var favoriteContents: [Content] {
-        let idSet = favoriteIDSet
-        let videoIDSet = favoriteVideoIDSet
-        return allContent.filter { idSet.contains($0.id) || videoIDSet.contains($0.youtubeVideoID) }
-    }
+    // MARK: - Recompute all derived state from source data
+    private func recomputeDerivedState() {
+        // Favorite ID sets
+        cachedFavoriteIDSet = Set(favorites.map { $0.contentID })
+        cachedFavoriteVideoIDSet = Set(favorites.compactMap { $0.youtubeVideoID })
 
-    /// Most recent unfinished session and its content — for the "Continue Listening" card
-    private var continueListeningData: (content: Content, session: MeditationSession)? {
-        // Find most recent incomplete session from the last 7 days
-        let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-        guard let unfinished = sessions.first(where: { session in
-            guard !session.wasCompleted, session.startedAt >= cutoff else { return false }
-            // Hide if user barely started (< 15 seconds) — they likely just previewed it
-            guard session.listenedSeconds >= 15 else { return false }
-            // Hide if user listened to 80%+ — effectively finished even if they closed early
-            guard session.durationSeconds > 0 else { return true }
-            let progress = Double(session.listenedSeconds) / Double(session.durationSeconds)
-            return progress < 0.8
-        }) else { return nil }
-
-        // Match to content
-        var content: Content?
-        if let videoID = unfinished.youtubeVideoID {
-            content = allContent.first { $0.youtubeVideoID == videoID }
-        } else if let contentID = unfinished.contentID {
-            content = allContent.first { $0.id == contentID }
+        // Favorite contents
+        cachedFavoriteContents = allContent.filter {
+            cachedFavoriteIDSet.contains($0.id) || cachedFavoriteVideoIDSet.contains($0.youtubeVideoID)
         }
 
-        guard let matched = content else { return nil }
-        return (matched, unfinished)
-    }
+        // Playlist items grouped by playlist ID
+        cachedPlaylistItemsByID = Dictionary(grouping: playlistItems, by: \.playlistID)
 
-    private var recentlyPlayedContent: [Content] {
-        // Build lookup dictionaries for O(1) matching
+        // Recently played
         let contentByVideoID = Dictionary(allContent.map { ($0.youtubeVideoID, $0) }, uniquingKeysWith: { first, _ in first })
         let contentByID = Dictionary(allContent.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-
         var seenVideoIDs = Set<String>()
         var uniqueContent: [Content] = []
-
         for session in sessions {
             if let videoID = session.youtubeVideoID {
                 if seenVideoIDs.insert(videoID).inserted,
@@ -284,8 +294,27 @@ struct HomeView: View {
                 }
             }
         }
+        cachedRecentlyPlayed = uniqueContent
 
-        return uniqueContent
+        // Continue listening
+        let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        if let unfinished = sessions.first(where: { session in
+            guard !session.wasCompleted, session.startedAt >= cutoff else { return false }
+            guard session.listenedSeconds >= 15 else { return false }
+            guard session.durationSeconds > 0 else { return false }
+            let progress = Double(session.listenedSeconds) / Double(session.durationSeconds)
+            return progress < 0.8
+        }) {
+            var content: Content?
+            if let videoID = unfinished.youtubeVideoID {
+                content = contentByVideoID[videoID]
+            } else if let contentID = unfinished.contentID {
+                content = contentByID[contentID]
+            }
+            cachedContinueListening = content.map { ($0, unfinished) }
+        } else {
+            cachedContinueListening = nil
+        }
     }
 
     // Track the content count the index was built from
@@ -384,12 +413,20 @@ struct HomeView: View {
             if filtered.isEmpty {
                 return deduplicateByNarrator(allContent.shuffled(), limit: Constants.Recommendations.maxResults)
             }
+            // If filtered has fewer items than needed, supplement with other content
+            if filtered.count < Constants.Recommendations.maxResults {
+                let filteredIDs = Set(filtered.map { $0.id })
+                let additional = allContent.filter { !filteredIDs.contains($0.id) }.shuffled()
+                let combined = filtered.shuffled() + additional
+                return deduplicateByNarrator(combined, limit: Constants.Recommendations.maxResults)
+            }
             return deduplicateByNarrator(filtered.shuffled(), limit: Constants.Recommendations.maxResults)
         }
 
         // Time-based recommendations when no mood is selected
         let recommendedTypes = currentTime.recommendedContentTypes
         let recommendedTags = currentTime.recommendedTags
+        let recommendedTagsLower = Set(recommendedTags.map { $0.lowercased() })
 
         // Pre-compute pain point tags once (screen 1)
         let painPointTags: Set<String>
@@ -450,7 +487,7 @@ struct HomeView: View {
             // Score for matching time-based tags
             for tag in content.tags {
                 let lowercasedTag = tag.lowercased()
-                if recommendedTags.contains(where: { lowercasedTag.contains($0.lowercased()) }) {
+                if recommendedTagsLower.contains(where: { lowercasedTag.contains($0) }) {
                     score += Constants.Recommendations.timeTagScore
                 }
             }
@@ -462,18 +499,57 @@ struct HomeView: View {
                 }
             }
 
+            // AI-powered personalization: Boost based on engagement patterns
+            let currentHour = Calendar.current.component(.hour, from: Date())
+            let currentMood = selectedMood?.rawValue
+            score += personalizationService.personalizedScoreBoost(
+                for: content,
+                currentHour: currentHour,
+                currentMood: currentMood
+            )
+
             return (content, score)
         }
 
         // Sort by score (highest first) and take top results with some randomization
         let sorted = scoredContent.sorted { $0.1 > $1.1 }
-        let topContent = sorted.prefix(Constants.Recommendations.poolSize).map { $0.0 }
 
-        return deduplicateByNarrator(topContent.shuffled(), limit: Constants.Recommendations.maxResults)
+        // Build a diverse pool: take top items but ensure multiple categories are represented.
+        // Group by category, take top items from each, then merge.
+        let groupedByCategory = Dictionary(grouping: sorted, by: { $0.0.contentType })
+        var diversePool: [(Content, Int)] = []
+
+        // First, take the top 2-3 from each category that has scored items
+        for (_, items) in groupedByCategory {
+            let topFromCategory = items.prefix(3)
+            diversePool.append(contentsOf: topFromCategory)
+        }
+
+        // Then supplement with overall top-scored items to fill the pool
+        let diverseIDs = Set(diversePool.map { $0.0.id })
+        let remaining = sorted.filter { !diverseIDs.contains($0.0.id) }
+        diversePool.append(contentsOf: remaining.prefix(max(0, Constants.Recommendations.poolSize - diversePool.count)))
+
+        // Sort the diverse pool by score so higher-scored items still get priority
+        diversePool.sort { $0.1 > $1.1 }
+
+        var poolSize = diversePool.count
+        var topContent = diversePool.map { $0.0 }
+        var result = deduplicateByNarrator(topContent.shuffled(), limit: Constants.Recommendations.maxResults)
+
+        // If we don't have enough results, expand from the full sorted list
+        while result.count < Constants.Recommendations.maxResults && poolSize < sorted.count {
+            poolSize = min(poolSize + 10, sorted.count)
+            topContent = Array(sorted.prefix(poolSize).map { $0.0 })
+            result = deduplicateByNarrator(topContent.shuffled(), limit: Constants.Recommendations.maxResults)
+        }
+
+        return result
     }
 
     /// Pick up to `limit` items, allowing at most one per narrator (YouTube channel)
     /// and at most two items per content category to ensure variety.
+    /// Enforces minimum category diversity: at least 3 distinct categories when possible.
     /// Never allows more than 2 consecutive items of the same category.
     private func deduplicateByNarrator(_ items: [Content], limit: Int) -> [Content] {
         var result: [Content] = []
@@ -482,9 +558,31 @@ struct HomeView: View {
         let maxPerCategory = 2
         var resultIDs: Set<UUID> = []
 
+        // Determine available distinct categories in the pool
+        let availableCategories = Set(items.map { $0.contentType })
+        let minDistinctCategories = min(availableCategories.count, max(3, limit / 2))
+
         // Pass 1: unique narrators + category cap (max 2 per category)
+        // First, ensure we pick at least one from each distinct category (up to minDistinctCategories)
+        var categoriesRepresented: Set<ContentType> = []
+        for item in items {
+            guard categoriesRepresented.count < minDistinctCategories else { break }
+            guard result.count < limit else { break }
+            // Skip categories we already have representation for
+            guard !categoriesRepresented.contains(item.contentType) else { continue }
+            if let narrator = item.narrator {
+                guard seenNarrators.insert(narrator).inserted else { continue }
+            }
+            categoryCounts[item.contentType] = 1
+            categoriesRepresented.insert(item.contentType)
+            result.append(item)
+            resultIDs.insert(item.id)
+        }
+
+        // Pass 2: fill remaining slots with unique narrators + category cap
         for item in items {
             guard result.count < limit else { break }
+            guard !resultIDs.contains(item.id) else { continue }
             if let narrator = item.narrator {
                 guard seenNarrators.insert(narrator).inserted else { continue }
             }
@@ -495,7 +593,7 @@ struct HomeView: View {
             resultIDs.insert(item.id)
         }
 
-        // Pass 2: if still under limit, allow duplicate narrators (still cap at 2 per category)
+        // Pass 3: if still under limit, allow duplicate narrators (still cap at 2 per category)
         if result.count < limit {
             for item in items {
                 guard result.count < limit else { break }
@@ -503,6 +601,16 @@ struct HomeView: View {
                 let count = categoryCounts[item.contentType, default: 0]
                 if count >= maxPerCategory { continue }
                 categoryCounts[item.contentType] = count + 1
+                result.append(item)
+                resultIDs.insert(item.id)
+            }
+        }
+
+        // Pass 4: if STILL under limit, remove category cap entirely to ensure we hit target
+        if result.count < limit {
+            for item in items {
+                guard result.count < limit else { break }
+                guard !resultIDs.contains(item.id) else { continue }
                 result.append(item)
                 resultIDs.insert(item.id)
             }
@@ -537,21 +645,54 @@ struct HomeView: View {
         return result
     }
 
+    /// Preload thumbnails for all visible home screen content
+    private func preloadVisibleThumbnails() {
+        // Collect all content that will be visible on the home screen
+        var urls: [URL] = []
+
+        // Continue listening
+        if let data = cachedContinueListening {
+            if let url = URL(string: data.content.thumbnailURLComputed) { urls.append(url) }
+        }
+
+        // Recommendations
+        for content in cachedRecommendations.prefix(6) {
+            if let url = URL(string: content.thumbnailURLComputed) { urls.append(url) }
+        }
+
+        // Daily mix
+        for content in dailyMix.prefix(6) {
+            if let url = URL(string: content.thumbnailURLComputed) { urls.append(url) }
+        }
+
+        // Recently played
+        for content in cachedRecentlyPlayed.prefix(6) {
+            if let url = URL(string: content.thumbnailURLComputed) { urls.append(url) }
+        }
+
+        guard !urls.isEmpty else { return }
+        Task.detached(priority: .userInitiated) {
+            await ImageCache.shared.preloadThumbnails(for: urls)
+        }
+    }
+
     /// Prefetch stream URLs for content the user is most likely to play next
     private func prefetchLikelyContent() {
+        // Capture data on main actor before detaching
+        let continueData = cachedContinueListening
+        let recentContent = Array(cachedRecentlyPlayed.prefix(3))
+
         Task.detached(priority: .utility) {
             var videoIDs: [String] = []
 
             // Continue listening is highest priority
-            await MainActor.run {
-                if let data = self.continueListeningData {
-                    videoIDs.append(data.content.youtubeVideoID)
-                }
-                // Recently played (top 3)
-                for content in self.recentlyPlayedContent.prefix(3) {
-                    if !videoIDs.contains(content.youtubeVideoID) {
-                        videoIDs.append(content.youtubeVideoID)
-                    }
+            if let data = continueData {
+                videoIDs.append(data.content.youtubeVideoID)
+            }
+            // Recently played (top 3)
+            for content in recentContent {
+                if !videoIDs.contains(content.youtubeVideoID) {
+                    videoIDs.append(content.youtubeVideoID)
                 }
             }
 
@@ -580,15 +721,52 @@ struct HomeView: View {
         }
     }
 
+    /// Generate a "For You" daily mix — a personalized playlist that changes once per day.
+    private func generateDailyMix() -> [Content] {
+        let todayKey = DateFormatter.localizedString(from: Date(), dateStyle: .short, timeStyle: .none)
+        if todayKey == HomeView.dailyMixDateKey, !HomeView.savedDailyMix.isEmpty {
+            return HomeView.savedDailyMix
+        }
+
+        let daySeed = Calendar.current.ordinality(of: .day, in: .era, for: Date()) ?? 0
+        var rng = SeededRandomNumberGenerator(seed: UInt64(daySeed))
+
+        let playedVideoIDs = Set(sessions.compactMap { $0.youtubeVideoID })
+        let favVideoIDs = cachedFavoriteVideoIDSet
+        let currentTime = timeOfDay
+
+        // Pre-compute pain point tags once (performance optimization)
+        let painPointTags: Set<String>? = userPainPoint.map { Set(tagsForPainPoint($0).map { $0.lowercased() }) }
+
+        var scored = allContent.map { content -> (Content, Int) in
+            var score = 0
+            if !playedVideoIDs.contains(content.youtubeVideoID) { score += 3 }
+            if currentTime.recommendedContentTypes.contains(content.contentType) { score += 2 }
+            if favVideoIDs.contains(content.youtubeVideoID) { score += 1 }
+            if let tags = painPointTags {
+                for tag in content.tags where tags.contains(tag.lowercased()) {
+                    score += 2; break
+                }
+            }
+            return (content, score)
+        }
+        scored.sort { $0.1 > $1.1 }
+        let pool = Array(scored.prefix(20).map { $0.0 }.shuffled(using: &rng))
+        let result = deduplicateByNarrator(pool, limit: 8)
+        HomeView.savedDailyMix = result
+        HomeView.dailyMixDateKey = todayKey
+        return result
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
                 Theme.profileGradient.ignoresSafeArea()
 
                 ScrollView {
-                    VStack(spacing: 24) {
+                    LazyVStack(spacing: 24) {
                         // Continue Listening (top priority)
-                        if let data = continueListeningData {
+                        if let data = cachedContinueListening {
                             ContinueListeningCard(
                                 content: data.content,
                                 session: data.session,
@@ -613,29 +791,38 @@ struct HomeView: View {
                             .frame(maxWidth: .infinity, alignment: .center)
 
                             if streakService.currentStreak > 0 {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "flame.fill")
-                                        .foregroundStyle(.orange)
-                                    Text("\(streakService.currentStreak) day streak")
-                                        .fontWeight(.semibold)
-                                    if let milestone = nextStreakMilestone {
-                                        Text("— \(milestone) to go!")
-                                            .foregroundStyle(.white.opacity(0.6))
-                                    } else {
-                                        Text("— \(streakService.streakMessage)")
-                                            .foregroundStyle(.white.opacity(0.6))
+                                Button {
+                                    HapticManager.light()
+                                    activeHomeSheet = .shareStreak
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "flame.fill")
+                                            .foregroundStyle(.orange)
+                                        Text("\(streakService.currentStreak) day streak")
+                                            .fontWeight(.semibold)
+                                        if let milestone = nextStreakMilestone {
+                                            Text("— \(milestone) to go!")
+                                                .foregroundStyle(.white.opacity(0.6))
+                                        } else {
+                                            Text("— \(streakService.streakMessage)")
+                                                .foregroundStyle(.white.opacity(0.6))
+                                        }
+                                        Image(systemName: "square.and.arrow.up")
+                                            .font(.caption2)
+                                            .foregroundStyle(.white.opacity(0.4))
                                     }
+                                    .font(.caption)
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 6)
+                                    .background(Color.orange.opacity(0.15))
+                                    .clipShape(Capsule())
                                 }
-                                .font(.caption)
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 6)
-                                .background(Color.orange.opacity(0.15))
-                                .clipShape(Capsule())
+                                .buttonStyle(.plain)
                             }
                         }
                         .padding(.horizontal)
-                        .padding(.top, continueListeningData == nil ? 8 : 0)
+                        .padding(.top, cachedContinueListening == nil ? 8 : 0)
 
                         // Mood Selector
                         MoodSelectorView(selectedMood: $selectedMood)
@@ -686,16 +873,67 @@ struct HomeView: View {
                                     isFavorite: isFavorite(content),
                                     onTap: { playContent(content, from: cachedRecommendations) },
                                     onFavorite: { toggleFavorite(content) },
-                                    onAddToPlaylist: { contentForPlaylistAdd = content },
+                                    onAddToPlaylist: { activeHomeSheet = .addToPlaylist(content) },
                                     onShare: { shareContent(content) },
-                                    onMore: { showActionSheet(for: content) }
+                                    onMore: { showActionSheet(for: content) },
+                                    recommendationReason: personalizationService.hasEnoughDataForPersonalization
+                                        ? personalizationService.recommendationReason(for: content)
+                                        : nil
                                 )
                             }
                         }
                     }
 
+                    // Daily Mix Section
+                    if !dailyMix.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "sparkles")
+                                    .foregroundStyle(.purple)
+                                Text("Your Daily Mix")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(Theme.textPrimary)
+                                Spacer()
+                                Button {
+                                    guard let first = dailyMix.first else { return }
+                                    playContent(first, from: dailyMix)
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "play.fill")
+                                        Text("Play All")
+                                    }
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(Theme.profileAccent)
+                                    .clipShape(Capsule())
+                                }
+                            }
+                            .padding(.horizontal)
+
+                            Text("\(dailyMix.count) tracks curated for you today")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.5))
+                                .padding(.horizontal)
+                                .padding(.top, -8)
+
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(alignment: .top, spacing: 16) {
+                                    ForEach(dailyMix) { content in
+                                        RecentlyPlayedCard(content: content) {
+                                            playContent(content, from: dailyMix)
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal)
+                            }
+                        }
+                    }
+
                     // Recently Played Section (only shows if user has played content)
-                    if !recentlyPlayedContent.isEmpty {
+                    if !cachedRecentlyPlayed.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Text("Recently Played")
@@ -705,11 +943,11 @@ struct HomeView: View {
 
                                 Spacer()
 
-                                if recentlyPlayedContent.count > 3 {
+                                if cachedRecentlyPlayed.count > 3 {
                                     Button {
-                                        showingRecentlyPlayedList = true
+                                        activeHomeSheet = .recentlyPlayed
                                     } label: {
-                                        Text("See All (\(recentlyPlayedContent.count))")
+                                        Text("See All (\(cachedRecentlyPlayed.count))")
                                             .font(.subheadline)
                                             .foregroundStyle(.white.opacity(0.7))
                                     }
@@ -719,9 +957,9 @@ struct HomeView: View {
 
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(alignment: .top, spacing: 16) {
-                                    ForEach(recentlyPlayedContent.prefix(6)) { content in
+                                    ForEach(cachedRecentlyPlayed.prefix(6)) { content in
                                         RecentlyPlayedCard(content: content) {
-                                            playContent(content, from: Array(recentlyPlayedContent))
+                                            playContent(content, from: Array(cachedRecentlyPlayed))
                                         }
                                     }
                                 }
@@ -731,18 +969,18 @@ struct HomeView: View {
                     }
 
                     // Favorites Section (hidden if empty)
-                    if !favoriteContents.isEmpty {
+                    if !cachedFavoriteContents.isEmpty {
                         favoritesSection
                     }
 
                     // Playlists Section (hidden if no playlists have items)
-                    if !playlistItems.isEmpty && playlists.contains(where: { playlistItemsByID[$0.id] != nil }) {
+                    if !playlistItems.isEmpty && playlists.contains(where: { cachedPlaylistItemsByID[$0.id] != nil }) {
                         playlistsSection
                     }
 
                     // Unguided Timer Card
                     UnguidedTimerCard {
-                        showingTimer = true
+                        activeHomeSheet = .unguidedTimer
                     }
                     .padding(.horizontal)
 
@@ -755,47 +993,77 @@ struct HomeView: View {
                 .safeAreaPadding(.top)
             }
             .toolbar(.hidden, for: .navigationBar)
-            .fullScreenCover(item: $selectedContent) { content in
-                MeditationPlayerView(content: content)
+            .sheet(item: $activeHomeSheet) { sheet in
+                switch sheet {
+                case .sessionLimit:
+                    PremiumPaywallView(
+                        storeManager: StoreManager.shared,
+                        sessionLimitMessage: "This is a premium meditation. Subscribe to unlock the full library.",
+                        onSubscribed: { activeHomeSheet = nil }
+                    )
+                case .unguidedTimer:
+                    UnguidedTimerView()
+                case .playlist(let playlist):
+                    PlaylistDetailView(playlist: playlist)
+                case .recentlyPlayed:
+                    RecentlyPlayedListView(
+                        recentlyPlayed: cachedRecentlyPlayed,
+                        onContentTap: { content in
+                            activeHomeSheet = nil
+                            playContent(content, from: Array(cachedRecentlyPlayed))
+                        }
+                    )
+                case .addToPlaylist(let content):
+                    AddToPlaylistSheet(content: content)
+                case .shareStreak:
+                    ShareableCardSheet(cardType: .streak(days: streakService.currentStreak))
+                }
             }
             .refreshable {
                 refreshRecommendations(showLoading: true)
                 // Small delay so the pull indicator feels responsive
                 try? await Task.sleep(nanoseconds: 500_000_000)
             }
-            .sheet(isPresented: $showingTimer) {
-                UnguidedTimerView()
-            }
-            .sheet(item: $selectedPlaylist) { playlist in
-                PlaylistDetailView(playlist: playlist)
-            }
-            .sheet(isPresented: $showingRecentlyPlayedList) {
-                RecentlyPlayedListView(
-                    recentlyPlayed: recentlyPlayedContent,
-                    onContentTap: { content in
-                        showingRecentlyPlayedList = false
-                        playContent(content, from: Array(recentlyPlayedContent))
-                    }
-                )
-            }
-            .sheet(item: $contentForPlaylistAdd) { content in
-                AddToPlaylistSheet(content: content)
-            }
             .onAppear {
+                recomputeDerivedState()
+
+                // Analyze user engagement patterns for personalization
+                personalizationService.analyzeEngagement(sessions: sessions, allContent: allContent)
+
                 if cachedRecommendations.isEmpty {
                     refreshRecommendations()
                 }
-                // Prefetch stream URLs for content the user is most likely to tap
+                if dailyMix.isEmpty && !allContent.isEmpty {
+                    dailyMix = generateDailyMix()
+                }
                 prefetchLikelyContent()
+            }
+            .task {
+                preloadVisibleThumbnails()
+            }
+            .onDisappear {
+                recommendationTask?.cancel()
             }
             .onChange(of: selectedMood) { _, _ in
                 refreshRecommendations(showLoading: true)
             }
             .onChange(of: allContent.count) { _, _ in
-                // Refresh when content loads
+                recomputeDerivedState()
                 if cachedRecommendations.isEmpty {
                     refreshRecommendations()
                 }
+                if dailyMix.isEmpty && !allContent.isEmpty {
+                    dailyMix = generateDailyMix()
+                }
+            }
+            .onChange(of: favorites.count) { _, _ in
+                recomputeDerivedState()
+            }
+            .onChange(of: sessions.count) { _, _ in
+                recomputeDerivedState()
+            }
+            .onChange(of: playlistItems.count) { _, _ in
+                cachedPlaylistItemsByID = Dictionary(grouping: playlistItems, by: \.playlistID)
             }
         }
     }
@@ -816,9 +1084,9 @@ struct HomeView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 16) {
-                    ForEach(favoriteContents.prefix(6)) { content in
+                    ForEach(cachedFavoriteContents.prefix(6)) { content in
                         RecentlyPlayedCard(content: content) {
-                            playContent(content, from: Array(favoriteContents))
+                            playContent(content, from: Array(cachedFavoriteContents))
                         }
                         .contextMenu {
                             Button(role: .destructive) {
@@ -830,13 +1098,13 @@ struct HomeView: View {
                             }
 
                             Button {
-                                contentForPlaylistAdd = content
+                                activeHomeSheet = .addToPlaylist(content)
                             } label: {
                                 Label("Add to Playlist", systemImage: "text.badge.plus")
                             }
 
                             ShareLink(
-                                item: URL(string: "meditation://content/\(content.youtubeVideoID)")!,
+                                item: content.deepLinkURL,
                                 subject: Text(content.title),
                                 message: Text("Check out '\(content.title)' on Meditation Sleep Mindset!")
                             ) {
@@ -852,13 +1120,8 @@ struct HomeView: View {
 
     // MARK: - Playlists Section
 
-    /// Pre-compute playlist items grouped by playlist ID to avoid repeated filtering
-    private var playlistItemsByID: [UUID: [PlaylistItem]] {
-        Dictionary(grouping: playlistItems, by: \.playlistID)
-    }
-
     private var playlistsSection: some View {
-        let itemsByID = playlistItemsByID
+        let itemsByID = cachedPlaylistItemsByID
         return VStack(alignment: .leading, spacing: 12) {
             Text("Playlists")
                 .font(.title2)
@@ -874,7 +1137,7 @@ struct HomeView: View {
                             playlist: playlist,
                             itemCount: items.count,
                             thumbnailURLs: items.prefix(4).map(\.thumbnailURL),
-                            onTap: { selectedPlaylist = playlist },
+                            onTap: { activeHomeSheet = .playlist(playlist) },
                             onDelete: {
                                 withAnimation {
                                     modelContext.delete(playlist)
@@ -889,16 +1152,8 @@ struct HomeView: View {
         }
     }
 
-    /// Pre-computed set of favorite IDs and video IDs for O(1) lookups
-    private var favoriteIDSet: Set<UUID> {
-        Set(favorites.map { $0.contentID })
-    }
-    private var favoriteVideoIDSet: Set<String> {
-        Set(favorites.compactMap { $0.youtubeVideoID })
-    }
-
     private func isFavorite(_ content: Content) -> Bool {
-        favoriteIDSet.contains(content.id) || favoriteVideoIDSet.contains(content.youtubeVideoID)
+        cachedFavoriteIDSet.contains(content.id) || cachedFavoriteVideoIDSet.contains(content.youtubeVideoID)
     }
 
     private func toggleFavorite(_ content: Content) {
@@ -930,17 +1185,23 @@ struct HomeView: View {
             content: content,
             isFavorite: isFavorite(content),
             onToggleFavorite: { toggleFavorite(content) },
-            onAddToPlaylist: { contentForPlaylistAdd = content },
+            onAddToPlaylist: { activeHomeSheet = .addToPlaylist(content) },
             onShare: { shareContent(content) }
         )
     }
 
     /// Play content with a queue context so auto-play works
     private func playContent(_ content: Content, from queue: [Content]) {
+        if !StoreManager.shared.isSubscribed && AppStateManager.shared.hasReachedFreeSessionLimit {
+            activeHomeSheet = .sessionLimit
+            return
+        }
         let startIndex = queue.firstIndex(where: { $0.id == content.id }) ?? 0
-        AudioPlayerManager.shared.queue = queue
-        AudioPlayerManager.shared.currentIndex = startIndex
-        selectedContent = content
+        let manager = AudioPlayerManager.shared
+        manager.queue = queue
+        manager.currentIndex = startIndex
+        manager.currentContent = content
+        manager.shouldPresentPlayer = true
     }
 
     private func shareContent(_ content: Content) {
@@ -950,6 +1211,13 @@ struct HomeView: View {
 
 struct MoodSelectorView: View {
     @Binding var selectedMood: Mood?
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    // Adaptive sizing for iPad
+    private var emojiFont: Font { sizeClass == .regular ? .largeTitle : .title }
+    private var captionFont: Font { sizeClass == .regular ? .subheadline : .caption }
+    private var horizontalPadding: CGFloat { sizeClass == .regular ? 24 : 16 }
+    private var verticalPadding: CGFloat { sizeClass == .regular ? 16 : 12 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -959,7 +1227,7 @@ struct MoodSelectorView: View {
                 .padding(.horizontal)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
+                HStack(spacing: sizeClass == .regular ? 16 : 12) {
                     ForEach(Mood.allCases) { mood in
                         Button {
                             HapticManager.selection()
@@ -967,16 +1235,16 @@ struct MoodSelectorView: View {
                                 selectedMood = selectedMood == mood ? nil : mood
                             }
                         } label: {
-                            VStack(spacing: 4) {
+                            VStack(spacing: sizeClass == .regular ? 6 : 4) {
                                 Text(mood.emoji)
-                                    .font(.title)
+                                    .font(emojiFont)
 
-                                Text(mood.rawValue)
-                                    .font(.caption)
+                                Text(mood.displayName)
+                                    .font(captionFont)
                                     .foregroundStyle(selectedMood == mood ? .white : Theme.textPrimary)
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
+                            .padding(.horizontal, horizontalPadding)
+                            .padding(.vertical, verticalPadding)
                             .background(
                                 selectedMood == mood
                                     ? Color.white.opacity(0.25)
@@ -1001,6 +1269,13 @@ struct ContentCardView: View {
     var onAddToPlaylist: (() -> Void)? = nil
     var onShare: () -> Void
     var onMore: () -> Void = {}
+    var recommendationReason: String? = nil
+
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    // Adaptive thumbnail size for iPad
+    private var thumbnailWidth: CGFloat { sizeClass == .regular ? 140 : 100 }
+    private var thumbnailHeight: CGFloat { sizeClass == .regular ? 100 : 70 }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -1026,24 +1301,26 @@ struct ContentCardView: View {
                             )
                     }
                 )
-                .frame(width: 100, height: 70)
+                .frame(width: thumbnailWidth, height: thumbnailHeight)
                 .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
                 // Content Info
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Text(content.contentType.rawValue)
+                        Text(content.contentType.displayName)
                             .font(.caption)
                             .fontWeight(.medium)
                             .foregroundStyle(.white.opacity(0.7))
 
-                        Text("•")
-                            .foregroundStyle(Theme.textTertiary)
+                        if !content.durationFormatted.isEmpty {
+                            Text("•")
+                                .foregroundStyle(Theme.textTertiary)
 
-                        Text(content.durationFormatted)
-                            .font(.caption)
-                            .foregroundStyle(Theme.textSecondary)
+                            Text(content.durationFormatted)
+                                .font(.caption)
+                                .foregroundStyle(Theme.textSecondary)
+                        }
                     }
 
                     Text(content.title)
@@ -1056,6 +1333,18 @@ struct ContentCardView: View {
                             .font(.subheadline)
                             .foregroundStyle(Theme.textSecondary)
                             .lineLimit(1)
+                    }
+
+                    // Personalized recommendation reason
+                    if let reason = recommendationReason {
+                        HStack(spacing: 4) {
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 9))
+                            Text(reason)
+                                .font(.caption2)
+                        }
+                        .foregroundStyle(.purple.opacity(0.9))
+                        .lineLimit(1)
                     }
                 }
 
@@ -1177,6 +1466,8 @@ struct RecentlyPlayedListView: View {
                         }
                     }
                     .padding(.vertical)
+                    .frame(maxWidth: 700)
+                    .frame(maxWidth: .infinity)
                 }
             }
             .navigationTitle("Recently Played")
@@ -1199,10 +1490,15 @@ struct RecentlyPlayedListView: View {
 struct RecentlyPlayedListRow: View {
     let content: Content
     let onTap: () -> Void
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    // Adaptive sizing for iPad
+    private var thumbWidth: CGFloat { sizeClass == .regular ? 110 : 80 }
+    private var thumbHeight: CGFloat { sizeClass == .regular ? 75 : 55 }
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 12) {
+            HStack(spacing: sizeClass == .regular ? 16 : 12) {
                 // Thumbnail
                 CachedAsyncImage(
                     url: URL(string: content.thumbnailURLComputed),
@@ -1223,7 +1519,7 @@ struct RecentlyPlayedListRow: View {
                             )
                     }
                 )
-                .frame(width: 80, height: 55)
+                .frame(width: thumbWidth, height: thumbHeight)
                 .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 
@@ -1240,13 +1536,15 @@ struct RecentlyPlayedListRow: View {
                             .font(.caption)
                             .foregroundStyle(.white.opacity(0.7))
 
-                        Text("•")
-                            .font(.caption)
-                            .foregroundStyle(Theme.textTertiary)
+                        if !content.durationFormatted.isEmpty {
+                            Text("•")
+                                .font(.caption)
+                                .foregroundStyle(Theme.textTertiary)
 
-                        Text(content.durationFormatted)
-                            .font(.caption)
-                            .foregroundStyle(Theme.textSecondary)
+                            Text(content.durationFormatted)
+                                .font(.caption)
+                                .foregroundStyle(Theme.textSecondary)
+                        }
                     }
                 }
 
@@ -1268,13 +1566,18 @@ struct RecentlyPlayedListRow: View {
 // MARK: - Loading Card (Skeleton)
 struct RecommendationLoadingCard: View {
     @State private var isAnimating = false
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    // Adaptive thumbnail size for iPad
+    private var thumbnailWidth: CGFloat { sizeClass == .regular ? 140 : 100 }
+    private var thumbnailHeight: CGFloat { sizeClass == .regular ? 100 : 70 }
 
     var body: some View {
         HStack(spacing: 12) {
             // Thumbnail skeleton
             RoundedRectangle(cornerRadius: 8)
                 .fill(Color.white.opacity(0.1))
-                .frame(width: 100, height: 70)
+                .frame(width: thumbnailWidth, height: thumbnailHeight)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
                         .fill(
@@ -1322,10 +1625,15 @@ struct ContinueListeningCard: View {
     let content: Content
     let session: MeditationSession
     let onTap: () -> Void
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    // Adaptive sizing for iPad
+    private var thumbnailSize: CGFloat { sizeClass == .regular ? 90 : 72 }
+    private var playIconFont: Font { sizeClass == .regular ? .title : .title2 }
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 14) {
+            HStack(spacing: sizeClass == .regular ? 18 : 14) {
                 // Thumbnail
                 ZStack(alignment: .center) {
                     CachedAsyncImage(
@@ -1341,12 +1649,12 @@ struct ContinueListeningCard: View {
                             Rectangle().fill(Theme.cardBackground)
                         }
                     )
-                    .frame(width: 72, height: 72)
+                    .frame(width: thumbnailSize, height: thumbnailSize)
                     .clipped()
                     .clipShape(RoundedRectangle(cornerRadius: 12))
 
                     Image(systemName: "play.circle.fill")
-                        .font(.title2)
+                        .font(playIconFont)
                         .foregroundStyle(.white)
                         .shadow(radius: 3)
                 }

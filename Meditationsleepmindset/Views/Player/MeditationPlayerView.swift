@@ -13,19 +13,23 @@ struct MeditationPlayerView: View {
 
     @Environment(\.dismiss) var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @Query private var favorites: [FavoriteContent]
     @StateObject private var playerManager = AudioPlayerManager.shared
     @StateObject private var storeManager = StoreManager.shared
-    @ObservedObject private var themeManager = ThemeManager.shared
-    @ObservedObject private var appStateManager = AppStateManager.shared
+    @StateObject private var themeManager = ThemeManager.shared
+    @StateObject private var appStateManager = AppStateManager.shared
     @State private var showSleepTimer = false
     @State private var showAddToPlaylist = false
     @State private var showSpeedSelector = false
+    @State private var showSoundscapeMixer = false
     @State private var isVideoMode = true
     @State private var hasRecordedSession = false
     @State private var showPaywall = false
     @State private var hasCheckedSubscription = false
     @State private var showPostSessionReflection = false
+    @State private var showBiometricSummary = false
+    @State private var biometricData: BiometricSessionData?
     @State private var isPreviewMode = false
     @State private var previewTimer: Task<Void, Never>?
 
@@ -48,6 +52,9 @@ struct MeditationPlayerView: View {
 
     // Swipe to dismiss state
     @State private var dragOffset: CGFloat = 0
+
+    // iPad detection
+    private var isRegular: Bool { sizeClass == .regular }
 
     // Theme convenience
     private var theme: PlayerTheme { themeManager.currentTheme }
@@ -128,7 +135,7 @@ struct MeditationPlayerView: View {
                         // Up Next indicator
                         if let nextTitle = playerManager.nextTrackTitle {
                             Text("Up next: \(nextTitle)")
-                                .font(.caption)
+                                .font(isRegular ? .subheadline : .caption)
                                 .foregroundStyle(.white.opacity(0.45))
                                 .lineLimit(1)
                                 .padding(.horizontal, 24)
@@ -137,9 +144,16 @@ struct MeditationPlayerView: View {
 
                         Spacer().frame(height: 50)
                     }
+                    .frame(maxWidth: isRegular ? 600 : .infinity)
                 }
                 // Toast overlay for fullScreenCover context
                 ToastOverlay()
+
+                // Badge celebration overlay
+                BadgeCelebrationOverlay(badgeService: BadgeService.shared)
+
+                // Challenge celebration overlay
+                ChallengeCelebrationOverlay(challengeService: ChallengeService.shared)
             }
             .offset(y: dragOffset)
             .scaleEffect(dragOffset > 0 ? 1 - (dragOffset / geometry.size.height) * 0.15 : 1)
@@ -181,6 +195,9 @@ struct MeditationPlayerView: View {
         .sheet(isPresented: $showAddToPlaylist) {
             AddToPlaylistSheet(content: displayedContent)
         }
+        .sheet(isPresented: $showSoundscapeMixer) {
+            SoundscapeMixerView()
+        }
         .sheet(isPresented: $showSpeedSelector) {
             SpeedSelectorView(
                 currentSpeed: playerManager.playbackRate,
@@ -189,8 +206,20 @@ struct MeditationPlayerView: View {
                 }
             )
         }
-        .sheet(isPresented: $showPostSessionReflection) {
+        .sheet(isPresented: $showPostSessionReflection, onDismiss: {
+            // Show biometric summary after reflection is dismissed, if data is available
+            if biometricData != nil {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    showBiometricSummary = true
+                }
+            }
+        }) {
             PostSessionReflectionView(content: displayedContent)
+        }
+        .sheet(isPresented: $showBiometricSummary) {
+            if let data = biometricData {
+                BiometricSummaryCard(biometricData: data)
+            }
         }
         .fullScreenCover(isPresented: $showPaywall) {
             SessionPaywallView {
@@ -234,9 +263,11 @@ struct MeditationPlayerView: View {
         }
         .onDisappear {
             previewTimer?.cancel()
+            controlsHideTask?.cancel()
             AppDelegate.allowLandscape = false
-            // Force back to portrait when leaving player
-            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+            // Force back to portrait when leaving player (iPhone only — iPad supports all orientations)
+            if UIDevice.current.userInterfaceIdiom != .pad,
+               let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
                 windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
             }
             // Record session when player closes (if user listened enough)
@@ -279,14 +310,12 @@ struct MeditationPlayerView: View {
             if isPremium {
                 loadContent()
             } else if content.isPremium {
-                // Free user tapped premium content — allow 30-second preview
+                // Free user tapped premium content — allow 2-minute preview
                 isPreviewMode = true
                 loadContent()
                 startPreviewTimer()
-            } else if appStateManager.hasReachedFreeSessionLimit {
-                showPaywall = true
             } else {
-                appStateManager.recordFreeSessionUsed()
+                // Non-premium content is free for all users
                 loadContent()
             }
         }
@@ -294,26 +323,50 @@ struct MeditationPlayerView: View {
 
     // MARK: - Navigation Bar
     private var navigationBar: some View {
-        HStack {
+        let btnSize: CGFloat = isRegular ? 44 : 36
+
+        return HStack {
             // Minimize button
             Button {
                 dismiss()
             } label: {
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: isRegular ? 18 : 16, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.7))
-                    .frame(width: 36, height: 36)
+                    .frame(width: btnSize, height: btnSize)
                     .background(Color.white.opacity(0.1))
                     .clipShape(Circle())
             }
 
             Spacer()
 
-            // AirPlay
-            AirPlayButton()
-                .frame(width: 36, height: 36)
+            // More menu (Speed, Sounds, Share)
+            Menu {
+                Button {
+                    showSpeedSelector = true
+                } label: {
+                    Label(playerManager.playbackRate != 1.0 ? String(format: "Speed (%.1fx)", playerManager.playbackRate) : "Playback Speed", systemImage: "gauge.with.dots.needle.33percent")
+                }
+                Button {
+                    showSoundscapeMixer = true
+                } label: {
+                    Label("Ambient Sounds", systemImage: "waveform")
+                }
+                Button {
+                    shareContent()
+                } label: {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: isRegular ? 18 : 16, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .frame(width: btnSize, height: btnSize)
+                    .background(Color.white.opacity(0.1))
+                    .clipShape(Circle())
+            }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, isRegular ? 24 : 16)
         .padding(.top, 12)
     }
 
@@ -396,7 +449,7 @@ struct MeditationPlayerView: View {
                             .aspectRatio(1, contentMode: .fit)
                     }
                 )
-                .frame(maxWidth: 280)
+                .frame(maxWidth: isRegular ? 400 : 280)
                 .padding(.vertical, 20)
 
                 // Error overlay for audio-only mode
@@ -575,10 +628,10 @@ struct MeditationPlayerView: View {
 
     // MARK: - Content Info Section
     private var contentInfoSection: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: isRegular ? 10 : 6) {
             // Title
             Text(displayedContent.title)
-                .font(.title2)
+                .font(isRegular ? .title : .title2)
                 .fontWeight(.bold)
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
@@ -590,14 +643,18 @@ struct MeditationPlayerView: View {
                     Text(narrator)
                         .foregroundStyle(.white.opacity(0.6))
                 }
-                if displayedContent.narrator != nil {
-                    Text("·")
-                        .foregroundStyle(.white.opacity(0.4))
+
+                let durationText = playerManager.duration > 0 ? formatDuration(playerManager.duration) : displayedContent.durationFormatted
+                if !durationText.isEmpty {
+                    if displayedContent.narrator != nil {
+                        Text("·")
+                            .foregroundStyle(.white.opacity(0.4))
+                    }
+                    Text(durationText)
+                        .foregroundStyle(.white.opacity(0.6))
                 }
-                Text(playerManager.duration > 0 ? formatDuration(playerManager.duration) : displayedContent.durationFormatted)
-                    .foregroundStyle(.white.opacity(0.6))
             }
-            .font(.subheadline)
+            .font(isRegular ? .body : .subheadline)
 
         }
     }
@@ -613,7 +670,7 @@ struct MeditationPlayerView: View {
                     .transition(.opacity)
             }
 
-            HStack(spacing: 20) {
+            HStack(spacing: isRegular ? 36 : 24) {
                 // Favorite
                 actionButton(icon: isFavorite ? "heart.fill" : "heart",
                              label: "Favorite",
@@ -623,20 +680,20 @@ struct MeditationPlayerView: View {
                 }
                 .animation(.spring(response: 0.3), value: isFavorite)
 
+                // Playlist
+                actionButton(icon: "text.badge.plus",
+                             label: "Playlist",
+                             active: false) {
+                    impactLight.impactOccurred()
+                    showAddToPlaylist = true
+                }
+
                 // Sleep Timer
                 actionButton(icon: "timer",
                              label: "Timer",
                              active: playerManager.sleepTimerRemaining != nil) {
                     impactLight.impactOccurred()
                     showSleepTimer = true
-                }
-
-                // Playback Speed
-                actionButton(icon: "gauge.with.dots.needle.33percent",
-                             label: playerManager.playbackRate != 1.0 ? String(format: "%.1fx", playerManager.playbackRate) : "Speed",
-                             active: playerManager.playbackRate != 1.0) {
-                    impactLight.impactOccurred()
-                    showSpeedSelector = true
                 }
 
                 // Repeat
@@ -648,32 +705,6 @@ struct MeditationPlayerView: View {
                         playerManager.repeatMode = playerManager.repeatMode.next
                     }
                 }
-
-                // More (playlist + share)
-                Menu {
-                    Button {
-                        showAddToPlaylist = true
-                    } label: {
-                        Label("Add to Playlist", systemImage: "text.badge.plus")
-                    }
-                    Button {
-                        shareContent()
-                    } label: {
-                        Label("Share", systemImage: "square.and.arrow.up")
-                    }
-                } label: {
-                    VStack(spacing: 4) {
-                        Image(systemName: "ellipsis")
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(.white.opacity(0.8))
-                            .frame(width: 40, height: 40)
-                            .background(Color.white.opacity(0.1))
-                            .clipShape(Circle())
-                        Text("More")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.white.opacity(0.5))
-                    }
-                }
             }
         }
         .padding(.horizontal, 24)
@@ -681,16 +712,16 @@ struct MeditationPlayerView: View {
 
     private func actionButton(icon: String, label: String, active: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 4) {
+            VStack(spacing: isRegular ? 6 : 4) {
                 Image(systemName: icon)
-                    .font(.body.weight(.semibold))
+                    .font(isRegular ? .title3.weight(.semibold) : .body.weight(.semibold))
                     .foregroundStyle(active ? theme.accentColor : .white.opacity(0.8))
-                    .frame(width: 40, height: 40)
+                    .frame(width: isRegular ? 56 : 40, height: isRegular ? 56 : 40)
                     .background(active ? theme.accentColor.opacity(0.15) : Color.white.opacity(0.1))
                     .clipShape(Circle())
 
                 Text(label)
-                    .font(.system(size: 10))
+                    .font(.system(size: isRegular ? 13 : 10))
                     .foregroundStyle(active ? theme.accentColor : .white.opacity(0.5))
             }
         }
@@ -743,30 +774,30 @@ struct MeditationPlayerView: View {
                 // Time labels
                 HStack {
                     Text(formatTime(playerManager.currentTime))
-                        .font(.subheadline)
+                        .font(isRegular ? .body : .subheadline)
                         .foregroundStyle(.white.opacity(0.6))
                         .monospacedDigit()
 
                     Spacer()
 
                     Text(formatTime(playerManager.duration))
-                        .font(.subheadline)
+                        .font(isRegular ? .body : .subheadline)
                         .foregroundStyle(.white.opacity(0.6))
                         .monospacedDigit()
                 }
             }
 
             // Playback controls with skip and next/prev buttons
-            HStack(spacing: 24) {
+            HStack(spacing: isRegular ? 36 : 24) {
                 // Previous track
                 Button {
                     impactLight.impactOccurred()
                     playerManager.playPrevious()
                 } label: {
                     Image(systemName: "backward.end.fill")
-                        .font(.title2)
+                        .font(isRegular ? .title : .title2)
                         .foregroundStyle(.white.opacity(0.8))
-                        .frame(width: 44, height: 44)
+                        .frame(width: isRegular ? 56 : 44, height: isRegular ? 56 : 44)
                 }
 
                 // Skip backward 15 seconds
@@ -775,9 +806,9 @@ struct MeditationPlayerView: View {
                     playerManager.skipBackward(seconds: 15)
                 } label: {
                     Image(systemName: "gobackward.15")
-                        .font(.title)
+                        .font(isRegular ? .largeTitle : .title)
                         .foregroundStyle(.white.opacity(0.8))
-                        .frame(width: 50, height: 50)
+                        .frame(width: isRegular ? 64 : 50, height: isRegular ? 64 : 50)
                 }
 
                 // Play/Pause button
@@ -788,14 +819,14 @@ struct MeditationPlayerView: View {
                     ZStack {
                         Circle()
                             .fill(.white)
-                            .frame(width: 72, height: 72)
+                            .frame(width: isRegular ? 92 : 72, height: isRegular ? 92 : 72)
 
                         if playerManager.isLoading {
                             VStack(spacing: 2) {
                                 ProgressView()
                                     .tint(.black)
                                 Text("Loading")
-                                    .font(.system(size: 8, weight: .medium))
+                                    .font(.system(size: isRegular ? 10 : 8, weight: .medium))
                                     .foregroundStyle(.black.opacity(0.6))
                             }
                         } else if playerManager.isBuffering {
@@ -803,12 +834,12 @@ struct MeditationPlayerView: View {
                                 ProgressView()
                                     .tint(.black)
                                 Text("Buffering")
-                                    .font(.system(size: 8, weight: .medium))
+                                    .font(.system(size: isRegular ? 10 : 8, weight: .medium))
                                     .foregroundStyle(.black.opacity(0.6))
                             }
                         } else {
                             Image(systemName: playerManager.isPlaying ? "pause.fill" : "play.fill")
-                                .font(.title)
+                                .font(isRegular ? .largeTitle : .title)
                                 .foregroundStyle(.black)
                                 .offset(x: playerManager.isPlaying ? 0 : 2)
                         }
@@ -821,9 +852,9 @@ struct MeditationPlayerView: View {
                     playerManager.skipForward(seconds: 15)
                 } label: {
                     Image(systemName: "goforward.15")
-                        .font(.title)
+                        .font(isRegular ? .largeTitle : .title)
                         .foregroundStyle(.white.opacity(0.8))
-                        .frame(width: 50, height: 50)
+                        .frame(width: isRegular ? 64 : 50, height: isRegular ? 64 : 50)
                 }
 
                 // Next track
@@ -832,9 +863,9 @@ struct MeditationPlayerView: View {
                     playerManager.playNext()
                 } label: {
                     Image(systemName: "forward.end.fill")
-                        .font(.title2)
+                        .font(isRegular ? .title : .title2)
                         .foregroundStyle(.white.opacity(0.8))
-                        .frame(width: 44, height: 44)
+                        .frame(width: isRegular ? 56 : 44, height: isRegular ? 56 : 44)
                 }
             }
         }
@@ -931,11 +962,12 @@ struct MeditationPlayerView: View {
 
     private func retryLoadContent() {
         let retryContent = displayedContent
-        // Clear stale stream cache for this video so we get a fresh extraction
-        YouTubeService.shared.evictCacheEntry(for: retryContent.youtubeVideoID)
         playerManager.error = nil
         playerManager.contentUnavailable = false
         Task {
+            // Clear stale stream cache for this video so we get a fresh extraction
+            await MediaStreamService.shared.evictCacheEntry(for: retryContent.youtubeVideoID)
+            await VideoCache.shared.evictCacheEntry(for: retryContent.youtubeVideoID)
             await playerManager.loadContent(retryContent, videoMode: isVideoMode)
             playerManager.play()
         }
@@ -944,7 +976,7 @@ struct MeditationPlayerView: View {
     // MARK: - Helper Methods
     private func loadContent() {
         // Skip if same content is already loaded and ready, or currently loading
-        if playerManager.currentContent?.id == content.id {
+        if playerManager.loadedVideoID == content.youtubeVideoID {
             if playerManager.isLoading { return }
             if playerManager.player != nil {
                 if !playerManager.isPlaying { playerManager.play() }
@@ -1064,12 +1096,58 @@ struct MeditationPlayerView: View {
                 }
             }
 
+            // Record session time for badge tracking (morning/night/weekend)
+            BadgeService.shared.recordSessionTime()
+
+            // Check for newly earned badges
+            BadgeService.shared.checkBadges(
+                context: modelContext,
+                streakService: StreakService.shared,
+                currentContentType: currentlyDisplayed.contentType
+            )
+
+            // Update challenge progress
+            ChallengeService.shared.recordSession(
+                contentType: currentlyDisplayed.contentType,
+                durationMinutes: actualListenedSeconds / 60,
+                context: modelContext,
+                streakService: StreakService.shared
+            )
+
             // Write to Apple Health if enabled
             if HealthKitService.shared.isEnabled {
                 let end = Date()
                 let start = end.addingTimeInterval(-Double(actualListenedSeconds))
                 Task {
                     await HealthKitService.shared.writeMindfulMinutes(start: start, end: end)
+                }
+
+                // For sleep content, capture biometric data
+                let sleepTypes: Set<String> = ["Sleep Story", "Soundscape", "Music", "ASMR"]
+                if sleepTypes.contains(currentlyDisplayed.contentType.rawValue) {
+                    let sessionCompleted = isCompleted
+                    Task {
+                        let hrData = await HealthKitService.shared.getHeartRateDuringSession(
+                            start: start, end: end
+                        )
+                        if hrData.startHR != nil || hrData.endHR != nil || hrData.avgHR != nil {
+                            let bioData = BiometricSessionData(
+                                sessionID: session.id,
+                                startHeartRate: hrData.startHR,
+                                endHeartRate: hrData.endHR,
+                                avgHeartRate: hrData.avgHR
+                            )
+                            modelContext.insert(bioData)
+                            try? modelContext.save()
+                            biometricData = bioData
+                            // Only show directly if post-session reflection won't be shown
+                            // (otherwise the reflection onDismiss handler will chain it)
+                            if !sessionCompleted {
+                                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                                showBiometricSummary = true
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1103,7 +1181,7 @@ struct MeditationPlayerView: View {
     private func startPreviewTimer() {
         previewTimer?.cancel()
         previewTimer = Task {
-            try? await Task.sleep(nanoseconds: 30_000_000_000) // 30 seconds
+            try? await Task.sleep(nanoseconds: 120_000_000_000) // 2 minutes
             guard !Task.isCancelled else { return }
             await MainActor.run {
                 // Fade out and show paywall
@@ -1139,39 +1217,114 @@ struct SpeedSelectorView: View {
 
     let speeds: [Float] = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]
 
+    @State private var selectedSpeed: Float
+    @State private var appeared = false
+
+    init(currentSpeed: Float, onSelect: @escaping (Float) -> Void) {
+        self.currentSpeed = currentSpeed
+        self.onSelect = onSelect
+        self._selectedSpeed = State(initialValue: currentSpeed)
+    }
+
+    private func speedLabel(_ speed: Float) -> String {
+        if speed == 1.0 { return "1x" }
+        if speed == floor(speed) { return "\(Int(speed))x" }
+        return String(format: "%.1fx", speed).replacingOccurrences(of: ".0x", with: "x")
+    }
+
+    private func speedDescription(_ speed: Float) -> String {
+        switch speed {
+        case 0.5: return "Slow"
+        case 0.75: return "Relaxed"
+        case 1.0: return "Normal"
+        case 1.25: return "Slightly faster"
+        case 1.5: return "Fast"
+        case 1.75: return "Faster"
+        case 2.0: return "Double"
+        default: return ""
+        }
+    }
+
     var body: some View {
-        NavigationStack {
-            List {
-                ForEach(speeds, id: \.self) { speed in
-                    Button {
-                        onSelect(speed)
-                        dismiss()
-                    } label: {
-                        HStack {
-                            Text(String(format: "%.2fx", speed))
-                                .foregroundStyle(.primary)
+        ZStack {
+            // Dark background
+            Color.black.opacity(0.95).ignoresSafeArea()
 
-                            Spacer()
+            VStack(spacing: 28) {
+                // Handle
+                Capsule()
+                    .fill(Color.white.opacity(0.3))
+                    .frame(width: 36, height: 5)
+                    .padding(.top, 12)
 
-                            if speed == currentSpeed {
-                                Image(systemName: "checkmark")
-                                    .foregroundStyle(.white)
+                // Title
+                Text("Playback Speed")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(.white)
+
+                // Current speed display
+                Text(speedLabel(selectedSpeed))
+                    .font(.system(size: 56, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .contentTransition(.numericText())
+                    .animation(.spring(response: 0.3), value: selectedSpeed)
+
+                Text(speedDescription(selectedSpeed))
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.5))
+                    .contentTransition(.numericText())
+                    .animation(.spring(response: 0.3), value: selectedSpeed)
+
+                // Speed buttons grid
+                HStack(spacing: 10) {
+                    ForEach(speeds, id: \.self) { speed in
+                        let isSelected = speed == selectedSpeed
+
+                        Button {
+                            HapticManager.selection()
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                selectedSpeed = speed
                             }
+                            onSelect(speed)
+                        } label: {
+                            VStack(spacing: 6) {
+                                Text(speedLabel(speed))
+                                    .font(.system(size: 15, weight: isSelected ? .bold : .medium, design: .rounded))
+                                    .foregroundStyle(isSelected ? .black : .white.opacity(0.7))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(isSelected ? Color.white : Color.white.opacity(0.08))
+                            )
                         }
                     }
                 }
-            }
-            .navigationTitle("Playback Speed")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
-                        dismiss()
+                .padding(.horizontal, 20)
+
+                // Reset button (only if not 1x)
+                if selectedSpeed != 1.0 {
+                    Button {
+                        HapticManager.light()
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            selectedSpeed = 1.0
+                        }
+                        onSelect(1.0)
+                    } label: {
+                        Text("Reset to Normal")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.white.opacity(0.5))
                     }
+                    .transition(.opacity)
                 }
+
+                Spacer()
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.fraction(0.45)])
+        .presentationBackground(.clear)
+        .presentationDragIndicator(.hidden)
     }
 }
 
@@ -1188,7 +1341,7 @@ struct SessionPaywallView: View {
 
             PremiumPaywallView(
                 storeManager: storeManager,
-                sessionLimitMessage: "You've used your \(Constants.Engagement.freeSessionLimit) free sessions. Subscribe to continue listening.",
+                sessionLimitMessage: "This is a premium meditation. Subscribe to unlock the full library.",
                 onSubscribed: {
                     onSubscribed()
                     dismiss()
@@ -1209,7 +1362,7 @@ struct SessionPaywallView: View {
                     .clipShape(Circle())
             }
             .padding(.trailing, 20)
-            .padding(.top, 16)
+            .padding(.top, 8)
         }
     }
 }
@@ -1296,6 +1449,11 @@ struct PostSessionReflectionView: View {
                         Button {
                             HapticManager.success()
                             saveReflection()
+                            // Trigger rating prompt on positive mood
+                            if let mood = selectedMood,
+                               ["Calm", "Happy", "Focused", "Grateful"].contains(mood) {
+                                SmartRatingManager.shared.checkAndPromptIfAppropriate(trigger: .sessionCompletedWithPositiveMood)
+                            }
                             dismiss()
                         } label: {
                             Text(selectedMood != nil ? "Save Reflection" : "Skip")
@@ -1320,7 +1478,7 @@ struct PostSessionReflectionView: View {
                 }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
     }
 
     private func saveReflection() {
@@ -1354,6 +1512,111 @@ struct ClearFullScreenBackground: UIViewRepresentable {
         DispatchQueue.main.async {
             uiView.superview?.superview?.backgroundColor = .clear
         }
+    }
+}
+
+// MARK: - Biometric Summary Card
+
+struct BiometricSummaryCard: View {
+    let biometricData: BiometricSessionData
+    @Environment(\.dismiss) var dismiss
+
+    private var changeColor: Color {
+        guard let change = biometricData.heartRateChange else { return .white }
+        return change < 0 ? .green : (change > 0 ? .orange : .white)
+    }
+
+    private var relaxationMessage: String? {
+        guard let change = biometricData.heartRateChange, change < -5 else { return nil }
+        return "Great relaxation!"
+    }
+
+    var body: some View {
+        ZStack {
+            Theme.sleepBackground.ignoresSafeArea()
+
+            VStack(spacing: 24) {
+                Spacer()
+
+                Image(systemName: "heart.text.square.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(Theme.sleepPrimary)
+
+                Text("Session Biometrics")
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(.white)
+
+                HStack(spacing: 20) {
+                    if let startHR = biometricData.startHeartRate {
+                        VStack(spacing: 4) {
+                            Text("\(startHR)")
+                                .font(.title.bold())
+                                .foregroundStyle(.white)
+                            Text("Start HR")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.6))
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    if let avgHR = biometricData.avgHeartRate {
+                        VStack(spacing: 4) {
+                            Text("\(avgHR)")
+                                .font(.title.bold())
+                                .foregroundStyle(.white)
+                            Text("Avg HR")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.6))
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    if let endHR = biometricData.endHeartRate {
+                        VStack(spacing: 4) {
+                            Text("\(endHR)")
+                                .font(.title.bold())
+                                .foregroundStyle(.white)
+                            Text("End HR")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.6))
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+                .padding(.horizontal, 24)
+
+                // Change indicator
+                VStack(spacing: 6) {
+                    Text(biometricData.formattedChange)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(changeColor)
+
+                    if let message = relaxationMessage {
+                        Text(message)
+                            .font(.subheadline)
+                            .foregroundStyle(.green)
+                    }
+                }
+
+                Spacer()
+
+                Button {
+                    dismiss()
+                } label: {
+                    Text("Done")
+                        .font(.headline)
+                        .foregroundStyle(.black)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 40)
+            }
+        }
+        .presentationDetents([.medium])
+        .presentationBackground(Color(red: 0.04, green: 0.06, blue: 0.14))
     }
 }
 

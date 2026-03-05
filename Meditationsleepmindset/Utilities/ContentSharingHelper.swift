@@ -16,9 +16,12 @@ enum ContentSharingHelper {
             let m = t / 60; let s = t % 60
             timestampText = "\nStart at: \(m):\(String(format: "%02d", s))"
         }
-        let deepLink = timestamp != nil
-            ? URL(string: "meditation://content/\(content.youtubeVideoID)?t=\(timestamp!)")!.absoluteString
-            : content.deepLinkURL.absoluteString
+        let deepLink: String
+        if let t = timestamp {
+            deepLink = "meditation://content/\(content.youtubeVideoID)?t=\(t)"
+        } else {
+            deepLink = content.deepLinkURL.absoluteString
+        }
         let shareText = """
         I'm listening to '\(content.title)' on Meditation Sleep Mindset.\(timestampText)
 
@@ -34,6 +37,8 @@ enum ContentSharingHelper {
             if completed {
                 Task { @MainActor in
                     ToastManager.shared.show("Shared successfully", icon: "checkmark.circle.fill", style: .success)
+                    // Record for badge tracking
+                    BadgeService.shared.recordContentShared()
                 }
             }
         }
@@ -65,11 +70,13 @@ enum ContentSharingHelper {
 extension Content {
     /// Deep link URL for opening this content directly in the app
     var deepLinkURL: URL {
-        URL(string: "meditation://content/\(youtubeVideoID)")!
+        let encodedID = youtubeVideoID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? youtubeVideoID
+        return URL(string: "meditation://content/\(encodedID)") ?? URL(string: "meditation://home")!
     }
 
     /// App Store URL for sharing
     var appStoreURL: URL {
+        // This URL is constant and will never fail, so force unwrap is safe
         URL(string: "https://apps.apple.com/app/meditation-sleep-mindset/id\(Constants.AppStore.appID)")!
     }
 }

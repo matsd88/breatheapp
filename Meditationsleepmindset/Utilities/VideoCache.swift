@@ -21,7 +21,8 @@ actor VideoCache {
     private var downloadProgress: [String: Double] = [:]
 
     private init() {
-        let cacheDir = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        let cacheDir = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
         cacheDirectory = cacheDir.appendingPathComponent("VideoCache", isDirectory: true)
 
         // Create cache directory if needed
@@ -67,8 +68,8 @@ actor VideoCache {
         // Start new download
         let downloadTask = Task<URL?, Error> {
             do {
-                // Get stream URL from YouTube service
-                let streamURL = try await YouTubeService.shared.getStreamURL(for: videoID, audioOnly: audioOnly)
+                // Get stream URL from media service (works with YouTube or R2)
+                let streamURL = try await MediaStreamService.shared.getStreamURL(for: videoID, audioOnly: audioOnly)
 
                 // Download the file
                 let localURL = try await downloadFile(from: streamURL, videoID: videoID, audioOnly: audioOnly)
@@ -233,6 +234,15 @@ actor VideoCache {
     func removeFromCache(videoID: String, audioOnly: Bool = true) {
         let fileURL = cacheFileURL(for: videoID, audioOnly: audioOnly)
         try? fileManager.removeItem(at: fileURL)
+    }
+
+    /// Evict all cached versions (audio and video) of a video ID
+    func evictCacheEntry(for videoID: String) {
+        removeFromCache(videoID: videoID, audioOnly: true)
+        removeFromCache(videoID: videoID, audioOnly: false)
+        #if DEBUG
+        print("[VideoCache] Evicted cache for \(videoID)")
+        #endif
     }
 
     // MARK: - Download Progress

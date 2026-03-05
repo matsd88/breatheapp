@@ -15,6 +15,17 @@ enum OnboardingGoal: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    var displayName: String {
+        switch self {
+        case .fallAsleep: return String(localized: "Fall asleep faster")
+        case .stayAsleep: return String(localized: "Sleep through the night")
+        case .wakeRefreshed: return String(localized: "Wake up refreshed")
+        case .improveMindset: return String(localized: "Improve my mindset")
+        case .reduceStress: return String(localized: "Reduce daily stress")
+        case .buildHabit: return String(localized: "Build a meditation habit")
+        }
+    }
+
     var emoji: String {
         switch self {
         case .fallAsleep: return "🌙"
@@ -33,6 +44,9 @@ struct OnboardingGoalSelectionView: View {
     let onContinue: () -> Void
     let onBack: () -> Void
     var onSkip: (() -> Void)? = nil
+
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    private var isRegular: Bool { sizeClass == .regular }
 
     var body: some View {
         ZStack {
@@ -57,35 +71,37 @@ struct OnboardingGoalSelectionView: View {
                         Button("Skip") {
                             onSkip()
                         }
-                        .font(.body)
+                        .font(isRegular ? .title3 : .body)
                         .fontWeight(.medium)
                         .foregroundStyle(.white.opacity(0.85))
+                        .padding(.horizontal, isRegular ? 16 : 0)
+                        .padding(.vertical, isRegular ? 8 : 0)
                     }
                 }
                 .padding(.horizontal, 16)
 
                 // Progress indicator
-                OnboardingProgressDotsView(current: 1, total: 6)
+                OnboardingProgressDotsView(current: 1, total: 7)
 
                 // Header
                 Text("Let's personalize your journey")
-                    .font(.title2)
+                    .font(isRegular ? .title : .title2)
                     .fontWeight(.bold)
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
-                    .padding(.top, 12)
+                    .padding(.top, isRegular ? 24 : 12)
 
                 // Question
                 VStack(spacing: 4) {
                     Text("What would you like to focus on?")
-                        .font(.headline)
+                        .font(isRegular ? .title3 : .headline)
                         .foregroundStyle(.white)
 
                     Text("Select all that apply")
-                        .font(.subheadline)
+                        .font(isRegular ? .body : .subheadline)
                         .foregroundStyle(.white.opacity(0.7))
                 }
-                .padding(.bottom, 24)
+                .padding(.bottom, isRegular ? 32 : 24)
 
                 // Goal options - no scroll needed
                 VStack(spacing: 10) {
@@ -123,7 +139,7 @@ struct OnboardingGoalSelectionView: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 24)
             }
-            .frame(maxWidth: 500)
+            .frame(maxWidth: isRegular ? 800 : 500)
         }
     }
 }
@@ -131,16 +147,17 @@ struct OnboardingGoalSelectionView: View {
 struct OnboardingGoalOptionButton: View {
     let goal: OnboardingGoal
     let isSelected: Bool
+    var isRegular: Bool = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 12) {
+            HStack(spacing: isRegular ? 16 : 12) {
                 Text(goal.emoji)
-                    .font(.title2)
+                    .font(isRegular ? .title : .title2)
 
-                Text(goal.rawValue)
-                    .font(.body)
+                Text(goal.displayName)
+                    .font(isRegular ? .title3 : .body)
                     .fontWeight(.medium)
                     .foregroundStyle(.white)
 
@@ -148,15 +165,15 @@ struct OnboardingGoalOptionButton: View {
 
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(isSelected ? .white : .white.opacity(0.5))
-                    .font(.title3)
+                    .font(isRegular ? .title2 : .title3)
             }
-            .padding()
+            .padding(isRegular ? 18 : 16)
             .background(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: isRegular ? 16 : 12)
                     .fill(isSelected ? Color.white.opacity(0.15) : Theme.cardBackground)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: isRegular ? 16 : 12)
                     .stroke(isSelected ? Color.white.opacity(0.5) : Color.clear, lineWidth: 2)
             )
         }
