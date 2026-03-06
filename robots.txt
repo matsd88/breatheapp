@@ -7,6 +7,8 @@ Disallow: /Shared/
 Disallow: /Meditationsleepmindset/
 Disallow: /*.xcodeproj
 Disallow: /*.png$
+Disallow: /privacy.index.html
+Disallow: /terms.index.html
 
 # Sitemap
 Sitemap: https://meditationandsleepapp.com/sitemap.xml
