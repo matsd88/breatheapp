@@ -11,7 +11,7 @@ Disallow: /privacy.index.html
 Disallow: /terms.index.html
 
 # Sitemap
-Sitemap: https://meditationandsleepapp.com/sitemap.xml
+Sitemap: https://www.meditationandsleepapp.com/sitemap.xml
 
 # Crawl-delay (optional, respected by some crawlers)
 User-agent: GPTBot
