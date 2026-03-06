@@ -1,3 +1,19 @@
 User-agent: *
 Allow: /
+Disallow: /build/
+Disallow: /scripts/
+Disallow: /cloudflare-proxy/
+Disallow: /Shared/
+Disallow: /Meditationsleepmindset/
+Disallow: /*.xcodeproj
+Disallow: /*.png$
+
+# Sitemap
 Sitemap: https://meditationandsleepapp.com/sitemap.xml
+
+# Crawl-delay (optional, respected by some crawlers)
+User-agent: GPTBot
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
