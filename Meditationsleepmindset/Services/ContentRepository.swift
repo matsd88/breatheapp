@@ -90,7 +90,7 @@ class ContentRepository {
         ("5-Minute Stress Relief", "Quick calm", "inpok4MKVLM", .meditation, 318, "Goodful", ["Reduce Stress", "Reduce Anxiety"], false, "A quick 5-minute meditation to release stress and find calm whenever you need it."),
         ("Morning Energy Boost", "Energizing start", "O-6f5wQXSu8", .meditation, 612, "Great Meditation", ["Increase Happiness", "Improve Performance"], false, "Start your day with this energizing 10-minute morning meditation to boost focus and positivity."),
         ("Box Breathing", "One minute reset", "n6RbW2LtdFs", .meditation, 60, "Conscious Works", ["Reduce Stress", "Reduce Anxiety"], false, "A guided one-minute box breathing exercise to quickly calm your nervous system."),
-        ("Mindfulness Meditation", "Release and let go", "6p_yaNFSYao", .meditation, 300, "Mindfulness", ["Reduce Stress", "Better Sleep"], false, "A gentle five-minute meditation that guides you to melt away tension and find stillness."),
+        ("Mindfulness Meditation", "Release and let go", "z1F2Knly81o", .meditation, 300, "Mindfulness", ["Reduce Stress", "Better Sleep"], false, "A gentle five-minute meditation that guides you to melt away tension and find stillness."),
         ("Focus Meditation", "Sharpen your mind", "BhQ_ISSPbpM", .meditation, 180, "Mallory Grimste", ["Improve Performance", "Reduce Stress"], false, "A three-minute guided meditation to clear mental fog and sharpen your focus."),
 
         // Sleep Stories - Verified popular sleep content with unique video IDs
@@ -653,7 +653,7 @@ class ContentRepository {
         ("12 Min Daily Stretch", "Full Body Mobility & Flexibility", "itJE4neqDJw", .movement, 857, "MadFit", ["Reduce Stress", "Improve Performance", "Increase Happiness"], false, "A 12-minute daily full body stretch routine targeting tight muscles and improving overall mobility and flexibility for better everyday movement."),
         ("20 Min Morning Yoga", "Full Body Flow for Beginners", "vJMbsWrGMVA", .movement, 1462, "MadFit", ["Reduce Stress", "Increase Happiness", "Build Self Esteem"], false, "A beginner-friendly 20-minute morning yoga flow that combines stretching and strength to energize the body and uplift the mind."),
         ("15 Min Stretch/Yoga for Stress Relief", "Stress & Anxiety Relief Flow", "utrAlZf_Pjs", .movement, 1105, "MadFit", ["Reduce Stress", "Reduce Anxiety", "Better Sleep"], false, "A calming 15-minute stretch and yoga combination focused on releasing physical tension and relieving stress and anxiety from the body."),
-        ("20 Min Relaxing Stretch/Yoga", "Flexibility & Stress Relief", "sTANio_2E0Q", .movement, 1486, "MadFit", ["Reduce Stress", "Reduce Anxiety", "Better Sleep"], false, "A relaxing 20-minute stretch and yoga session that improves flexibility while melting away stress, perfect for winding down after a long day."),
+        ("20 Min Relaxing Stretch/Yoga", "Flexibility & Stress Relief", "Yzm3IjnQSdo", .movement, 1486, "MadFit", ["Reduce Stress", "Reduce Anxiety", "Better Sleep"], false, "A relaxing 20-minute stretch and yoga session that improves flexibility while melting away stress, perfect for winding down after a long day."),
         ("Morning Yoga Workout", "Better Than The Gym - Strength & Stretch", "oX6I6vs1EFs", .movement, 1030, "Boho Beautiful Yoga", ["Improve Performance", "Increase Happiness", "Build Self Esteem"], false, "An invigorating morning yoga workout that combines strength-building poses with deep stretches for a complete mind-body start to your day."),
         ("Easy Yoga For Beginners", "Full Body Gentle Flow", "3_Q-yYfjeBM", .movement, 1182, "Boho Beautiful Yoga", ["Reduce Stress", "Reduce Anxiety", "Build Self Esteem"], false, "A gentle and welcoming 20-minute beginner yoga flow that builds confidence while stretching and strengthening the entire body."),
         ("Stress Relief Yoga", "A Relaxed & Calming Flow", "7CTsdbf81W8", .movement, 772, "Boho Beautiful Yoga", ["Reduce Stress", "Reduce Anxiety", "Better Sleep"], false, "A beautifully calming yoga flow designed to clear your mind and release stored stress through gentle movements and conscious breathing."),
@@ -1189,7 +1189,7 @@ class ContentRepository {
     ]
 
     // Content version - increment this when video IDs change to force re-seed
-    private static let contentVersion = 33
+    private static let contentVersion = 34
     private static let contentVersionKey = "ContentRepositoryVersion"
 
     func seedContentIfNeeded(in context: ModelContext) {

@@ -277,7 +277,7 @@ class SupportChatViewModel: ObservableObject {
 
         case "privacy_data":
             addBotMessage(
-                text: String(localized: "We take your privacy seriously:\n\n• Your data is stored securely in your personal iCloud\n• We don't sell or share your personal information\n• Analytics are anonymous and used only to improve the app\n• You can delete your data anytime\n\nRead our full Privacy Policy in Settings → Legal."),
+                text: String(localized: "We take your privacy seriously:\n\n• Your data is stored securely on your device and in your personal iCloud\n• We don't sell or share your personal information\n• Analytics (Firebase, AppsFlyer) are anonymous and used only to improve the app\n• AI chat and meditation requests are processed by OpenAI but not stored or used for training\n• You can delete your data anytime\n\nRead our full Privacy Policy in Settings → Legal or at meditationandsleepapp.com/privacy"),
                 options: [backToMainOption, wasThisHelpfulOption]
             )
 
@@ -325,7 +325,7 @@ class SupportChatViewModel: ObservableObject {
 
         case "how_to_use":
             addBotMessage(
-                text: String(localized: "Here's how to get started:\n\n🏠 **Home** — Personalized recommendations, daily mix, and continue listening\n😴 **Sleep** — Sleep stories, sounds, soundscape mixer, and sleep timer\n🔍 **Discover** — Browse all content, breathing exercises, body scan, programs, focus timer, AI meditations, and Micro-Moments\n💬 **Chat** — Talk to Breathe AI for wellness guidance\n👤 **Profile** — Your stats, mood insights, favorites, playlists, and settings\n⌚ **Apple Watch** — Quick sessions right from your wrist\n\nTry the daily recommendation on the Home screen!"),
+                text: String(localized: "Here's how to get started:\n\n🏠 **Home** — Personalized recommendations, daily mix, and continue listening\n😴 **Sleep** — Sleep stories, sounds, soundscape mixer, and sleep timer\n🔍 **Discover** — Browse 960+ sessions, breathing exercises, body scan, programs, focus timer, AI meditations, and Micro-Moments\n💬 **Chat** — Talk to Breathe AI for wellness guidance (5 free messages, unlimited for premium)\n👤 **Profile** — Your stats, mood insights, favorites, playlists, and settings\n⌚ **Apple Watch** — Quick sessions right from your wrist\n\nFree users have unlimited access to non-premium content. Premium content shows a 2-minute preview — subscribe to unlock the full library!"),
                 options: [backToMainOption, wasThisHelpfulOption]
             )
 
@@ -372,14 +372,14 @@ class SupportChatViewModel: ObservableObject {
         // Offline Downloads
         case "offline_issues":
             addBotMessage(
-                text: String(localized: "For offline download issues:\n\n1. Make sure you have an active Premium subscription\n2. Check that you have enough storage space on your device\n3. Try downloading on a stable WiFi connection\n4. If a download is stuck, try deleting it and re-downloading\n\nDownloaded content is stored locally on your device. You can manage your downloads in Settings. An active subscription is required to play downloaded content."),
+                text: String(localized: "For offline download issues:\n\n1. Make sure you have an active Premium subscription\n2. Check that you have enough storage space on your device\n3. Try downloading on a stable WiFi connection\n4. If a download is stuck, try deleting it and re-downloading\n\nDownloaded content is stored locally on your device. You can manage your downloads in Settings. An active subscription is required to download and play premium content offline."),
                 options: [backToMainOption, wasThisHelpfulOption]
             )
 
         // AI Meditations
         case "ai_meditations":
             addBotMessage(
-                text: String(localized: "AI Meditations creates personalized sessions just for you!\n\n**How it works:**\n1. Go to the Discover tab\n2. Look for 'AI Meditation' or the sparkles icon\n3. Choose your focus area (e.g., stress, sleep, focus)\n4. Select your preferred duration\n5. The AI generates a unique meditation script\n\nEach session is one-of-a-kind and tailored to your needs. Free users can try it too! The AI is not a therapist — for serious mental health concerns, please reach out to a professional."),
+                text: String(localized: "AI Meditations creates personalized sessions just for you!\n\n**How it works:**\n1. Go to the Discover tab\n2. Look for 'AI Meditation' or the sparkles icon\n3. Choose your focus area (e.g., stress, sleep, focus)\n4. Select your preferred duration and voice\n5. The AI generates a unique meditation script and audio\n\n**Limits:**\n• Free users: 1 AI meditation (lifetime)\n• Premium users: Up to 5 per day (resets at midnight)\n\nGenerated meditations are saved to your 'My Creations' playlist. The AI is not a therapist — for serious mental health concerns, please reach out to a professional."),
                 options: [backToMainOption, wasThisHelpfulOption]
             )
 

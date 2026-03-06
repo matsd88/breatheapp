@@ -244,9 +244,9 @@ struct MeditationPlayerView: View {
                 // Mark recorded so recordSessionIfEligible() won't duplicate on dismiss
                 hasRecordedSession = true
                 // Record session for the track that just finished
-                let actualDuration = Int(min(completedDuration, Double(completedContent.durationSeconds)))
+                let actualDuration = Int(min(completedDuration, Double(completedContent.durationSeconds > 0 ? completedContent.durationSeconds : Int(completedDuration))))
                 guard actualDuration >= Int(Constants.Session.minimumListenTimeForRecord) else { return }
-                let isCompleted = Double(actualDuration) >= Double(completedContent.durationSeconds) * Constants.Session.completionThreshold
+                let isCompleted = completedContent.durationSeconds > 0 && Double(actualDuration) >= Double(completedContent.durationSeconds) * Constants.Session.completionThreshold
                 let session = MeditationSession(
                     contentID: completedContent.id,
                     youtubeVideoID: completedContent.youtubeVideoID,
@@ -1064,8 +1064,8 @@ struct MeditationPlayerView: View {
         let currentlyDisplayed = displayedContent
 
         // Record the actual time listened, not content duration
-        let actualListenedSeconds = Int(min(totalListenTime, Double(currentlyDisplayed.durationSeconds)))
-        let isCompleted = Double(actualListenedSeconds) >= Double(currentlyDisplayed.durationSeconds) * Constants.Session.completionThreshold
+        let actualListenedSeconds = Int(min(totalListenTime, Double(currentlyDisplayed.durationSeconds > 0 ? currentlyDisplayed.durationSeconds : Int(totalListenTime))))
+        let isCompleted = currentlyDisplayed.durationSeconds > 0 && Double(actualListenedSeconds) >= Double(currentlyDisplayed.durationSeconds) * Constants.Session.completionThreshold
 
         Task { @MainActor in
             let session = MeditationSession(

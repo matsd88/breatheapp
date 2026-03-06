@@ -69,7 +69,6 @@ enum Constants {
         static let sharePromptOpenCount = 2
         static let ratingPromptOpenCount = 3
         static let ratingPromptMinSessions = 5
-        static let freeSessionLimit = 12
     }
 
     // MARK: - Timer Presets

@@ -152,10 +152,10 @@
 
 <div class="container">
     <h1>Privacy <span class="gradient-text">Policy</span></h1>
-    <p class="updated">Last Updated: February 2026</p>
+    <p class="updated">Last Updated: March 2026</p>
 
     <h2>Introduction</h2>
-    <p>Breathe ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application, including our 875+ content library (meditations, sleep stories, ASMR, yoga, music, soundscapes, and mindset content), AI wellness chat, breathing exercises, body scan, focus timer, guided programs, mood tracking, post-session reflections, sleep timer, sleep alarm, AirPlay, Siri Shortcuts, Apple Watch companion app, home screen widgets, playlist, and content features.</p>
+    <p>Breathe ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application, including our 960+ content library (meditations, sleep stories, ASMR, yoga, music, soundscapes, and mindset content), AI wellness chat, AI-generated personalized meditations, breathing exercises, body scan, focus timer, guided programs, mood tracking, post-session reflections, sleep timer, sleep alarm, AirPlay, Siri Shortcuts, Apple Watch companion app, home screen widgets, playlist, and content features.</p>
 
     <h2>Information We Collect</h2>
     <p><strong>Personal Information:</strong></p>
@@ -181,6 +181,15 @@
     <ul>
         <li>Chat messages and conversation history are stored locally on your device</li>
         <li>Messages are sent to our AI service provider to generate responses but are not stored on external servers or used for AI training</li>
+        <li>Free users are limited to 5 chat messages; premium users have unlimited access</li>
+    </ul>
+
+    <p><strong>AI-Generated Meditation Data:</strong></p>
+    <ul>
+        <li>When you create an AI-generated meditation, your selected preferences (focus area, duration, voice) are sent to our AI service provider to generate a personalized script and audio</li>
+        <li>Generated meditations are stored locally on your device in your "My Creations" playlist</li>
+        <li>Your generation preferences are not stored on external servers or used for AI training</li>
+        <li>Free users may generate 1 AI meditation; premium users may generate up to 5 per day</li>
     </ul>
 
     <p><strong>Health Data (Optional):</strong></p>
@@ -221,13 +230,15 @@
         <li>Apple iCloud (for optional data sync across devices)</li>
         <li>Apple Spotlight (for on-device content indexing)</li>
         <li>Apple Siri (for voice-activated shortcuts)</li>
-        <li>YouTube (for streaming meditations, sleep stories, ASMR, yoga, music, soundscapes, and mindset content)</li>
-        <li>AI service provider (to process chat messages and generate wellness responses)</li>
+        <li>Cloudflare R2 (for hosting and streaming content — meditations, sleep stories, ASMR, yoga, music, soundscapes, and mindset content)</li>
+        <li>OpenAI (to process chat messages and generate wellness responses, and to generate personalized AI meditation scripts and audio)</li>
+        <li>Firebase Analytics (for anonymous, aggregated usage analytics to improve the app experience)</li>
+        <li>AppsFlyer (for anonymous attribution analytics to understand how users discover the app)</li>
     </ul>
-    <p>Chat messages sent to our AI provider are used solely to generate responses and are not retained or used for training.</p>
+    <p>Chat messages and AI meditation generation requests sent to OpenAI are used solely to generate responses and are not retained or used for training. Firebase Analytics and AppsFlyer collect only anonymous, non-personally-identifiable data.</p>
 
     <h2>Advertising &amp; Tracking</h2>
-    <p>We do not display advertisements. We do not use third-party analytics or tracking SDKs. We do not sell, share, or rent your personal information to third parties.</p>
+    <p>We do not display advertisements. We use Firebase Analytics and AppsFlyer for anonymous, aggregated usage analytics only — no personal data is shared. We do not sell, share, or rent your personal information to third parties. You may opt out of analytics tracking through iOS App Tracking Transparency settings.</p>
 
     <h2>Your Rights</h2>
     <p>You have the right to:</p>

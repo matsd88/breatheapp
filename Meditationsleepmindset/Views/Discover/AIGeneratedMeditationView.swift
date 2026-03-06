@@ -56,6 +56,11 @@ struct AIGeneratedMeditationView: View {
         return defaults.integer(forKey: "aiGenerationsDailyCount")
     }
 
+    private var freeGenerationsRemaining: Int {
+        let used = UserDefaults.standard.integer(forKey: "aiGenerationsUsed")
+        return max(0, Constants.AIMeditation.freeGenerationLimit - used)
+    }
+
     private var remainingDailyGenerations: Int {
         Constants.AIMeditation.premiumDailyGenerationLimit - todayGenerationCount
     }
@@ -63,6 +68,7 @@ struct AIGeneratedMeditationView: View {
     private static var todayString: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = .current
         return formatter.string(from: Date())
     }
 
@@ -84,7 +90,7 @@ struct AIGeneratedMeditationView: View {
             HStack(spacing: 4) {
                 Image(systemName: hasReachedFreeLimit ? "crown.fill" : "sparkles")
                     .font(.caption2)
-                Text(hasReachedFreeLimit ? "Premium Feature" : "1 free creation available")
+                Text(hasReachedFreeLimit ? "Premium Feature" : "\(freeGenerationsRemaining) free creation\(freeGenerationsRemaining == 1 ? "" : "s") available")
             }
             .font(.caption)
             .foregroundStyle(.white.opacity(0.5))

@@ -43,7 +43,7 @@ const menuBtn = document.querySelector('.nav-menu-btn');
 const mobileMenu = document.querySelector('.nav-mobile');
 if (menuBtn && mobileMenu) {
     menuBtn.addEventListener('click', () => {
-        const isOpen = mobileMenu.style.display === 'flex';
+        const isOpen = getComputedStyle(mobileMenu).display === 'flex';
         mobileMenu.style.display = isOpen ? 'none' : 'flex';
     });
     // Close on link click
