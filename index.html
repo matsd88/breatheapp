@@ -35,12 +35,24 @@
         "name": "Breathe: Meditation, Sleep & Mindfulness",
         "operatingSystem": "iOS, watchOS",
         "applicationCategory": "HealthApplication",
+        "image": "https://www.meditationandsleepapp.com/icon.png",
         "offers": {
             "@type": "Offer",
             "price": "0",
             "priceCurrency": "USD",
             "description": "Free 7-day trial, then $49.99/year",
-            "availability": "https://schema.org/InStock"
+            "availability": "https://schema.org/InStock",
+            "shippingDetails": {
+                "@type": "OfferShippingDetails",
+                "doesNotShip": true
+            },
+            "hasMerchantReturnPolicy": {
+                "@type": "MerchantReturnPolicy",
+                "applicableCountry": "US",
+                "returnPolicyCategory": "https://schema.org/MerchantReturnNotPermitted",
+                "merchantReturnDays": 0,
+                "description": "Digital product. Refunds handled by Apple App Store per their refund policy."
+            }
         },
         "aggregateRating": {
             "@type": "AggregateRating",
