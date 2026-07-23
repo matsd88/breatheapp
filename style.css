@@ -920,3 +920,20 @@ h1{
     .final-cta-inner{padding:48px 20px}
     .pricing-card{padding:32px 24px}
 }
+
+/* ===== App Screenshots (horizontal track) ===== */
+.screens-track {
+    display: flex; gap: 24px; overflow-x: auto;
+    padding: 16px 4px 28px;
+    scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+}
+.screen-card { flex: 0 0 250px; scroll-snap-align: center; margin: 0; }
+.screen-card img {
+    width: 100%; height: auto; border-radius: 20px; display: block;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.screen-card figcaption { margin-top: 12px; text-align: center; }
+.screen-card .cap-title { font-weight: 700; font-size: 15px; color: #fff; }
+.screen-card .cap-sub { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+@media (max-width: 640px) { .screen-card { flex-basis: 210px; } }
