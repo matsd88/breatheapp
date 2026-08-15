@@ -231,7 +231,7 @@ struct SoundscapeMixerView: View {
                 appeared = true
             }
         }
-        .alert("Save mix", isPresented: $showingSaveMix) {
+        .alert("Save Mix", isPresented: $showingSaveMix) {
             TextField("Mix name", text: $newMixName)
             Button("Cancel", role: .cancel) { newMixName = "" }
             Button("Save") {
@@ -244,6 +244,9 @@ struct SoundscapeMixerView: View {
                 ToastManager.shared.show("Mix saved", icon: "checkmark.circle.fill", style: .success)
                 newMixName = ""
             }
+            // Save used to accept an empty name, dismiss, and silently save
+            // nothing — indistinguishable from a bug.
+            .disabled(newMixName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         } message: {
             Text("Save your current sound blend to play it again any time.")
         }

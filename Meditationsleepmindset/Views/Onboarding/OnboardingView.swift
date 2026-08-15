@@ -129,7 +129,10 @@ struct OnboardingView: View {
                             completeOnboarding()
                         },
                         onRestore: {
-                            // Restore handled in paywall, just complete
+                            // A returning subscriber who restores has finished
+                            // onboarding — this was empty, leaving them on the
+                            // paywall they'd just unlocked.
+                            completeOnboarding()
                         },
                         onDismiss: {
                             completeOnboarding()

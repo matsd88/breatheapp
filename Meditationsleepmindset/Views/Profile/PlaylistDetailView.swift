@@ -206,6 +206,9 @@ struct PlaylistDetailView: View {
                         try? modelContext.save()
                     }
                 }
+                // Same silent no-op as the mixer: an empty name dismissed the
+                // alert and changed nothing.
+                .disabled(editedName.trimmingCharacters(in: .whitespaces).isEmpty)
                 Button("Cancel", role: .cancel) {}
             }
             .alert("Delete Playlist?", isPresented: $showDeleteConfirmation) {

@@ -221,15 +221,14 @@ class SupportChatViewModel: ObservableObject {
         guard !StoreManager.shared.isRestoring else { return }
         isTyping = true
         Task {
-            await StoreManager.shared.restorePurchases()
+            let outcome = await StoreManager.shared.restorePurchases()
 
             await MainActor.run {
                 isTyping = false
                 // The bot reports the outcome in-chat; don't leave StoreManager's
-                // global "Purchase Failed" alert armed to fire on a future paywall.
-                StoreManager.shared.showError = false
-                StoreManager.shared.error = nil
-                if StoreManager.shared.isSubscribed {
+                // global alert armed to fire on a future paywall.
+                StoreManager.shared.dismissAlert()
+                if outcome == .restored {
                     addBotMessage(
                         text: String(localized: "✅ All done — your Premium access is restored and active. Enjoy!"),
                         options: [backToMainOption]

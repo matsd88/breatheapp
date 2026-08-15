@@ -175,10 +175,13 @@ class AccountService: NSObject, ObservableObject {
     }
 
     // MARK: - Delete Account
-    func deleteAccount() async {
+    /// Throws if the cloud data couldn't be removed, leaving the account signed
+    /// in so the user can retry. Clearing local state first would strand the
+    /// cloud copy with no way left to reach it.
+    func deleteAccount() async throws {
         // Delete cloud data first
         if isSignedIn {
-            await CloudKitSyncService.shared.deleteAllCloudData()
+            try await CloudKitSyncService.shared.deleteAllCloudData()
         }
 
         // Clear all account-related data

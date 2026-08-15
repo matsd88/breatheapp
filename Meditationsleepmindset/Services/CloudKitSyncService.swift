@@ -199,16 +199,20 @@ class CloudKitSyncService: ObservableObject {
 
     // MARK: - Delete All Cloud Data
 
-    func deleteAllCloudData() async {
+    /// Throws if any record type failed to delete. This used to swallow every
+    /// error, so account deletion reported success while the user's cloud data
+    /// was still sitting in CloudKit — the one place in the app where a false
+    /// confirmation actually matters.
+    func deleteAllCloudData() async throws {
         // Query and delete all records of each type
         for type in [RecordType.favorite, RecordType.playlist, RecordType.playlistItem,
                      RecordType.session, RecordType.streakData, RecordType.userPreferences,
                      RecordType.programProgress] {
-            await deleteAllRecords(ofType: type)
+            try await deleteAllRecords(ofType: type)
         }
     }
 
-    private func deleteAllRecords(ofType recordType: String) async {
+    private func deleteAllRecords(ofType recordType: String) async throws {
         let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
         do {
             let (results, _) = try await privateDB.records(matching: query)
@@ -220,10 +224,15 @@ class CloudKitSyncService: ObservableObject {
             if !recordIDs.isEmpty {
                 _ = try await privateDB.modifyRecords(saving: [], deleting: recordIDs)
             }
+        } catch let error as CKError where error.code == .unknownItem {
+            // The record type has never been created in this user's private
+            // database — nothing to delete, which is a success, not a failure.
+            return
         } catch {
             #if DEBUG
             print("[CloudKitSync] Failed to delete \(recordType) records: \(error.localizedDescription)")
             #endif
+            throw error
         }
     }
 

@@ -195,8 +195,10 @@ struct OnboardingPaywall: View {
                                         onSubscribe()
                                     }
                                 } else {
-                                    storeManager.error = "Unable to load subscription options. Please check your internet connection and try again."
-                                    storeManager.showError = true
+                                    storeManager.presentAlert(
+                                        title: String(localized: "Can't Load Plans"),
+                                        message: String(localized: "Please check your internet connection and try again.")
+                                    )
                                 }
                             }
                         } label: {
@@ -238,10 +240,22 @@ struct OnboardingPaywall: View {
                                 .foregroundStyle(.white.opacity(0.5))
 
                             Button("Restore Purchase") {
+                                // onRestore() used to fire immediately, in parallel
+                                // with a restore that hadn't finished — so it could
+                                // never mean "restored". Only call it on success.
                                 Task {
-                                    await storeManager.restorePurchases()
+                                    switch await storeManager.restorePurchases() {
+                                    case .restored:
+                                        onRestore()
+                                    case .nothingFound:
+                                        storeManager.presentAlert(
+                                            title: String(localized: "No Purchases Found"),
+                                            message: StoreManager.nothingToRestoreMessage
+                                        )
+                                    case .failed:
+                                        break // restorePurchases() already raised the alert
+                                    }
                                 }
-                                onRestore()
                             }
                             .font(.caption)
                             .foregroundStyle(.white)
@@ -334,10 +348,10 @@ struct OnboardingPaywall: View {
                     }
             }
         }
-        .alert("Purchase Failed", isPresented: $storeManager.showError) {
+        .alert(storeManager.alertTitle, isPresented: $storeManager.showAlert) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text(storeManager.error ?? "Something went wrong. Please try again.")
+            Text(storeManager.alertMessage ?? "Something went wrong. Please try again.")
         }
     }
 

@@ -324,8 +324,10 @@ struct PremiumPaywallView: View {
                                 onSubscribed?()
                             }
                         } else {
-                            storeManager.error = "Unable to load subscription options. Please check your internet connection and try again."
-                            storeManager.showError = true
+                            storeManager.presentAlert(
+                                title: String(localized: "Can't Load Plans"),
+                                message: String(localized: "Please check your internet connection and try again.")
+                            )
                         }
                     }
                 } label: {
@@ -373,9 +375,16 @@ struct PremiumPaywallView: View {
 
                     Button("Restore Purchase") {
                         Task {
-                            await storeManager.restorePurchases()
-                            if storeManager.isSubscribed {
+                            switch await storeManager.restorePurchases() {
+                            case .restored:
                                 onSubscribed?()
+                            case .nothingFound:
+                                storeManager.presentAlert(
+                                    title: String(localized: "No Purchases Found"),
+                                    message: StoreManager.nothingToRestoreMessage
+                                )
+                            case .failed:
+                                break // restorePurchases() already raised the alert
                             }
                         }
                     }
@@ -450,10 +459,10 @@ struct PremiumPaywallView: View {
                     }
             }
         }
-        .alert("Purchase Failed", isPresented: $storeManager.showError) {
+        .alert(storeManager.alertTitle, isPresented: $storeManager.showAlert) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text(storeManager.error ?? "Something went wrong. Please try again.")
+            Text(storeManager.alertMessage ?? "Something went wrong. Please try again.")
         }
 
             // Dismiss X button (top-right corner)

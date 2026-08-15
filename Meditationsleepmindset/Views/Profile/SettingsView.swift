@@ -135,16 +135,18 @@ struct SettingsView: View {
                                 guard !storeManager.isRestoring else { return }
                                 HapticManager.light()
                                 Task {
-                                    do {
-                                        try await storeManager.restorePurchases()
-                                        if storeManager.isSubscribed {
-                                            HapticManager.success()
-                                            ToastManager.shared.show("Purchases restored!", icon: "checkmark.circle.fill", style: .success)
-                                        } else {
-                                            ToastManager.shared.show("No purchases found", icon: "info.circle", style: .standard)
-                                        }
-                                    } catch {
-                                        ToastManager.shared.show("Restore failed. Try again.", icon: "xmark.circle", style: .error)
+                                    // restorePurchases() doesn't throw, so the old
+                                    // catch could never run — a failed restore fell
+                                    // through the success branch as "No purchases
+                                    // found", blaming the wrong thing.
+                                    switch await storeManager.restorePurchases() {
+                                    case .restored:
+                                        HapticManager.success()
+                                        ToastManager.shared.show("Purchases restored!", icon: "checkmark.circle.fill", style: .success)
+                                    case .nothingFound:
+                                        ToastManager.shared.show("No purchases found", icon: "info.circle", style: .standard)
+                                    case .failed:
+                                        break // restorePurchases() already raised the alert
                                     }
                                 }
                             } label: {
@@ -585,7 +587,7 @@ struct SettingsView: View {
                 }
             }
             .alert("Clear Chat History & AI Memory", isPresented: $showingClearAIConfirmation) {
-                Button("Clear", role: .destructive) {
+                Button("Clear History & Memory", role: .destructive) {
                     ChatService.shared.clearAllHistory(in: modelContext)
                     ToastManager.shared.show("Chat history & memory cleared", icon: "checkmark.circle.fill", style: .success)
                 }

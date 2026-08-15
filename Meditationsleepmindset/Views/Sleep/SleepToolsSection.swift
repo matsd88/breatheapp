@@ -133,10 +133,17 @@ struct SleepRecordingView: View {
                     }.foregroundStyle(.white)
                 }
             }
-            .alert("Microphone needed", isPresented: $recorder.permissionDenied) {
-                Button("OK", role: .cancel) {}
+            // Told the user to go to Settings and then offered only "OK" — a
+            // dead end for the one thing the alert exists to fix.
+            .alert("Microphone Access Needed", isPresented: $recorder.permissionDenied) {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                Button("Not Now", role: .cancel) {}
             } message: {
-                Text("Allow microphone access in Settings to record and analyze your sleep sounds.")
+                Text("Sleep recording listens for snoring and sleep talking overnight. Turn on the microphone for Breathe to use it.")
             }
         }
     }

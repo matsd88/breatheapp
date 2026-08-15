@@ -29,8 +29,13 @@ class StoreManager: ObservableObject {
     @Published var subscriptions: [Product] = []
     @Published var purchasedSubscriptions: [Product] = []
     @Published var isPurchasing = false
-    @Published var error: String?
-    @Published var showError = false
+    /// Loading plans, buying, and restoring all used to raise one alert hard-coded
+    /// to "Purchase Failed", so a failed restore accused the user of a purchase
+    /// they never attempted and a plan-load failure fired before they'd tapped
+    /// anything. The title travels with the message now.
+    @Published var alertTitle: String = ""
+    @Published var alertMessage: String?
+    @Published var showAlert = false
     @Published var isSubscribed = false
     @Published var isRestoring = false
 
@@ -57,6 +62,50 @@ class StoreManager: ObservableObject {
         updateListenerTask?.cancel()
     }
 
+    // MARK: - Alerts
+
+    func presentAlert(title: String, message: String) {
+        alertTitle = title
+        alertMessage = message
+        showAlert = true
+    }
+
+    func dismissAlert() {
+        showAlert = false
+        alertMessage = nil
+    }
+
+    /// StoreKit's `localizedDescription` is written for developers — users were
+    /// being shown things like "ASDErrorDomain error 500". Translate the cases
+    /// people actually hit into something they can act on.
+    private func friendlyMessage(for error: Error) -> String {
+        if let storeKitError = error as? StoreKitError {
+            switch storeKitError {
+            case .networkError:
+                return String(localized: "We couldn't reach the App Store. Check your connection and try again.")
+            case .notAvailableInStorefront:
+                return String(localized: "This isn't available in your country's App Store yet.")
+            default:
+                break
+            }
+        }
+
+        if let purchaseError = error as? Product.PurchaseError {
+            switch purchaseError {
+            case .productUnavailable:
+                return String(localized: "This plan isn't available right now. Please try again in a moment.")
+            case .purchaseNotAllowed:
+                return String(localized: "Purchases are turned off on this device. You can change that in Settings → Screen Time → Content & Privacy Restrictions.")
+            case .ineligibleForOffer:
+                return String(localized: "This offer isn't available on your Apple Account — but the standard plans still are.")
+            default:
+                break
+            }
+        }
+
+        return String(localized: "Something went wrong. Please try again.")
+    }
+
     // MARK: - Load Products
     func loadProducts() async {
         do {
@@ -74,8 +123,10 @@ class StoreManager: ObservableObject {
             print("Failed to load products: \(error)")
             #endif
             FirebaseService.shared.logProductsLoadFailed(error: error.localizedDescription)
-            self.error = error.localizedDescription
-            self.showError = true
+            presentAlert(
+                title: String(localized: "Can't Load Plans"),
+                message: friendlyMessage(for: error)
+            )
         }
     }
 
@@ -109,13 +160,27 @@ class StoreManager: ObservableObject {
             print("Purchase failed: \(error)")
             #endif
             FirebaseService.shared.logPurchaseFailed(productID: product.id, error: error.localizedDescription)
-            self.error = error.localizedDescription
-            self.showError = true
+            presentAlert(
+                title: String(localized: "Purchase Failed"),
+                message: friendlyMessage(for: error)
+            )
         }
     }
 
     // MARK: - Restore Purchases
-    func restorePurchases() async {
+
+    /// A restore that finds nothing is not a failure, but it isn't a success
+    /// either — and it used to be completely silent on both paywalls, so the
+    /// button looked broken. Callers get the outcome and phrase it in their own
+    /// voice; only an outright failure raises the shared alert.
+    enum RestoreOutcome {
+        case restored
+        case nothingFound
+        case failed
+    }
+
+    @discardableResult
+    func restorePurchases() async -> RestoreOutcome {
         FirebaseService.shared.logRestoreTapped()
         isRestoring = true
         defer { isRestoring = false }
@@ -123,15 +188,23 @@ class StoreManager: ObservableObject {
             try await AppStore.sync()
             await updatePurchasedProducts()
             FirebaseService.shared.logRestoreSucceeded()
+            return isSubscribed ? .restored : .nothingFound
         } catch {
             #if DEBUG
             print("Restore failed: \(error)")
             #endif
             FirebaseService.shared.logRestoreFailed(error: error.localizedDescription)
-            self.error = error.localizedDescription
-            self.showError = true
+            presentAlert(
+                title: String(localized: "Restore Failed"),
+                message: friendlyMessage(for: error)
+            )
+            return .failed
         }
     }
+
+    /// Shared wording for a restore that turned up nothing — the cause is almost
+    /// always a different Apple Account, so say that rather than "not found".
+    static let nothingToRestoreMessage = String(localized: "We couldn't find an active subscription on this Apple Account. If you subscribed using a different one, sign in with that Apple Account and try again.")
 
     // MARK: - Check Subscription Status
     func isPremiumSubscriber() async -> Bool {
