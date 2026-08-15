@@ -4,12 +4,17 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct SoundscapeMixerView: View {
     @Environment(\.dismiss) var dismiss
+    @Environment(\.modelContext) private var modelContext
     @StateObject private var ambientManager = AmbientSoundManager.shared
+    @Query(sort: \SavedSoundMix.createdAt, order: .reverse) private var savedMixes: [SavedSoundMix]
     @State private var appeared = false
     @State private var selectedSleepDuration: Int = 30
+    @State private var showingSaveMix = false
+    @State private var newMixName = ""
 
     private let sheetBackground = Color(red: 0.06, green: 0.08, blue: 0.14)
     private let sleepDurations = [15, 30, 45, 60]
@@ -41,7 +46,7 @@ struct SoundscapeMixerView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "waveform")
                             .font(.title3)
-                            .foregroundStyle(.cyan.opacity(0.8))
+                            .foregroundStyle(Theme.profileAccent.opacity(0.9))
 
                         Text("Ambient Sounds")
                             .font(.title3.weight(.bold))
@@ -60,7 +65,7 @@ struct SoundscapeMixerView: View {
                     HStack {
                         Image(systemName: "moon.zzz.fill")
                             .font(.subheadline)
-                            .foregroundStyle(ambientManager.sleepModeEnabled ? .cyan : .white.opacity(0.5))
+                            .foregroundStyle(ambientManager.sleepModeEnabled ? Theme.profileAccent : .white.opacity(0.5))
 
                         Text("Sleep Mode")
                             .font(.subheadline.weight(.medium))
@@ -81,7 +86,8 @@ struct SoundscapeMixerView: View {
                             }
                         ))
                         .labelsHidden()
-                        .tint(.cyan)
+                        .tint(Theme.accentColor)
+                        .accessibilityLabel("Sleep Mode")
                     }
 
                     if ambientManager.sleepModeEnabled || !ambientManager.activeSounds.isEmpty {
@@ -92,8 +98,9 @@ struct SoundscapeMixerView: View {
                                     .foregroundStyle(selectedSleepDuration == duration ? .white : .white.opacity(0.5))
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 6)
-                                    .background(selectedSleepDuration == duration ? Color.cyan.opacity(0.3) : Color.white.opacity(0.08))
+                                    .background(selectedSleepDuration == duration ? Theme.accentColor.opacity(0.35) : Color.white.opacity(0.08))
                                     .clipShape(Capsule())
+                                    .contentShape(Capsule())
                                     .onTapGesture {
                                         HapticManager.selection()
                                         selectedSleepDuration = duration
@@ -101,6 +108,8 @@ struct SoundscapeMixerView: View {
                                             ambientManager.enableSleepMode(duration: Double(duration * 60))
                                         }
                                     }
+                                    .accessibilityLabel("\(duration) minutes")
+                                    .accessibilityAddTraits(selectedSleepDuration == duration ? [.isButton, .isSelected] : .isButton)
                             }
                         }
                         .transition(.opacity)
@@ -113,10 +122,7 @@ struct SoundscapeMixerView: View {
                 // Sound grid
                 ScrollView {
                     LazyVGrid(columns: [
-                        GridItem(.flexible(), spacing: 12),
-                        GridItem(.flexible(), spacing: 12),
-                        GridItem(.flexible(), spacing: 12),
-                        GridItem(.flexible(), spacing: 12)
+                        GridItem(.adaptive(minimum: 80), spacing: 12)
                     ], spacing: 16) {
                         ForEach(Array(ambientManager.availableSounds.enumerated()), id: \.element.id) { index, sound in
                             SoundMixerTile(
@@ -163,7 +169,7 @@ struct SoundscapeMixerView: View {
                             HStack(spacing: 12) {
                                 Image(systemName: sound.iconName)
                                     .font(.caption)
-                                    .foregroundStyle(.cyan.opacity(0.7))
+                                    .foregroundStyle(Theme.profileAccent.opacity(0.9))
                                     .frame(width: 20)
 
                                 Text(sound.name)
@@ -178,7 +184,8 @@ struct SoundscapeMixerView: View {
                                     ),
                                     in: 0...1
                                 )
-                                .tint(.cyan.opacity(0.7))
+                                .tint(Theme.profileAccent)
+                                .accessibilityLabel("\(sound.name) volume")
                             }
                             .padding(.horizontal, 20)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -187,6 +194,9 @@ struct SoundscapeMixerView: View {
                     .padding(.bottom, 8)
                     .animation(.spring(response: 0.3, dampingFraction: 0.8), value: ambientManager.activeSounds.count)
                 }
+
+                // Saved mixes
+                savedMixesSection
 
                 // Reset button
                 if !ambientManager.activeSounds.isEmpty {
@@ -219,6 +229,89 @@ struct SoundscapeMixerView: View {
         .onAppear {
             withAnimation(.easeOut(duration: 0.4)) {
                 appeared = true
+            }
+        }
+        .alert("Save mix", isPresented: $showingSaveMix) {
+            TextField("Mix name", text: $newMixName)
+            Button("Cancel", role: .cancel) { newMixName = "" }
+            Button("Save") {
+                let name = newMixName.trimmingCharacters(in: .whitespacesAndNewlines)
+                let snapshot = ambientManager.currentMixSnapshot()
+                guard !name.isEmpty, !snapshot.isEmpty else { newMixName = ""; return }
+                modelContext.insert(SavedSoundMix(name: name, soundVolumes: snapshot))
+                try? modelContext.save()
+                HapticManager.success()
+                ToastManager.shared.show("Mix saved", icon: "checkmark.circle.fill", style: .success)
+                newMixName = ""
+            }
+        } message: {
+            Text("Save your current sound blend to play it again any time.")
+        }
+    }
+
+    // MARK: - Saved Mixes
+
+    @ViewBuilder
+    private var savedMixesSection: some View {
+        if !ambientManager.activeSounds.isEmpty || !savedMixes.isEmpty {
+            VStack(spacing: 10) {
+                HStack {
+                    Text("My Mixes")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.4))
+                        .textCase(.uppercase)
+                        .tracking(1)
+                    Spacer()
+                    if !ambientManager.activeSounds.isEmpty {
+                        Button {
+                            HapticManager.light()
+                            newMixName = ""
+                            showingSaveMix = true
+                        } label: {
+                            Label("Save", systemImage: "plus.circle.fill")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Theme.profileAccent)
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+
+                if !savedMixes.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            ForEach(savedMixes) { mix in
+                                Button {
+                                    HapticManager.medium()
+                                    ambientManager.applyMix(mix.soundVolumes)
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "waveform")
+                                            .font(.caption2)
+                                        Text(mix.name)
+                                            .font(.caption.weight(.medium))
+                                            .lineLimit(1)
+                                    }
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 8)
+                                    .background(Color.white.opacity(0.08))
+                                    .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityHint("Plays this saved mix")
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        modelContext.delete(mix)
+                                        try? modelContext.save()
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                    }
+                }
             }
         }
     }
@@ -258,7 +351,7 @@ struct SoundMixerTile: View {
                 )
 
                 Text(sound.name)
-                    .font(.system(size: 10, weight: isActive ? .semibold : .regular))
+                    .font(.caption2.weight(isActive ? .semibold : .regular))
                     .foregroundStyle(isActive ? .white : .white.opacity(0.5))
                     .lineLimit(1)
             }
@@ -266,5 +359,8 @@ struct SoundMixerTile: View {
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isActive)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(sound.name)
+        .accessibilityValue(isActive ? "On" : "Off")
+        .accessibilityHint(isActive ? "Stops this sound" : "Plays this sound")
     }
 }

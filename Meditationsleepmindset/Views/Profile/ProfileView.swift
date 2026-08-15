@@ -16,6 +16,7 @@ struct ProfileView: View {
     @Query(sort: \Playlist.updatedAt, order: .reverse) private var playlists: [Playlist]
     @Query private var playlistItems: [PlaylistItem]
     @StateObject private var streakService = StreakService.shared
+    @StateObject private var storeManager = StoreManager.shared
     @State private var showingSettings = false
     @State private var showingShareStats = false
     @State private var activeProfileSheet: ProfileSheetType?
@@ -25,14 +26,12 @@ struct ProfileView: View {
 
     enum ProfileSheetType: Identifiable {
         case recentlyPlayed
-        case sessionLimit
         case playlist(Playlist)
         case addToPlaylist(Content)
         case createPlaylist
         var id: String {
             switch self {
             case .recentlyPlayed: return "recentlyPlayed"
-            case .sessionLimit: return "sessionLimit"
             case .playlist(let p): return "playlist-\(p.id)"
             case .addToPlaylist(let c): return "playlist-\(c.youtubeVideoID)"
             case .createPlaylist: return "createPlaylist"
@@ -45,6 +44,18 @@ struct ProfileView: View {
     @StateObject private var badgeService = BadgeService.shared
     @StateObject private var challengeService = ChallengeService.shared
     @StateObject private var healthKitService = HealthKitService.shared
+
+    /// Personalized upsell hook: lead with the user's own momentum when they
+    /// have some, otherwise the banner's calm default.
+    private var premiumHook: String? {
+        if streakService.currentStreak >= 2 {
+            return String(localized: "Keep your \(streakService.currentStreak)-day streak growing")
+        }
+        if streakService.totalMinutes >= 10 {
+            return String(localized: "\(streakService.totalMinutes) mindful minutes and counting")
+        }
+        return nil
+    }
 
     private var userProfile: UserProfile? {
         userProfiles.first
@@ -122,6 +133,17 @@ struct ProfileView: View {
 
                         // Streak Card
                         StreakCard(streakService: streakService)
+
+                        // Premium upsell (free users) — personalized hook
+                        if !storeManager.isSubscribed {
+                            NavigationLink {
+                                PremiumView()
+                            } label: {
+                                PremiumUpsellBanner(hook: premiumHook)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.horizontal)
+                        }
 
                         // Mood History
                         Button {
@@ -336,12 +358,6 @@ struct ProfileView: View {
                             playContent(content)
                         }
                     )
-                case .sessionLimit:
-                    PremiumPaywallView(
-                        storeManager: StoreManager.shared,
-                        sessionLimitMessage: "This is a premium meditation. Subscribe to unlock the full library.",
-                        onSubscribed: { activeProfileSheet = nil }
-                    )
                 case .playlist(let playlist):
                     PlaylistDetailView(playlist: playlist)
                 case .addToPlaylist(let content):
@@ -372,10 +388,6 @@ struct ProfileView: View {
     }
 
     private func playContent(_ content: Content) {
-        if !StoreManager.shared.isSubscribed && AppStateManager.shared.hasReachedFreeSessionLimit {
-            activeProfileSheet = .sessionLimit
-            return
-        }
         selectedContent = content
     }
 
@@ -760,37 +772,83 @@ struct StreakCard: View {
     let streakService: StreakService
     @State private var flameScale: CGFloat = 1.0
     @State private var flameRotation: Double = 0
+    @State private var showShieldInfo = false
+
+    private var shieldStatusText: String {
+        if streakService.isStreakShieldAvailable {
+            return String(localized: "Streak Shield: Ready")
+        }
+        let days = streakService.daysUntilStreakShieldRenews
+        if days == 1 {
+            return String(localized: "Streak Shield: Used — renews tomorrow")
+        }
+        return String(localized: "Streak Shield: Used — renews in \(days) days")
+    }
 
     var body: some View {
-        HStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(Color.orange.opacity(0.2))
-                    .frame(width: 60, height: 60)
+        VStack(spacing: 12) {
+            HStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(Color.orange.opacity(0.2))
+                        .frame(width: 60, height: 60)
 
-                Image(systemName: "flame.fill")
-                    .font(.title)
-                    .foregroundStyle(.orange)
-                    .scaleEffect(flameScale)
-                    .rotationEffect(.degrees(flameRotation))
+                    Image(systemName: "flame.fill")
+                        .font(.title)
+                        .foregroundStyle(.orange)
+                        .scaleEffect(flameScale)
+                        .rotationEffect(.degrees(flameRotation))
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(streakService.currentStreak) Day Streak!")
+                        .font(.headline)
+                        .foregroundStyle(Theme.textPrimary)
+
+                    Text(streakService.streakMessage)
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.textSecondary)
+                }
+
+                Spacer()
             }
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("\(streakService.currentStreak) Day Streak!")
-                    .font(.headline)
-                    .foregroundStyle(Theme.textPrimary)
+            // Streak Shield (weekly grace day)
+            Button {
+                HapticManager.light()
+                showShieldInfo = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: streakService.isStreakShieldAvailable ? "shield.fill" : "shield")
+                        .font(.subheadline)
+                        .foregroundStyle(streakService.isStreakShieldAvailable ? Theme.profileAccent : Theme.textSecondary)
 
-                Text(streakService.streakMessage)
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.textSecondary)
+                    Text(shieldStatusText)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(streakService.isStreakShieldAvailable ? .white : Theme.textSecondary)
+
+                    Spacer()
+
+                    Image(systemName: "info.circle")
+                        .font(.caption)
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.white.opacity(0.06))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
             }
-
-            Spacer()
+            .buttonStyle(.plain)
         }
         .padding()
         .background(Theme.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .padding(.horizontal)
+        .alert("Streak Shield", isPresented: $showShieldInfo) {
+            Button("Got it", role: .cancel) {}
+        } message: {
+            Text("Miss a day? Your shield protects your streak once every 7 days. No guilt — rest matters.")
+        }
         .onAppear {
             // Animate the flame each time the card appears
             flameScale = 1.0
@@ -1636,7 +1694,7 @@ struct MindfulMinutesCard: View {
                                 VStack(spacing: 4) {
                                     if day.minutes > 0 {
                                         Text("\(day.minutes)")
-                                            .font(.system(size: 9))
+                                            .font(.caption2)
                                             .foregroundStyle(Theme.textTertiary)
                                     }
 

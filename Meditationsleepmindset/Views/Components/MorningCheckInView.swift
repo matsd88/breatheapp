@@ -82,7 +82,7 @@ struct MorningCheckInView: View {
                                 .font(.system(size: isSelected ? 36 : 28))
 
                             Text(rating.label)
-                                .font(.system(size: 10, weight: isSelected ? .bold : .regular))
+                                .font(.caption2.weight(isSelected ? .bold : .regular))
                                 .foregroundStyle(isSelected ? .white : .white.opacity(0.5))
                         }
                         .frame(maxWidth: .infinity)

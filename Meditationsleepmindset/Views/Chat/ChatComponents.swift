@@ -183,7 +183,7 @@ struct ChatBubble: View {
 
                 HStack(spacing: 10) {
                     Text(message.timestamp, style: .time)
-                        .font(.system(size: 10))
+                        .font(.caption2)
                         .foregroundStyle(Theme.textTertiary)
 
                     if let onReadAloud {
@@ -444,7 +444,7 @@ struct SuggestedContentCard: View {
 
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Recommended")
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.caption2.weight(.medium))
                             .foregroundStyle(Theme.profileAccent)
                         Text(title)
                             .font(.subheadline.weight(.medium))
