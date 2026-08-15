@@ -21,6 +21,9 @@ struct HomeView: View {
     @State private var cachedRecommendations: [Content] = HomeView.savedRecommendations
     @State private var lastRecommendationSeed: Int = 0
     @State private var isLoadingRecommendations = false
+    // True once at least one recommendation pass has finished (distinguishes
+    // "still computing" from "computed and genuinely empty").
+    @State private var hasComputedRecommendations = !HomeView.savedRecommendations.isEmpty
     @State private var recommendationTask: Task<Void, Never>?
     @State private var dailyMix: [Content] = HomeView.savedDailyMix
 
@@ -33,35 +36,37 @@ struct HomeView: View {
     @State private var cachedContinueListening: (content: Content, session: MeditationSession)?
 
     enum HomeSheetType: Identifiable {
-        case sessionLimit
         case unguidedTimer
         case playlist(Playlist)
         case recentlyPlayed
         case addToPlaylist(Content)
         case shareStreak
+        case premium
 
         var id: String {
             switch self {
-            case .sessionLimit: return "sessionLimit"
             case .unguidedTimer: return "unguidedTimer"
             case .playlist(let p): return "playlist-\(p.id)"
             case .recentlyPlayed: return "recentlyPlayed"
             case .addToPlaylist(let c): return "playlist-\(c.youtubeVideoID)"
             case .shareStreak: return "shareStreak"
+            case .premium: return "premium"
             }
         }
     }
     @StateObject private var streakService = StreakService.shared
     @StateObject private var personalizationService = PersonalizationService.shared
+    @StateObject private var storeManager = StoreManager.shared
+    @Environment(\.horizontalSizeClass) private var homeSizeClass
 
     // Static cache so recommendations persist across tab switches
     private static var savedRecommendations: [Content] = []
     private static var savedDailyMix: [Content] = []
     private static var dailyMixDateKey: String = ""
 
-    // Pre-computed index for faster tag lookups
-    @State private var tagToContentIndex: [String: Set<UUID>] = [:]
-    @State private var contentTypeIndex: [ContentType: Set<UUID>] = [:]
+    // Session count at the last personalization analysis (avoids re-running
+    // analyzeEngagement on every Home appear when nothing changed).
+    @State private var lastAnalyzedSessionCount: Int = -1
 
     private var userProfile: UserProfile? {
         userProfiles.first
@@ -253,6 +258,23 @@ struct HomeView: View {
         TimeOfDay.current
     }
 
+    /// Home-flavored, contextual upsell hook: lead with the user's own
+    /// momentum, otherwise nudge toward the moment they're in (morning plan,
+    /// evening wind-down). Keeps the banner from feeling generic.
+    private var homePremiumHook: String? {
+        if streakService.currentStreak >= 2 {
+            return String(localized: "Keep your \(streakService.currentStreak)-day streak growing")
+        }
+        switch timeOfDay {
+        case .morning:
+            return String(localized: "Start every morning with a session made for you")
+        case .evening, .night:
+            return String(localized: "Drift off tonight with the full sleep library")
+        case .afternoon:
+            return String(localized: "Reset your afternoon with unlimited sessions")
+        }
+    }
+
     /// Next streak milestone and days remaining (e.g., "4 days" to reach 7-day milestone)
     private var nextStreakMilestone: String? {
         let streak = streakService.currentStreak
@@ -317,116 +339,11 @@ struct HomeView: View {
         }
     }
 
-    // Track the content count the index was built from
-    @State private var lastIndexedContentCount: Int = 0
-
-    /// Build indices for fast content lookup by tag and type
-    private func buildContentIndices() {
-        // Rebuild when content count changes (new content added/removed)
-        guard tagToContentIndex.isEmpty || allContent.count != lastIndexedContentCount else { return }
-
-        var tagIndex: [String: Set<UUID>] = [:]
-        var typeIndex: [ContentType: Set<UUID>] = [:]
-
-        for content in allContent {
-            // Index by content type
-            typeIndex[content.contentType, default: []].insert(content.id)
-
-            // Index by tags (normalized to lowercase for matching)
-            for tag in content.tags {
-                let normalizedTag = tag.lowercased()
-                tagIndex[normalizedTag, default: []].insert(content.id)
-            }
-        }
-
-        tagToContentIndex = tagIndex
-        contentTypeIndex = typeIndex
-        lastIndexedContentCount = allContent.count
-    }
-
-    /// Fast lookup of content IDs matching any of the given tags
-    private func contentIDsMatchingTags(_ searchTerms: [String]) -> Set<UUID> {
-        var matches = Set<UUID>()
-        for term in searchTerms {
-            let lowercasedTerm = term.lowercased()
-            for (tag, ids) in tagToContentIndex where tag.contains(lowercasedTerm) {
-                matches.formUnion(ids)
-            }
-        }
-        return matches
-    }
-
-    /// Fast lookup of content IDs matching any of the given content types
-    private func contentIDsMatchingTypes(_ types: [ContentType]) -> Set<UUID> {
-        var matches = Set<UUID>()
-        for type in types {
-            if let ids = contentTypeIndex[type] {
-                matches.formUnion(ids)
-            }
-        }
-        return matches
-    }
-
-    private func generateRecommendations() -> [Content] {
-        // Ensure indices are built
-        buildContentIndices()
-
+    /// Snapshot every input the recommendation scorer needs, on the main actor.
+    /// SwiftData model objects are not Sendable, so `Content` is projected into
+    /// plain value-type `ContentSnapshot`s before the scoring hops off-main.
+    private func makeRecommendationInputs() -> RecommendationInputs {
         let currentTime = timeOfDay
-
-        // If mood is selected, use fast indexed lookup
-        if let mood = selectedMood {
-            let moodTags: [String]
-            let moodTypes: [ContentType]
-
-            switch mood {
-            case .anxious, .stressed:
-                moodTags = ["Anxiety", "Stress"]
-                moodTypes = [.asmr, .soundscape]
-            case .tired:
-                moodTags = ["Sleep"]
-                moodTypes = [.sleepStory, .asmr]
-            case .focused:
-                moodTags = ["Focus", "Performance"]
-                moodTypes = [.mindset]
-            case .energetic:
-                moodTags = ["Energy", "Happiness"]
-                moodTypes = [.movement, .mindset]
-            case .sad:
-                moodTags = ["Happiness", "Gratitude"]
-                moodTypes = [.mindset]
-            case .calm:
-                moodTags = []
-                moodTypes = [.meditation, .soundscape, .asmr]
-            case .happy:
-                moodTags = ["Gratitude", "Happiness"]
-                moodTypes = [.mindset, .music]
-            case .grateful:
-                moodTags = ["Gratitude"]
-                moodTypes = [.mindset]
-            }
-
-            // Fast indexed lookup
-            var matchingIDs = contentIDsMatchingTags(moodTags)
-            matchingIDs.formUnion(contentIDsMatchingTypes(moodTypes))
-
-            let filtered = allContent.filter { matchingIDs.contains($0.id) }
-            if filtered.isEmpty {
-                return deduplicateByNarrator(allContent.shuffled(), limit: Constants.Recommendations.maxResults)
-            }
-            // If filtered has fewer items than needed, supplement with other content
-            if filtered.count < Constants.Recommendations.maxResults {
-                let filteredIDs = Set(filtered.map { $0.id })
-                let additional = allContent.filter { !filteredIDs.contains($0.id) }.shuffled()
-                let combined = filtered.shuffled() + additional
-                return deduplicateByNarrator(combined, limit: Constants.Recommendations.maxResults)
-            }
-            return deduplicateByNarrator(filtered.shuffled(), limit: Constants.Recommendations.maxResults)
-        }
-
-        // Time-based recommendations when no mood is selected
-        let recommendedTypes = currentTime.recommendedContentTypes
-        let recommendedTags = currentTime.recommendedTags
-        let recommendedTagsLower = Set(recommendedTags.map { $0.lowercased() })
 
         // Pre-compute pain point tags once (screen 1)
         let painPointTags: Set<String>
@@ -440,209 +357,34 @@ struct HomeView: View {
         }
 
         // Pre-compute user goal tags once (screen 2)
-        let userGoalTags = userOnboardingGoals.flatMap { tagsForOnboardingGoal($0) }
-        let userGoalTagsSet = Set(userGoalTags.map { $0.lowercased() })
+        let goals = userOnboardingGoals
+        let userGoalTagsSet = Set(goals.flatMap { tagsForOnboardingGoal($0) }.map { $0.lowercased() })
 
-        // Score content using indexed lookups where possible
-        let scoredContent = allContent.map { content -> (Content, Int) in
-            var score = 0
+        let currentHour = Calendar.current.component(.hour, from: Date())
 
-            // Highest priority: Pain point from onboarding screen 1
-            if !painPointTags.isEmpty {
-                if painPointTypes.contains(content.contentType) {
-                    score += Constants.Recommendations.goalTypeScore
-                }
-
-                for tag in content.tags {
-                    let lowercasedTag = tag.lowercased()
-                    for painTag in painPointTags where lowercasedTag.contains(painTag) {
-                        score += Constants.Recommendations.goalTagScore
-                        break
-                    }
-                }
-            }
-
-            // High priority: User's onboarding goals (screen 2)
-            if !userOnboardingGoals.isEmpty {
-                // Bonus for content types matching user's goals
-                if preferredContentTypes.contains(content.contentType) {
-                    score += Constants.Recommendations.goalTypeScore
-                }
-
-                // Bonus for tags matching user's goals (using pre-computed set)
-                for tag in content.tags {
-                    let lowercasedTag = tag.lowercased()
-                    for goalTag in userGoalTagsSet where lowercasedTag.contains(goalTag) {
-                        score += Constants.Recommendations.goalTagScore
-                        break // Only count once per content tag
-                    }
-                }
-            }
-
-            // Secondary: Time-appropriate content type
-            if recommendedTypes.contains(content.contentType) {
-                score += Constants.Recommendations.timeTypeScore
-            }
-
-            // Score for matching time-based tags
-            for tag in content.tags {
-                let lowercasedTag = tag.lowercased()
-                if recommendedTagsLower.contains(where: { lowercasedTag.contains($0) }) {
-                    score += Constants.Recommendations.timeTagScore
-                }
-            }
-
-            // Legacy: User profile goals if profile exists
-            if let profile = userProfile {
-                for goal in profile.selectedGoals where content.tags.contains(goal) {
-                    score += Constants.Recommendations.profileGoalScore
-                }
-            }
-
-            // AI-powered personalization: Boost based on engagement patterns
-            let currentHour = Calendar.current.component(.hour, from: Date())
-            let currentMood = selectedMood?.rawValue
-            score += personalizationService.personalizedScoreBoost(
-                for: content,
+        return RecommendationInputs(
+            snapshots: allContent.map(ContentSnapshot.init),
+            selectedMood: selectedMood,
+            recommendedTypes: currentTime.recommendedContentTypes,
+            recommendedTagsLower: Set(currentTime.recommendedTags.map { $0.lowercased() }),
+            painPointTags: painPointTags,
+            painPointTypes: painPointTypes,
+            hasOnboardingGoals: !goals.isEmpty,
+            goalPreferredTypes: preferredContentTypes,
+            userGoalTagsSet: userGoalTagsSet,
+            profileGoals: userProfile?.selectedGoals ?? [],
+            personalization: personalizationService.boostSnapshot(
                 currentHour: currentHour,
-                currentMood: currentMood
-            )
-
-            return (content, score)
-        }
-
-        // Sort by score (highest first) and take top results with some randomization
-        let sorted = scoredContent.sorted { $0.1 > $1.1 }
-
-        // Build a diverse pool: take top items but ensure multiple categories are represented.
-        // Group by category, take top items from each, then merge.
-        let groupedByCategory = Dictionary(grouping: sorted, by: { $0.0.contentType })
-        var diversePool: [(Content, Int)] = []
-
-        // First, take the top 2-3 from each category that has scored items
-        for (_, items) in groupedByCategory {
-            let topFromCategory = items.prefix(3)
-            diversePool.append(contentsOf: topFromCategory)
-        }
-
-        // Then supplement with overall top-scored items to fill the pool
-        let diverseIDs = Set(diversePool.map { $0.0.id })
-        let remaining = sorted.filter { !diverseIDs.contains($0.0.id) }
-        diversePool.append(contentsOf: remaining.prefix(max(0, Constants.Recommendations.poolSize - diversePool.count)))
-
-        // Sort the diverse pool by score so higher-scored items still get priority
-        diversePool.sort { $0.1 > $1.1 }
-
-        var poolSize = diversePool.count
-        var topContent = diversePool.map { $0.0 }
-        var result = deduplicateByNarrator(topContent.shuffled(), limit: Constants.Recommendations.maxResults)
-
-        // If we don't have enough results, expand from the full sorted list
-        while result.count < Constants.Recommendations.maxResults && poolSize < sorted.count {
-            poolSize = min(poolSize + 10, sorted.count)
-            topContent = Array(sorted.prefix(poolSize).map { $0.0 })
-            result = deduplicateByNarrator(topContent.shuffled(), limit: Constants.Recommendations.maxResults)
-        }
-
-        return result
-    }
-
-    /// Pick up to `limit` items, allowing at most one per narrator (YouTube channel)
-    /// and at most two items per content category to ensure variety.
-    /// Enforces minimum category diversity: at least 3 distinct categories when possible.
-    /// Never allows more than 2 consecutive items of the same category.
-    private func deduplicateByNarrator(_ items: [Content], limit: Int) -> [Content] {
-        var result: [Content] = []
-        var seenNarrators: Set<String> = []
-        var categoryCounts: [ContentType: Int] = [:]
-        let maxPerCategory = 2
-        var resultIDs: Set<UUID> = []
-
-        // Determine available distinct categories in the pool
-        let availableCategories = Set(items.map { $0.contentType })
-        let minDistinctCategories = min(availableCategories.count, max(3, limit / 2))
-
-        // Pass 1: unique narrators + category cap (max 2 per category)
-        // First, ensure we pick at least one from each distinct category (up to minDistinctCategories)
-        var categoriesRepresented: Set<ContentType> = []
-        for item in items {
-            guard categoriesRepresented.count < minDistinctCategories else { break }
-            guard result.count < limit else { break }
-            // Skip categories we already have representation for
-            guard !categoriesRepresented.contains(item.contentType) else { continue }
-            if let narrator = item.narrator {
-                guard seenNarrators.insert(narrator).inserted else { continue }
-            }
-            categoryCounts[item.contentType] = 1
-            categoriesRepresented.insert(item.contentType)
-            result.append(item)
-            resultIDs.insert(item.id)
-        }
-
-        // Pass 2: fill remaining slots with unique narrators + category cap
-        for item in items {
-            guard result.count < limit else { break }
-            guard !resultIDs.contains(item.id) else { continue }
-            if let narrator = item.narrator {
-                guard seenNarrators.insert(narrator).inserted else { continue }
-            }
-            let count = categoryCounts[item.contentType, default: 0]
-            if count >= maxPerCategory { continue }
-            categoryCounts[item.contentType] = count + 1
-            result.append(item)
-            resultIDs.insert(item.id)
-        }
-
-        // Pass 3: if still under limit, allow duplicate narrators (still cap at 2 per category)
-        if result.count < limit {
-            for item in items {
-                guard result.count < limit else { break }
-                guard !resultIDs.contains(item.id) else { continue }
-                let count = categoryCounts[item.contentType, default: 0]
-                if count >= maxPerCategory { continue }
-                categoryCounts[item.contentType] = count + 1
-                result.append(item)
-                resultIDs.insert(item.id)
-            }
-        }
-
-        // Pass 4: if STILL under limit, remove category cap entirely to ensure we hit target
-        if result.count < limit {
-            for item in items {
-                guard result.count < limit else { break }
-                guard !resultIDs.contains(item.id) else { continue }
-                result.append(item)
-                resultIDs.insert(item.id)
-            }
-        }
-
-        // Reorder to avoid consecutive same-category runs
-        return spreadCategories(result)
-    }
-
-    /// Reorders items so no more than 2 consecutive items share the same category.
-    private func spreadCategories(_ items: [Content]) -> [Content] {
-        guard items.count > 2 else { return items }
-        var result: [Content] = []
-        var remaining = items
-
-        while !remaining.isEmpty {
-            // Find the first item that doesn't create a 3-in-a-row
-            if let index = remaining.firstIndex(where: { item in
-                guard result.count >= 2 else { return true }
-                let last = result[result.count - 1].contentType
-                let secondLast = result[result.count - 2].contentType
-                return !(item.contentType == last && last == secondLast)
-            }) {
-                result.append(remaining.remove(at: index))
-            } else {
-                // No ideal candidate — just append the rest
-                result.append(contentsOf: remaining)
-                break
-            }
-        }
-
-        return result
+                currentMood: selectedMood?.rawValue
+            ),
+            maxResults: Constants.Recommendations.maxResults,
+            poolSize: Constants.Recommendations.poolSize,
+            goalTagScore: Constants.Recommendations.goalTagScore,
+            goalTypeScore: Constants.Recommendations.goalTypeScore,
+            timeTypeScore: Constants.Recommendations.timeTypeScore,
+            timeTagScore: Constants.Recommendations.timeTagScore,
+            profileGoalScore: Constants.Recommendations.profileGoalScore
+        )
     }
 
     /// Preload thumbnails for all visible home screen content
@@ -708,15 +450,39 @@ struct HomeView: View {
         if showLoading {
             isLoadingRecommendations = true
         }
+
+        // Snapshot all inputs on the main actor before hopping off it.
+        let inputs = makeRecommendationInputs()
+
         recommendationTask = Task {
             if showLoading {
                 try? await Task.sleep(nanoseconds: 200_000_000)
             }
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled else {
+                // A cancelled pass must not strand the skeleton (the refresh
+                // button is disabled while isLoadingRecommendations is true).
+                await MainActor.run { isLoadingRecommendations = false }
+                return
+            }
+
+            // Run the scoring/sorting/shuffling pass off the main thread over
+            // value-type snapshots; only stable IDs come back.
+            let orderedIDs = await Task.detached(priority: .userInitiated) {
+                RecommendationEngine.orderedRecommendationIDs(inputs)
+            }.value
+
+            guard !Task.isCancelled else {
+                await MainActor.run { isLoadingRecommendations = false }
+                return
+            }
             await MainActor.run {
-                cachedRecommendations = generateRecommendations()
+                // Map IDs back to the live Content objects, preserving order
+                // and dropping any that vanished since the snapshot.
+                let contentByID = Dictionary(allContent.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+                cachedRecommendations = orderedIDs.compactMap { contentByID[$0] }
                 HomeView.savedRecommendations = cachedRecommendations
                 isLoadingRecommendations = false
+                hasComputedRecommendations = true
             }
         }
     }
@@ -752,7 +518,10 @@ struct HomeView: View {
         }
         scored.sort { $0.1 > $1.1 }
         let pool = Array(scored.prefix(20).map { $0.0 }.shuffled(using: &rng))
-        let result = deduplicateByNarrator(pool, limit: 8)
+        let poolByID = Dictionary(pool.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let result = RecommendationEngine
+            .deduplicateByNarrator(pool.map(ContentSnapshot.init), limit: 8)
+            .compactMap { poolByID[$0.id] }
         HomeView.savedDailyMix = result
         HomeView.dailyMixDateKey = todayKey
         return result
@@ -765,72 +534,78 @@ struct HomeView: View {
 
                 ScrollView {
                     LazyVStack(spacing: 24) {
-                        // Continue Listening (top priority)
-                        if let data = cachedContinueListening {
-                            ContinueListeningCard(
-                                content: data.content,
-                                session: data.session,
-                                onTap: { selectedContent = data.content }
-                            )
-                            .padding(.horizontal)
-                            .padding(.top, 8)
-                        }
-
-                        // Greeting + Streak Banner
-                        VStack(spacing: 8) {
-                            VStack(spacing: 4) {
+                        // Greeting + compact streak pill (identity anchor, left-aligned)
+                        HStack(alignment: .top) {
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text(timeOfDay.greeting)
-                                    .font(.title3)
-                                    .fontWeight(.medium)
-                                    .foregroundStyle(.white.opacity(0.8))
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(.white)
 
                                 Text(timeOfDay.contextualSuggestion)
                                     .font(.caption)
-                                    .foregroundStyle(.white.opacity(0.5))
+                                    .foregroundStyle(.white.opacity(0.55))
                             }
-                            .frame(maxWidth: .infinity, alignment: .center)
+
+                            Spacer()
 
                             if streakService.currentStreak > 0 {
                                 Button {
                                     HapticManager.light()
                                     activeHomeSheet = .shareStreak
                                 } label: {
-                                    HStack(spacing: 6) {
+                                    HStack(spacing: 5) {
                                         Image(systemName: "flame.fill")
                                             .foregroundStyle(.orange)
-                                        Text("\(streakService.currentStreak) day streak")
-                                            .fontWeight(.semibold)
-                                        if let milestone = nextStreakMilestone {
-                                            Text("— \(milestone) to go!")
-                                                .foregroundStyle(.white.opacity(0.6))
-                                        } else {
-                                            Text("— \(streakService.streakMessage)")
-                                                .foregroundStyle(.white.opacity(0.6))
-                                        }
-                                        Image(systemName: "square.and.arrow.up")
-                                            .font(.caption2)
-                                            .foregroundStyle(.white.opacity(0.4))
+                                        Text("\(streakService.currentStreak)")
+                                            .fontWeight(.bold)
                                     }
-                                    .font(.caption)
+                                    .font(.subheadline)
                                     .foregroundStyle(.white)
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 6)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 7)
                                     .background(Color.orange.opacity(0.15))
                                     .clipShape(Capsule())
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityLabel("\(streakService.currentStreak) day streak. Tap to share.")
                             }
                         }
                         .padding(.horizontal)
-                        .padding(.top, cachedContinueListening == nil ? 8 : 0)
+                        .padding(.top, 8)
 
-                        // Mood Selector
+                        // Continue Listening (resume — the #1 returning-user action)
+                        if let data = cachedContinueListening {
+                            ContinueListeningCard(
+                                content: data.content,
+                                session: data.session,
+                                onTap: { playContent(data.content, from: cachedRecentlyPlayed.isEmpty ? [data.content] : cachedRecentlyPlayed) }
+                            )
+                            .padding(.horizontal)
+                        }
+
+                        // Your Plan for Today — deterministic 3-step daily plan.
+                        // .id resets the section's @State (checkmarks) at day rollover.
+                        TodaysPlanSection(
+                            allContent: allContent,
+                            sessions: sessions,
+                            favoriteContents: cachedFavoriteContents,
+                            selectedMood: selectedMood,
+                            isSubscribed: storeManager.isSubscribed,
+                            onPlay: { content in playContent(content, from: [content]) }
+                        )
+                        .id(TodaysPlanSection.todayKey)
+
+                        // AI Studio hero — signature differentiator, single clear CTA
+                        DailyToolsSection(mode: .hero)
+
+                        // Mood Selector — drives the Recommended section below
                         MoodSelectorView(selectedMood: $selectedMood)
 
                     // Recommended Section
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
-                            Text("Recommended for you")
+                            Text(selectedMood != nil ? "For how you're feeling" : "Recommended for you")
                                 .font(.title2)
                                 .fontWeight(.bold)
                                 .foregroundStyle(Theme.textPrimary)
@@ -855,17 +630,34 @@ struct HomeView: View {
                                 RecommendationLoadingCard()
                             }
                         } else if cachedRecommendations.isEmpty {
-                            // Empty state
-                            VStack(spacing: 12) {
-                                Image(systemName: "sparkles")
-                                    .font(.largeTitle)
-                                    .foregroundStyle(.white.opacity(0.5))
-                                Text("Finding personalized content...")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.white.opacity(0.6))
+                            if hasComputedRecommendations {
+                                // Computed and genuinely no results
+                                VStack(spacing: 12) {
+                                    Image(systemName: "sparkles")
+                                        .font(.largeTitle)
+                                        .foregroundStyle(.white.opacity(0.5))
+                                    Text("No recommendations yet")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.white.opacity(0.6))
+                                    Text("Play a few sessions and we'll learn what you like.")
+                                        .font(.caption)
+                                        .foregroundStyle(.white.opacity(0.45))
+                                        .multilineTextAlignment(.center)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 40)
+                            } else {
+                                // Still computing recommendations
+                                VStack(spacing: 12) {
+                                    ProgressView()
+                                        .tint(.white)
+                                    Text("Finding personalized content...")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.white.opacity(0.6))
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 40)
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 40)
                         } else {
                             ForEach(cachedRecommendations) { content in
                                 ContentCardView(
@@ -932,6 +724,22 @@ struct HomeView: View {
                         }
                     }
 
+                    // Premium upsell (free users only) — the world-class banner,
+                    // with a home-flavored personalized hook
+                    if !storeManager.isSubscribed {
+                        Button {
+                            HapticManager.light()
+                            activeHomeSheet = .premium
+                        } label: {
+                            PremiumUpsellBanner(hook: homePremiumHook)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal)
+                    }
+
+                    // Daily practices (Intention, Gratitude, Breathe, Kids) — secondary band below content
+                    DailyToolsSection(mode: .rituals)
+
                     // Recently Played Section (only shows if user has played content)
                     if !cachedRecentlyPlayed.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
@@ -986,7 +794,7 @@ struct HomeView: View {
 
                         Spacer(minLength: 100)
                     }
-                    .frame(maxWidth: 700)
+                    .frame(maxWidth: homeSizeClass == .regular ? 1000 : 700)
                     .frame(maxWidth: .infinity)
                     .padding(.bottom)
                 }
@@ -995,12 +803,6 @@ struct HomeView: View {
             .toolbar(.hidden, for: .navigationBar)
             .sheet(item: $activeHomeSheet) { sheet in
                 switch sheet {
-                case .sessionLimit:
-                    PremiumPaywallView(
-                        storeManager: StoreManager.shared,
-                        sessionLimitMessage: "This is a premium meditation. Subscribe to unlock the full library.",
-                        onSubscribed: { activeHomeSheet = nil }
-                    )
                 case .unguidedTimer:
                     UnguidedTimerView()
                 case .playlist(let playlist):
@@ -1017,6 +819,11 @@ struct HomeView: View {
                     AddToPlaylistSheet(content: content)
                 case .shareStreak:
                     ShareableCardSheet(cardType: .streak(days: streakService.currentStreak))
+                case .premium:
+                    PremiumPaywallView(
+                        storeManager: storeManager,
+                        onSubscribed: { activeHomeSheet = nil }
+                    )
                 }
             }
             .refreshable {
@@ -1027,13 +834,24 @@ struct HomeView: View {
             .onAppear {
                 recomputeDerivedState()
 
-                // Analyze user engagement patterns for personalization
-                personalizationService.analyzeEngagement(sessions: sessions, allContent: allContent)
+                // Analyze user engagement patterns for personalization.
+                // Only re-run when the session count actually changed — the
+                // analysis is O(sessions) and its output only shifts when new
+                // sessions land. Kept synchronous so the recommendation pass
+                // below sees fresh engagement data (same ordering as before).
+                if sessions.count != lastAnalyzedSessionCount {
+                    lastAnalyzedSessionCount = sessions.count
+                    personalizationService.analyzeEngagement(sessions: sessions, allContent: allContent)
+                }
 
                 if cachedRecommendations.isEmpty {
                     refreshRecommendations()
                 }
-                if dailyMix.isEmpty && !allContent.isEmpty {
+                if !allContent.isEmpty {
+                    // Unconditional: generateDailyMix early-returns the cached
+                    // mix on the same day, and rebuilds after midnight (the
+                    // isEmpty guard kept yesterday's mix while the app stayed
+                    // alive across a day boundary).
                     dailyMix = generateDailyMix()
                 }
                 prefetchLikelyContent()
@@ -1043,6 +861,9 @@ struct HomeView: View {
             }
             .onDisappear {
                 recommendationTask?.cancel()
+                // Never leave the skeleton stranded (HomeView survives under
+                // fullScreenCovers, so @State persists across the player).
+                isLoadingRecommendations = false
             }
             .onChange(of: selectedMood) { _, _ in
                 refreshRecommendations(showLoading: true)
@@ -1192,10 +1013,6 @@ struct HomeView: View {
 
     /// Play content with a queue context so auto-play works
     private func playContent(_ content: Content, from queue: [Content]) {
-        if !StoreManager.shared.isSubscribed && AppStateManager.shared.hasReachedFreeSessionLimit {
-            activeHomeSheet = .sessionLimit
-            return
-        }
         let startIndex = queue.firstIndex(where: { $0.id == content.id }) ?? 0
         let manager = AudioPlayerManager.shared
         manager.queue = queue
@@ -1206,6 +1023,323 @@ struct HomeView: View {
 
     private func shareContent(_ content: Content) {
         ContentSharingHelper.share(content)
+    }
+}
+
+// MARK: - Off-main recommendation engine
+
+/// Value-type projection of exactly the `Content` fields the recommendation
+/// scorer reads. SwiftData model objects must not cross actors, so HomeView
+/// builds these on the main actor before scoring runs on a background task.
+private nonisolated struct ContentSnapshot: Sendable {
+    let id: UUID
+    let contentType: ContentType
+    let tags: [String]
+    let narrator: String?
+
+    init(_ content: Content) {
+        self.id = content.id
+        self.contentType = content.contentType
+        self.tags = content.tags
+        self.narrator = content.narrator
+    }
+}
+
+/// Everything the recommendation scorer needs, captured on the main actor.
+private nonisolated struct RecommendationInputs: Sendable {
+    let snapshots: [ContentSnapshot]
+    let selectedMood: Mood?
+    let recommendedTypes: [ContentType]
+    let recommendedTagsLower: Set<String>
+    let painPointTags: Set<String>
+    let painPointTypes: [ContentType]
+    let hasOnboardingGoals: Bool
+    let goalPreferredTypes: [ContentType]
+    let userGoalTagsSet: Set<String>
+    let profileGoals: [String]
+    let personalization: PersonalizationBoostSnapshot
+    let maxResults: Int
+    let poolSize: Int
+    let goalTagScore: Int
+    let goalTypeScore: Int
+    let timeTypeScore: Int
+    let timeTagScore: Int
+    let profileGoalScore: Int
+}
+
+/// Pure recommendation scoring over snapshots — safe to run on any thread.
+/// This is the former `HomeView.generateRecommendations` moved verbatim off
+/// the main actor; the algorithm is unchanged.
+private nonisolated enum RecommendationEngine {
+    /// Returns the recommended content IDs in display order.
+    static func orderedRecommendationIDs(_ inputs: RecommendationInputs) -> [UUID] {
+        let snapshots = inputs.snapshots
+
+        // If mood is selected, use fast indexed lookup
+        if let mood = inputs.selectedMood {
+            let moodTags: [String]
+            let moodTypes: [ContentType]
+
+            switch mood {
+            case .anxious, .stressed:
+                moodTags = ["Anxiety", "Stress"]
+                moodTypes = [.asmr, .soundscape]
+            case .tired:
+                moodTags = ["Sleep"]
+                moodTypes = [.sleepStory, .asmr]
+            case .focused:
+                moodTags = ["Focus", "Performance"]
+                moodTypes = [.mindset]
+            case .energetic:
+                moodTags = ["Energy", "Happiness"]
+                moodTypes = [.movement, .mindset]
+            case .sad:
+                moodTags = ["Happiness", "Gratitude"]
+                moodTypes = [.mindset]
+            case .calm:
+                moodTags = []
+                moodTypes = [.meditation, .soundscape, .asmr]
+            case .happy:
+                moodTags = ["Gratitude", "Happiness"]
+                moodTypes = [.mindset, .music]
+            case .grateful:
+                moodTags = ["Gratitude"]
+                moodTypes = [.mindset]
+            }
+
+            // Build tag/type indices (same normalization as the old
+            // buildContentIndices) and look up matches
+            var tagIndex: [String: Set<UUID>] = [:]
+            var typeIndex: [ContentType: Set<UUID>] = [:]
+            for snapshot in snapshots {
+                typeIndex[snapshot.contentType, default: []].insert(snapshot.id)
+                for tag in snapshot.tags {
+                    tagIndex[tag.lowercased(), default: []].insert(snapshot.id)
+                }
+            }
+
+            var matchingIDs = Set<UUID>()
+            for term in moodTags {
+                let lowercasedTerm = term.lowercased()
+                for (tag, ids) in tagIndex where tag.contains(lowercasedTerm) {
+                    matchingIDs.formUnion(ids)
+                }
+            }
+            for type in moodTypes {
+                if let ids = typeIndex[type] {
+                    matchingIDs.formUnion(ids)
+                }
+            }
+
+            let filtered = snapshots.filter { matchingIDs.contains($0.id) }
+            if filtered.isEmpty {
+                return deduplicateByNarrator(snapshots.shuffled(), limit: inputs.maxResults).map(\.id)
+            }
+            // If filtered has fewer items than needed, supplement with other content
+            if filtered.count < inputs.maxResults {
+                let filteredIDs = Set(filtered.map { $0.id })
+                let additional = snapshots.filter { !filteredIDs.contains($0.id) }.shuffled()
+                let combined = filtered.shuffled() + additional
+                return deduplicateByNarrator(combined, limit: inputs.maxResults).map(\.id)
+            }
+            return deduplicateByNarrator(filtered.shuffled(), limit: inputs.maxResults).map(\.id)
+        }
+
+        // Time-based recommendations when no mood is selected
+        let scoredContent = snapshots.map { content -> (ContentSnapshot, Int) in
+            var score = 0
+
+            // Highest priority: Pain point from onboarding screen 1
+            if !inputs.painPointTags.isEmpty {
+                if inputs.painPointTypes.contains(content.contentType) {
+                    score += inputs.goalTypeScore
+                }
+
+                for tag in content.tags {
+                    let lowercasedTag = tag.lowercased()
+                    for painTag in inputs.painPointTags where lowercasedTag.contains(painTag) {
+                        score += inputs.goalTagScore
+                        break
+                    }
+                }
+            }
+
+            // High priority: User's onboarding goals (screen 2)
+            if inputs.hasOnboardingGoals {
+                // Bonus for content types matching user's goals
+                if inputs.goalPreferredTypes.contains(content.contentType) {
+                    score += inputs.goalTypeScore
+                }
+
+                // Bonus for tags matching user's goals (using pre-computed set)
+                for tag in content.tags {
+                    let lowercasedTag = tag.lowercased()
+                    for goalTag in inputs.userGoalTagsSet where lowercasedTag.contains(goalTag) {
+                        score += inputs.goalTagScore
+                        break // Only count once per content tag
+                    }
+                }
+            }
+
+            // Secondary: Time-appropriate content type
+            if inputs.recommendedTypes.contains(content.contentType) {
+                score += inputs.timeTypeScore
+            }
+
+            // Score for matching time-based tags
+            for tag in content.tags {
+                let lowercasedTag = tag.lowercased()
+                if inputs.recommendedTagsLower.contains(where: { lowercasedTag.contains($0) }) {
+                    score += inputs.timeTagScore
+                }
+            }
+
+            // Legacy: User profile goals if profile exists
+            for goal in inputs.profileGoals where content.tags.contains(goal) {
+                score += inputs.profileGoalScore
+            }
+
+            // AI-powered personalization: Boost based on engagement patterns
+            score += inputs.personalization.boost(
+                contentType: content.contentType,
+                narrator: content.narrator
+            )
+
+            return (content, score)
+        }
+
+        // Sort by score (highest first) and take top results with some randomization
+        let sorted = scoredContent.sorted { $0.1 > $1.1 }
+
+        // Build a diverse pool: take top items but ensure multiple categories are represented.
+        // Group by category, take top items from each, then merge.
+        let groupedByCategory = Dictionary(grouping: sorted, by: { $0.0.contentType })
+        var diversePool: [(ContentSnapshot, Int)] = []
+
+        // First, take the top 2-3 from each category that has scored items
+        for (_, items) in groupedByCategory {
+            let topFromCategory = items.prefix(3)
+            diversePool.append(contentsOf: topFromCategory)
+        }
+
+        // Then supplement with overall top-scored items to fill the pool
+        let diverseIDs = Set(diversePool.map { $0.0.id })
+        let remaining = sorted.filter { !diverseIDs.contains($0.0.id) }
+        diversePool.append(contentsOf: remaining.prefix(max(0, inputs.poolSize - diversePool.count)))
+
+        // Sort the diverse pool by score so higher-scored items still get priority
+        diversePool.sort { $0.1 > $1.1 }
+
+        var poolSize = diversePool.count
+        var topContent = diversePool.map { $0.0 }
+        var result = deduplicateByNarrator(topContent.shuffled(), limit: inputs.maxResults)
+
+        // If we don't have enough results, expand from the full sorted list
+        while result.count < inputs.maxResults && poolSize < sorted.count {
+            poolSize = min(poolSize + 10, sorted.count)
+            topContent = Array(sorted.prefix(poolSize).map { $0.0 })
+            result = deduplicateByNarrator(topContent.shuffled(), limit: inputs.maxResults)
+        }
+
+        return result.map(\.id)
+    }
+
+    /// Pick up to `limit` items, allowing at most one per narrator (YouTube channel)
+    /// and at most two items per content category to ensure variety.
+    /// Enforces minimum category diversity: at least 3 distinct categories when possible.
+    /// Never allows more than 2 consecutive items of the same category.
+    static func deduplicateByNarrator(_ items: [ContentSnapshot], limit: Int) -> [ContentSnapshot] {
+        var result: [ContentSnapshot] = []
+        var seenNarrators: Set<String> = []
+        var categoryCounts: [ContentType: Int] = [:]
+        let maxPerCategory = 2
+        var resultIDs: Set<UUID> = []
+
+        // Determine available distinct categories in the pool
+        let availableCategories = Set(items.map { $0.contentType })
+        let minDistinctCategories = min(availableCategories.count, max(3, limit / 2))
+
+        // Pass 1: unique narrators + category cap (max 2 per category)
+        // First, ensure we pick at least one from each distinct category (up to minDistinctCategories)
+        var categoriesRepresented: Set<ContentType> = []
+        for item in items {
+            guard categoriesRepresented.count < minDistinctCategories else { break }
+            guard result.count < limit else { break }
+            // Skip categories we already have representation for
+            guard !categoriesRepresented.contains(item.contentType) else { continue }
+            if let narrator = item.narrator {
+                guard seenNarrators.insert(narrator).inserted else { continue }
+            }
+            categoryCounts[item.contentType] = 1
+            categoriesRepresented.insert(item.contentType)
+            result.append(item)
+            resultIDs.insert(item.id)
+        }
+
+        // Pass 2: fill remaining slots with unique narrators + category cap
+        for item in items {
+            guard result.count < limit else { break }
+            guard !resultIDs.contains(item.id) else { continue }
+            if let narrator = item.narrator {
+                guard seenNarrators.insert(narrator).inserted else { continue }
+            }
+            let count = categoryCounts[item.contentType, default: 0]
+            if count >= maxPerCategory { continue }
+            categoryCounts[item.contentType] = count + 1
+            result.append(item)
+            resultIDs.insert(item.id)
+        }
+
+        // Pass 3: if still under limit, allow duplicate narrators (still cap at 2 per category)
+        if result.count < limit {
+            for item in items {
+                guard result.count < limit else { break }
+                guard !resultIDs.contains(item.id) else { continue }
+                let count = categoryCounts[item.contentType, default: 0]
+                if count >= maxPerCategory { continue }
+                categoryCounts[item.contentType] = count + 1
+                result.append(item)
+                resultIDs.insert(item.id)
+            }
+        }
+
+        // Pass 4: if STILL under limit, remove category cap entirely to ensure we hit target
+        if result.count < limit {
+            for item in items {
+                guard result.count < limit else { break }
+                guard !resultIDs.contains(item.id) else { continue }
+                result.append(item)
+                resultIDs.insert(item.id)
+            }
+        }
+
+        // Reorder to avoid consecutive same-category runs
+        return spreadCategories(result)
+    }
+
+    /// Reorders items so no more than 2 consecutive items share the same category.
+    private static func spreadCategories(_ items: [ContentSnapshot]) -> [ContentSnapshot] {
+        guard items.count > 2 else { return items }
+        var result: [ContentSnapshot] = []
+        var remaining = items
+
+        while !remaining.isEmpty {
+            // Find the first item that doesn't create a 3-in-a-row
+            if let index = remaining.firstIndex(where: { item in
+                guard result.count >= 2 else { return true }
+                let last = result[result.count - 1].contentType
+                let secondLast = result[result.count - 2].contentType
+                return !(item.contentType == last && last == secondLast)
+            }) {
+                result.append(remaining.remove(at: index))
+            } else {
+                // No ideal candidate — just append the rest
+                result.append(contentsOf: remaining)
+                break
+            }
+        }
+
+        return result
     }
 }
 
@@ -1326,7 +1460,7 @@ struct ContentCardView: View {
                     Text(content.title)
                         .font(.headline)
                         .foregroundStyle(Theme.textPrimary)
-                        .lineLimit(1)
+                        .lineLimit(2)
 
                     if let narrator = content.narrator {
                         Text(narrator)
@@ -1433,7 +1567,7 @@ struct RecentlyPlayedCard: View {
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .foregroundStyle(Theme.textPrimary)
-                        .lineLimit(1)
+                        .lineLimit(2, reservesSpace: true)
 
                     Text(content.durationFormatted)
                         .font(.caption)
@@ -1529,7 +1663,7 @@ struct RecentlyPlayedListRow: View {
                         .font(.subheadline)
                         .fontWeight(.medium)
                         .foregroundStyle(Theme.textPrimary)
-                        .lineLimit(1)
+                        .lineLimit(2, reservesSpace: true)
 
                     HStack(spacing: 6) {
                         Text(content.contentType.displayName)
@@ -1669,7 +1803,7 @@ struct ContinueListeningCard: View {
                         .font(.subheadline)
                         .fontWeight(.semibold)
                         .foregroundStyle(.white)
-                        .lineLimit(1)
+                        .lineLimit(2)
 
                     // Progress bar
                     GeometryReader { geo in

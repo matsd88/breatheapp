@@ -7,11 +7,10 @@ import SwiftUI
 import SwiftData
 
 enum DiscoverSheetType: Identifiable {
-    case sessionLimit, programs
+    case programs
     case addToPlaylist(Content)
     var id: String {
         switch self {
-        case .sessionLimit: return "sessionLimit"
         case .programs: return "programs"
         case .addToPlaylist(let c): return "playlist-\(c.youtubeVideoID)"
         }
@@ -74,23 +73,39 @@ struct DiscoverView: View {
                                 .padding(.top, 8)
                                 .id("discoverTop")
 
-                            // Search Bar — commented out for App Store release
-                            // SearchBarView(searchText: $searchText, isActive: $isSearchActive)
+                            // Search bar — primary discovery action
+                            SearchBarView(searchText: $searchText, isActive: $isSearchActive)
 
-                            // if isSearchActive && !searchText.isEmpty {
-                            //     SearchResultsView(
-                            //         results: filteredContent,
-                            //         onContentTap: { content in
-                            //             playContent(content, from: filteredContent)
-                            //         },
-                            //         onAddToPlaylist: { content in
-                            //             contentForPlaylistAdd = content
-                            //         }
-                            //     )
-                            // } else {
-                                // Programs (commented out for initial release)
-                                // DiscoverProgramsPreview(onSeeAll: { showPrograms = true })
-
+                            if isSearchActive {
+                                // While searching, render a light hierarchy so the keyboard
+                                // appears instantly (the full browse grid below is what stalled it).
+                                if searchText.isEmpty {
+                                    VStack(spacing: 12) {
+                                        Image(systemName: "magnifyingglass")
+                                            .font(.system(size: 40))
+                                            .foregroundStyle(Theme.textSecondary)
+                                        Text("Search meditations, sleep stories, sounds, and more")
+                                            .font(.subheadline)
+                                            .multilineTextAlignment(.center)
+                                            .foregroundStyle(Theme.textSecondary)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.top, 60)
+                                } else {
+                                    SearchResultsView(
+                                        results: filteredContent,
+                                        onContentTap: { content in
+                                            playContent(content, from: filteredContent)
+                                        },
+                                        onAddToPlaylist: { content in
+                                            activeDiscoverSheet = .addToPlaylist(content)
+                                        },
+                                        isFavorite: { content in isFavorite(content) },
+                                        onFavorite: { content in toggleFavorite(content) },
+                                        onShare: { content in shareContent(content) }
+                                    )
+                                }
+                            } else {
                                 // Micro Moments Banner
                                 MicroMomentsBanner {
                                     showMicroMoments = true
@@ -162,9 +177,9 @@ struct DiscoverView: View {
                                 }
 
                                 Spacer(minLength: 100)
-                            // } // end of else for search
+                            } // end of else for search
                         }
-                        .frame(maxWidth: 700)
+                        .frame(maxWidth: sizeClass == .regular ? 1100 : 700)
                         .frame(maxWidth: .infinity)
                         .padding(.top, 0)
                         .padding(.bottom)
@@ -182,6 +197,7 @@ struct DiscoverView: View {
                                 targetID: "discoverTop",
                                 isVisible: $showScrollToTop
                             )
+                            .accessibilityLabel("Scroll to top")
                         }
                     }
                 }
@@ -189,12 +205,6 @@ struct DiscoverView: View {
             .toolbar(.hidden, for: .navigationBar)
             .sheet(item: $activeDiscoverSheet) { sheet in
                 switch sheet {
-                case .sessionLimit:
-                    PremiumPaywallView(
-                        storeManager: StoreManager.shared,
-                        sessionLimitMessage: "This is a premium meditation. Subscribe to unlock the full library.",
-                        onSubscribed: { activeDiscoverSheet = nil }
-                    )
                 case .programs:
                     ProgramsListView()
                 case .addToPlaylist(let content):
@@ -275,10 +285,6 @@ struct DiscoverView: View {
 
     /// Play content with a queue for auto-play
     private func playContent(_ content: Content, from queue: [Content]) {
-        if !StoreManager.shared.isSubscribed && AppStateManager.shared.hasReachedFreeSessionLimit {
-            activeDiscoverSheet = .sessionLimit
-            return
-        }
         let startIndex = queue.firstIndex(where: { $0.id == content.id }) ?? 0
         let manager = AudioPlayerManager.shared
         manager.queue = queue
@@ -296,6 +302,7 @@ struct DiscoverView: View {
 struct SearchBarView: View {
     @Binding var searchText: String
     @Binding var isActive: Bool
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         HStack(spacing: 12) {
@@ -305,9 +312,9 @@ struct SearchBarView: View {
 
                 TextField("Start your search", text: $searchText)
                     .foregroundStyle(Theme.textPrimary)
-                    .onTapGesture {
-                        isActive = true
-                    }
+                    .focused($isFocused)
+                    .submitLabel(.search)
+                    .autocorrectionDisabled()
 
                 if !searchText.isEmpty {
                     Button {
@@ -316,6 +323,7 @@ struct SearchBarView: View {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(Theme.textSecondary)
                     }
+                    .accessibilityLabel("Clear search")
                 }
             }
             .padding(12)
@@ -326,16 +334,20 @@ struct SearchBarView: View {
                 Button("Cancel") {
                     searchText = ""
                     isActive = false
-                    hideKeyboard()
+                    isFocused = false
                 }
                 .foregroundStyle(.white)
             }
         }
         .padding(.horizontal)
-    }
-
-    private func hideKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        // Drive `isActive` from focus so the keyboard appears immediately on tap,
+        // and dismiss the field when search is cancelled.
+        .onChange(of: isFocused) { _, focused in
+            if focused { isActive = true }
+        }
+        .onChange(of: isActive) { _, active in
+            if !active { isFocused = false }
+        }
     }
 }
 
@@ -344,6 +356,22 @@ struct SearchResultsView: View {
     let results: [Content]
     let onContentTap: (Content) -> Void
     var onAddToPlaylist: ((Content) -> Void)? = nil
+    var isFavorite: ((Content) -> Bool)? = nil
+    var onFavorite: ((Content) -> Void)? = nil
+    var onShare: ((Content) -> Void)? = nil
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    @ViewBuilder
+    private func resultRow(_ content: Content) -> some View {
+        SearchResultRow(
+            content: content,
+            onTap: { onContentTap(content) },
+            onAddToPlaylist: onAddToPlaylist != nil ? { onAddToPlaylist?(content) } : nil,
+            isFavorite: isFavorite?(content) ?? false,
+            onFavorite: onFavorite != nil ? { onFavorite?(content) } : nil,
+            onShare: onShare != nil ? { onShare?(content) } : nil
+        )
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -369,10 +397,19 @@ struct SearchResultsView: View {
                     .foregroundStyle(Theme.textSecondary)
                     .padding(.horizontal)
 
-                ForEach(results) { content in
-                    SearchResultRow(content: content, onTap: {
-                        onContentTap(content)
-                    }, onAddToPlaylist: onAddToPlaylist != nil ? { onAddToPlaylist?(content) } : nil)
+                if sizeClass == .regular {
+                    // iPad: two-column grid makes use of the wide screen
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)], spacing: 12) {
+                        ForEach(results) { content in
+                            resultRow(content)
+                        }
+                    }
+                } else {
+                    LazyVStack(spacing: 12) {
+                        ForEach(results) { content in
+                            resultRow(content)
+                        }
+                    }
                 }
             }
         }
@@ -387,6 +424,12 @@ struct SearchResultRow: View {
     var onFavorite: (() -> Void)? = nil
     var onShare: (() -> Void)? = nil
     var onMore: () -> Void = {}
+
+    @ObservedObject private var storeManager = StoreManager.shared
+
+    private var showsPremiumLock: Bool {
+        content.isPremium && !storeManager.isSubscribed
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -410,9 +453,21 @@ struct SearchResultRow: View {
                             )
                     }
                 )
-                .frame(width: 60, height: 60)
+                .frame(width: 100, height: 68)
                 .clipped()
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(alignment: .topTrailing) {
+                    if showsPremiumLock {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.yellow)
+                            .padding(5)
+                            .background(.black.opacity(0.55))
+                            .clipShape(Circle())
+                            .padding(4)
+                            .accessibilityLabel("Premium")
+                    }
+                }
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(content.title)
@@ -436,6 +491,13 @@ struct SearchResultRow: View {
                                 .foregroundStyle(Theme.textSecondary)
                         }
                     }
+
+                    if let narrator = content.narrator {
+                        Text(narrator)
+                            .font(.caption)
+                            .foregroundStyle(Theme.textTertiary)
+                            .lineLimit(1)
+                    }
                 }
 
                 Spacer()
@@ -449,6 +511,8 @@ struct SearchResultRow: View {
                 .rotationEffect(.degrees(90))
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
+                .accessibilityLabel("More options")
+                .accessibilityAddTraits(.isButton)
                 .highPriorityGesture(
                     TapGesture().onEnded {
                         ActionSheetManager.shared.show(
@@ -461,9 +525,9 @@ struct SearchResultRow: View {
                     }
                 )
         }
-        .padding()
+        .padding(12)
         .background(Theme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
         .padding(.horizontal)
         .contentShape(Rectangle())
         .onTapGesture {
@@ -529,7 +593,11 @@ struct CategoryPill: View {
                     .font(.subheadline)
                     .fontWeight(isSelected ? .semibold : .regular)
 
-                if count > 0 {
+                // Inventory counts ("All 1,693") are noise — nobody chooses a
+                // meditation because a category has more items, and four-digit
+                // numbers make the pill row read as a database. Kept only where
+                // the number is small enough to be a genuine signal of scope.
+                if count > 0 && count < 100 {
                     Text("\(count)")
                         .font(.caption2)
                         .fontWeight(.semibold)
@@ -543,6 +611,8 @@ struct CategoryPill: View {
             .clipShape(Capsule())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -649,8 +719,10 @@ struct ContentCategorySection: View {
                         Image(systemName: sortIconName)
                             .font(.subheadline)
                             .foregroundStyle(.white.opacity(0.7))
-                            .frame(width: 32, height: 32)
+                            .frame(width: 44, height: 44)
                     }
+                    .accessibilityLabel("Sort")
+                    .accessibilityHint("Changes the order of the list")
                 }
 
                 if !expanded {
@@ -757,6 +829,9 @@ struct DiscoverContentCard: View {
             .clipped()
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .onTapGesture { onTap() }
+            .accessibilityLabel(content.title)
+            .accessibilityHint("Plays this content")
+            .accessibilityAddTraits(.isButton)
 
             HStack(alignment: .top) {
                 Text(content.title)
@@ -772,8 +847,10 @@ struct DiscoverContentCard: View {
                     .font(.body)
                     .foregroundStyle(Theme.textSecondary)
                     .rotationEffect(.degrees(90))
-                    .frame(width: 32, height: 32)
+                    .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
+                    .accessibilityLabel("More options")
+                    .accessibilityAddTraits(.isButton)
                     .highPriorityGesture(
                         TapGesture().onEnded {
                             ActionSheetManager.shared.show(
@@ -825,6 +902,14 @@ struct DiscoverContentListView: View {
     @State private var showScrollToTop = false
     @State private var isScrollingToTop = false
     @State private var sortOption: SortOption = .defaultOrder
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    // iPad: lay results out in two columns to use the wide screen
+    private var listColumns: [GridItem] {
+        sizeClass == .regular
+            ? [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)]
+            : [GridItem(.flexible())]
+    }
 
     private let batchSize: Int = 10  // Load 10 more at a time
 
@@ -893,12 +978,14 @@ struct DiscoverContentListView: View {
                                 Image(systemName: sortIconName)
                                     .font(.subheadline)
                                     .foregroundStyle(.white.opacity(0.7))
-                                    .frame(width: 32, height: 32)
+                                    .frame(width: 44, height: 44)
                             }
+                            .accessibilityLabel("Sort")
+                            .accessibilityHint("Changes the order of the list")
                         }
                         .padding(.horizontal)
 
-                        LazyVStack(spacing: 12) {
+                        LazyVGrid(columns: listColumns, spacing: 12) {
                             ForEach(Array(displayedContent.enumerated()), id: \.element.id) { index, content in
                                 SearchResultRow(
                                     content: content,
@@ -960,6 +1047,7 @@ struct DiscoverContentListView: View {
                             targetID: "listTop",
                             isVisible: $showScrollToTop
                         )
+                        .accessibilityLabel("Scroll to top")
                         .onTapGesture {
                             isScrollingToTop = true
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
@@ -974,11 +1062,6 @@ struct DiscoverContentListView: View {
         .toolbarColorScheme(.dark, for: .navigationBar)
         .sheet(item: $activeListSheet) { sheet in
             switch sheet {
-            case .sessionLimit:
-                PremiumPaywallView(
-                    storeManager: StoreManager.shared,
-                    sessionLimitMessage: "This is a premium meditation. Subscribe to unlock the full library."
-                )
             case .programs:
                 ProgramsListView()
             case .addToPlaylist(let content):
@@ -1040,10 +1123,6 @@ struct DiscoverContentListView: View {
 
     /// Play content with a queue for auto-play
     private func playContent(_ content: Content, from queue: [Content]) {
-        if !StoreManager.shared.isSubscribed && AppStateManager.shared.hasReachedFreeSessionLimit {
-            activeListSheet = .sessionLimit
-            return
-        }
         let startIndex = queue.firstIndex(where: { $0.id == content.id }) ?? 0
         let manager = AudioPlayerManager.shared
         manager.queue = queue
@@ -1099,6 +1178,7 @@ struct UnguidedTimerView: View {
                             .font(.body.weight(.semibold))
                             .foregroundStyle(.white)
                     }
+                    .accessibilityLabel("Close")
                 }
             }
         }
@@ -1298,9 +1378,13 @@ struct UnguidedTimerView: View {
 
     private func togglePause() {
         if timer != nil {
+            // Pause: stop the countdown AND the ambient sound.
             timer?.invalidate()
             timer = nil
+            ambientSoundService.pause()
         } else {
+            // Resume: restart the countdown AND the ambient sound.
+            ambientSoundService.resume()
             timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
                 Task { @MainActor in
                     if timeRemaining > 0 {

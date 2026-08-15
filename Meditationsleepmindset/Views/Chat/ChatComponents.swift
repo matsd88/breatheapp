@@ -115,9 +115,14 @@ struct MoodLevelButton: View {
 
 struct ChatBubble: View {
     let message: ChatMessage
+    /// When set (assistant messages), shows a read-aloud button and context-menu action.
+    var onReadAloud: (() -> Void)? = nil
+    @ObservedObject private var voice = VoiceManager.shared
     @State private var appeared = false
 
     private var isUser: Bool { message.role == .user }
+    private var isFetchingSpeech: Bool { voice.loadingSpeechMessageID == message.id }
+    private var isSpeakingThis: Bool { voice.isSpeaking && voice.speakingMessageID == message.id }
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -167,12 +172,42 @@ struct ChatBubble: View {
                         } label: {
                             Label("Copy", systemImage: "doc.on.doc")
                         }
+                        if let onReadAloud {
+                            Button {
+                                onReadAloud()
+                            } label: {
+                                Label(isSpeakingThis ? "Stop Reading" : "Read Aloud", systemImage: "speaker.wave.2")
+                            }
+                        }
                     }
 
-                Text(message.timestamp, style: .time)
-                    .font(.system(size: 10))
-                    .foregroundStyle(Theme.textTertiary)
-                    .padding(.horizontal, 4)
+                HStack(spacing: 10) {
+                    Text(message.timestamp, style: .time)
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.textTertiary)
+
+                    if let onReadAloud {
+                        Button {
+                            onReadAloud()
+                        } label: {
+                            Group {
+                                if isFetchingSpeech {
+                                    ProgressView()
+                                        .controlSize(.mini)
+                                        .tint(Theme.textTertiary)
+                                } else {
+                                    Image(systemName: isSpeakingThis ? "stop.fill" : "speaker.wave.2")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(isSpeakingThis ? Theme.profileAccent : Theme.textTertiary)
+                                }
+                            }
+                            .frame(width: 18, height: 14)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(isSpeakingThis ? "Stop reading aloud" : (isFetchingSpeech ? "Preparing audio" : "Read message aloud"))
+                    }
+                }
+                .padding(.horizontal, 4)
             }
 
             if !isUser { Spacer(minLength: 50) }
@@ -235,6 +270,8 @@ struct ChatInputBar: View {
     let remainingMessages: Int? // nil = unlimited (premium)
     let isLoading: Bool
     let onSend: () -> Void
+    var isRecording: Bool = false
+    var onMic: (() -> Void)? = nil
 
     private var canSend: Bool {
         !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isLoading
@@ -242,18 +279,44 @@ struct ChatInputBar: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            if let remaining = remainingMessages, remaining < Int.max {
+            // A running countdown of what you're about to lose is the wrong
+            // register for a calming app, so this now stays quiet until the
+            // limit is genuinely close, and states the fact without alarm.
+            if let remaining = remainingMessages, remaining < Int.max, remaining <= 5 {
                 HStack(spacing: 4) {
-                    Image(systemName: remaining <= 3 ? "exclamationmark.circle.fill" : "bubble.left.fill")
+                    Image(systemName: "bubble.left")
                         .font(.system(size: 9))
-                    Text("\(remaining) messages remaining")
+                    Text(remaining == 1
+                         ? String(localized: "1 message left today")
+                         : String(localized: "\(remaining) messages left today"))
                         .font(.system(size: 11, weight: .medium))
                 }
-                .foregroundStyle(remaining <= 3 ? .orange : Theme.textTertiary)
+                .foregroundStyle(Theme.textTertiary)
                 .padding(.top, 4)
+                .accessibilityLabel(remaining == 1
+                                    ? String(localized: "1 message left today")
+                                    : String(localized: "\(remaining) messages left today"))
             }
 
             HStack(spacing: 10) {
+                if let onMic {
+                    Button {
+                        HapticManager.light()
+                        onMic()
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(isRecording ? Color.red.opacity(0.85) : Color.white.opacity(0.08))
+                                .frame(width: 36, height: 36)
+                            Image(systemName: isRecording ? "waveform" : "mic.fill")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(isRecording ? .white : Theme.textSecondary)
+                                .symbolEffect(.variableColor.iterative, isActive: isRecording)
+                        }
+                    }
+                    .accessibilityLabel(isRecording ? "Stop recording" : "Start voice input")
+                }
+
                 TextField("", text: $text, prompt: Text("Message Breathe AI...").foregroundStyle(.white.opacity(0.35)), axis: .vertical)
                     .focused(isFocused)
                     .lineLimit(1...4)

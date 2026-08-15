@@ -353,17 +353,21 @@ struct MoodInsightsView: View {
         .padding(.horizontal)
     }
 
+    /// Semantic mapping is kept — calm reads cool, stressed reads hot — but the
+    /// fully saturated system colours fought the muted dark palette everywhere
+    /// else in the app. These are the same hues pulled down in saturation and
+    /// lightness so the chart sits in the design rather than shouting over it.
     private func colorForMood(_ mood: Mood) -> Color {
         switch mood {
-        case .calm: return .cyan
-        case .happy: return .yellow
-        case .anxious: return .orange
-        case .stressed: return .red
-        case .sad: return .blue
-        case .tired: return .gray
-        case .energetic: return .green
-        case .focused: return .purple
-        case .grateful: return .pink
+        case .calm:      return Color(red: 0.38, green: 0.75, blue: 0.82)
+        case .happy:     return Color(red: 0.90, green: 0.76, blue: 0.42)
+        case .anxious:   return Color(red: 0.88, green: 0.60, blue: 0.40)
+        case .stressed:  return Color(red: 0.84, green: 0.45, blue: 0.45)
+        case .sad:       return Color(red: 0.45, green: 0.58, blue: 0.82)
+        case .tired:     return Color(red: 0.58, green: 0.62, blue: 0.68)
+        case .energetic: return Color(red: 0.50, green: 0.78, blue: 0.58)
+        case .focused:   return Color(red: 0.62, green: 0.56, blue: 0.85)
+        case .grateful:  return Color(red: 0.85, green: 0.58, blue: 0.72)
         }
     }
 }

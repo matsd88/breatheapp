@@ -58,18 +58,19 @@ struct PremiumPaywallView: View {
     @State private var animateFeatures = false
     @State private var countdownSeconds: Int = 86400
     @State private var countdownTimer: Timer?
+    @State private var showCountdown = true
     @State private var previewIndex = 0
     @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     private var isRegular: Bool { sizeClass == .regular }
 
-    // Feature preview cards
+    // Feature preview cards — AI studio leads (the feature competitors can't match).
     private var previewCards: [(image: String, title: String, description: String)] {[
+        ("wand.and.stars", String(localized: "Personal AI Meditation Studio"), String(localized: "Meditations generated just for you — any mood, any length")),
+        ("bubble.left.and.text.bubble.right.fill", String(localized: "AI Companion & Kids Stories"), String(localized: "24/7 wellness chat, plus personalized AI bedtime stories")),
         ("moon.stars.fill", String(localized: "100+ Sleep Stories"), String(localized: "Drift off with narrated stories designed for deep sleep")),
-        ("waveform.path.ecg", String(localized: "Guided Meditations"), String(localized: "Sessions from 3 to 60 minutes for every mood")),
-        ("music.note.list", String(localized: "Calming Soundscapes"), String(localized: "Rain, ocean waves, forest — mix your own")),
-        ("brain.head.profile", String(localized: "Mindset Coaching"), String(localized: "Daily coaching to build resilience and positivity"))
+        ("music.note.list", String(localized: "Calming Soundscapes"), String(localized: "Rain, ocean waves, forest — mix your own"))
     ]}
 
     // Before/after metrics
@@ -87,8 +88,10 @@ struct PremiumPaywallView: View {
                 // Feature preview cards (swipeable)
                 featurePreviewSection
 
-                // Urgency countdown banner
-                urgencyBanner
+                // Urgency countdown banner (only while the first-run offer is genuinely live)
+                if showCountdown {
+                    urgencyBanner
+                }
 
                 // Header text
                 VStack(spacing: 10) {
@@ -115,18 +118,24 @@ struct PremiumPaywallView: View {
                 // Before / After comparison
                 beforeAfterSection
 
-                // Star rating
-                HStack(spacing: 4) {
-                    ForEach(0..<5, id: \.self) { _ in
-                        Image(systemName: "star.fill")
-                            .foregroundStyle(.yellow)
-                            .font(.system(size: 14))
+                // Star rating + social proof
+                VStack(spacing: 8) {
+                    HStack(spacing: 4) {
+                        ForEach(0..<5, id: \.self) { _ in
+                            Image(systemName: "star.fill")
+                                .foregroundStyle(.yellow)
+                                .font(.system(size: 14))
+                        }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(Color.white.opacity(0.1))
+                    .clipShape(Capsule())
+
+                    Text("Loved by over 100,000 people finding calm")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.6))
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(Color.white.opacity(0.1))
-                .clipShape(Capsule())
 
                 // Plan options
                 VStack(spacing: 14) {
@@ -181,7 +190,7 @@ struct PremiumPaywallView: View {
                                 .tint(.white)
                         } else {
                             VStack(spacing: 2) {
-                                Text("Start My 7-Day Free Trial")
+                                Text("Start My \(Constants.Subscriptions.freeTrialDays)-Day Free Trial")
                                     .fontWeight(.semibold)
                                 Text("then \(selectedPlan.price), auto-renews")
                                     .font(.caption)
@@ -198,6 +207,13 @@ struct PremiumPaywallView: View {
                 }
                 .disabled(storeManager.isPurchasing)
                 .padding(.horizontal, 24)
+
+                // Auto-renewal terms (Apple requirement)
+                Text(subscriptionTermsText)
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.4))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
 
                 // Trust signals
                 VStack(spacing: 12) {
@@ -242,6 +258,7 @@ struct PremiumPaywallView: View {
                 animateFeatures = true
             }
             startCountdown()
+            AppStateManager.shared.recordPaywallShown()
             FirebaseService.shared.logPaywallViewed(source: "settings")
         }
         .task {
@@ -311,6 +328,34 @@ struct PremiumPaywallView: View {
         .presentationBackground(Theme.profileGradient)
     }
 
+    // MARK: - StoreKit Price Helpers
+
+    private func storeKitProduct(for plan: PremiumSubscriptionPlan) -> Product? {
+        let products = storeManager.subscriptions
+        switch plan {
+        case .annual:
+            return products.first { $0.subscription?.subscriptionPeriod.unit == .year }
+        case .monthly:
+            return products.first { $0.subscription?.subscriptionPeriod.unit == .month }
+        case .weekly:
+            return products.first { $0.subscription?.subscriptionPeriod.unit == .week }
+        }
+    }
+
+    private var subscriptionTermsText: String {
+        if let product = storeKitProduct(for: selectedPlan) {
+            let period: String
+            switch product.subscription?.subscriptionPeriod.unit {
+            case .year: period = "year"
+            case .month: period = "month"
+            case .week: period = "week"
+            default: period = "period"
+            }
+            return "After the 7-day free trial, you will be charged \(product.displayPrice)/\(period). Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account."
+        }
+        return "Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account."
+    }
+
     // MARK: - Urgency Countdown Banner
 
     private var urgencyBanner: some View {
@@ -347,10 +392,17 @@ struct PremiumPaywallView: View {
         countdownTimer?.invalidate()
         countdownTimer = nil
 
+        // Real, persisted expiry tied to first view — once it genuinely ends,
+        // hide the banner instead of rolling over a fresh 24h (honest urgency).
         let key = "paywallCountdownExpiry"
         let now = Date()
-        if let stored = UserDefaults.standard.object(forKey: key) as? Date, stored > now {
-            countdownSeconds = Int(stored.timeIntervalSince(now))
+        if let stored = UserDefaults.standard.object(forKey: key) as? Date {
+            if stored > now {
+                countdownSeconds = Int(stored.timeIntervalSince(now))
+            } else {
+                showCountdown = false
+                return
+            }
         } else {
             let expiry = now.addingTimeInterval(86400)
             UserDefaults.standard.set(expiry, forKey: key)
@@ -361,6 +413,7 @@ struct PremiumPaywallView: View {
             Task { @MainActor in
                 if countdownSeconds > 0 {
                     countdownSeconds -= 1
+                    if countdownSeconds == 0 { showCountdown = false }
                 }
             }
         }
@@ -519,25 +572,31 @@ enum PremiumSubscriptionPlan: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Every plan normalised to the same unit so the comparison needs no mental
+    /// arithmetic. Previously annual read "$49.99/year" against "$8.99/month",
+    /// which hid how much better the annual plan is.
     var subtitle: String? {
         switch self {
-        case .annual: return String(localized: "Just $0.96/week")
-        case .monthly: return nil
-        case .weekly: return nil
+        case .annual: return String(localized: "$4.17/month · billed yearly")
+        case .monthly: return String(localized: "$8.99/month · billed monthly")
+        case .weekly: return String(localized: "$12.96/month · billed weekly")
         }
     }
 
+    /// Only one plan carries a badge. Annual said "BEST VALUE" while monthly
+    /// said "MOST POPULAR" — two competing recommendations cancel out and leave
+    /// the user to decide unaided.
     var badge: String? {
         switch self {
         case .annual: return String(localized: "BEST VALUE")
-        case .monthly: return String(localized: "MOST POPULAR")
+        case .monthly: return nil
         case .weekly: return nil
         }
     }
 
     var discount: String? {
         switch self {
-        case .annual: return "-60%"
+        case .annual: return String(localized: "Save 54%")
         case .monthly: return nil
         case .weekly: return nil
         }

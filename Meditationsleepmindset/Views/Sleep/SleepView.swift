@@ -18,7 +18,7 @@ struct SleepView: View {
     private var sleepContent: [Content]
     @Query private var favorites: [FavoriteContent]
 
-    @State private var selectedTab = 0
+    @State private var selectedCategory: SleepCategory = .sleepStories
     @State private var showScrollToTop = false
     @State private var activeSleepSheet: SleepSheetType?
     @State private var durationFilter: DurationFilter = .all
@@ -29,8 +29,33 @@ struct SleepView: View {
     @State private var cachedFavoriteIDSet: Set<UUID> = []
     @State private var cachedFavoriteVideoIDSet: Set<String> = []
 
+    // MARK: - Sleep Categories
+    private enum SleepCategory: CaseIterable {
+        case sleepStories, soundscapes, music, asmr
+
+        var title: String {
+            switch self {
+            case .sleepStories: return "Sleep Stories"
+            case .soundscapes: return "Soundscapes"
+            case .music: return "Music"
+            case .asmr: return "ASMR"
+            }
+        }
+
+        var icon: String { contentType.iconName }
+
+        var contentType: ContentType {
+            switch self {
+            case .sleepStories: return .sleepStory
+            case .soundscapes: return .soundscape
+            case .music: return .music
+            case .asmr: return .asmr
+            }
+        }
+    }
+
     enum SleepSheetType: Identifiable {
-        case sleepTimer, alarm, analytics, soundMixer, sessionLimit
+        case sleepTimer, alarm, analytics, soundMixer
         case addToPlaylist(Content)
         var id: String {
             switch self {
@@ -38,14 +63,107 @@ struct SleepView: View {
             case .alarm: return "alarm"
             case .analytics: return "analytics"
             case .soundMixer: return "soundMixer"
-            case .sessionLimit: return "sessionLimit"
             case .addToPlaylist(let c): return "playlist-\(c.youtubeVideoID)"
             }
         }
     }
     @StateObject private var playerManager = AudioPlayerManager.shared
+    /// Observed so the sleep-timer tile's countdown stays live (fast time
+    /// state moved off AudioPlayerManager's published properties). Ticks at
+    /// most 1 Hz, and only while a sleep timer is active.
+    @ObservedObject private var sleepTimerClock = AudioPlayerManager.shared.sleepTimerClock
     @StateObject private var notificationService = NotificationService.shared
+    @StateObject private var circadian = CircadianService.shared
+    @StateObject private var health = HealthKitService.shared
+    @Query(sort: \MeditationSession.startedAt, order: .reverse) private var sessions: [MeditationSession]
     @AppStorage("dismissedBedtimePrompt") private var dismissedBedtimePrompt = false
+
+    private let sleepTimeFormatter: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "h:mm a"; return f
+    }()
+
+    // MARK: - Wind-down window banner (circadian)
+    @ViewBuilder
+    private var windDownBanner: some View {
+        let schedule = circadian.schedule()
+        if let windDown = schedule.windows.first(where: {
+            if case .windDown = $0.type { return true } else { return false }
+        }) {
+            let now = Date()
+            let active = now >= windDown.start && now <= windDown.end
+            Button {
+                HapticManager.light()
+                showSleepPreparation = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "moon.stars.fill")
+                        .font(.title3)
+                        .foregroundStyle(Theme.sleepPrimary)
+                        .frame(width: 28)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(active ? "It's your wind-down window" : "Wind-down window")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.sleepTextPrimary)
+                        Text(active
+                             ? "Now's the ideal time to start a sleep story or breathing."
+                             : "Best time to wind down: \(sleepTimeFormatter.string(from: windDown.start))")
+                            .font(.caption)
+                            .foregroundStyle(Theme.sleepTextSecondary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.sleepTextSecondary.opacity(0.6))
+                }
+                .padding(16)
+                .background(active ? Theme.sleepPrimary.opacity(0.15) : Theme.sleepCardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal)
+        }
+    }
+
+    // MARK: - Last night's sleep snapshot
+    @ViewBuilder
+    private var lastNightStrip: some View {
+        let score = SleepAnalyticsService.shared.calculateSleepScore(from: sessions)
+        if score.overall > 0 || health.sleepHoursToday > 0 {
+            Button {
+                HapticManager.light()
+                activeSleepSheet = .analytics
+            } label: {
+                HStack(spacing: 16) {
+                    if score.overall > 0 {
+                        lastNightMetric(value: "\(score.overall)", label: "Sleep Score", tint: score.color)
+                    }
+                    if health.sleepHoursToday > 0 {
+                        Divider().frame(height: 32).overlay(Color.white.opacity(0.1))
+                        lastNightMetric(value: String(format: "%.1fh", health.sleepHoursToday), label: "Last night", tint: Theme.sleepPrimary)
+                    }
+                    Spacer(minLength: 0)
+                    Text("Details")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.sleepTextSecondary)
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.sleepTextSecondary.opacity(0.6))
+                }
+                .padding(16)
+                .background(Theme.sleepCardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal)
+        }
+    }
+
+    private func lastNightMetric(value: String, label: String, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value).font(.title2.weight(.bold)).foregroundStyle(tint)
+            Text(label).font(.caption2).foregroundStyle(Theme.sleepTextSecondary)
+        }
+    }
 
     // MARK: - Duration Filter
     enum DurationFilter: String, CaseIterable {
@@ -76,13 +194,7 @@ struct SleepView: View {
     }
 
     private var currentContent: [Content] {
-        switch selectedTab {
-        case 0: return sleepStories
-        case 1: return soundscapes
-        case 2: return music
-        case 3: return asmr
-        default: return sleepStories
-        }
+        contentByCategory[selectedCategory.contentType] ?? []
     }
 
     private var filteredContent: [Content] {
@@ -157,7 +269,7 @@ struct SleepView: View {
                 .padding(.horizontal)
                 .padding(.top, sizeClass == .regular ? 12 : 8)
                 .padding(.bottom, sizeClass == .regular ? 14 : 8)
-                .frame(maxWidth: 700)
+                .frame(maxWidth: sizeClass == .regular ? 1100 : 700)
                 .frame(maxWidth: .infinity)
 
                 ScrollViewReader { proxy in
@@ -173,72 +285,71 @@ struct SleepView: View {
                                 .padding(.horizontal)
                             }
 
-                            // Bedtime Reminder Prompt
-                            if !notificationService.bedtimeReminderEnabled && !dismissedBedtimePrompt {
-                                BedtimeReminderPrompt(
-                                    onEnable: {
-                                        notificationService.setBedtimeReminder(enabled: true)
-                                    },
-                                    onDismiss: {
-                                        dismissedBedtimePrompt = true
-                                    }
-                                )
-                                .padding(.horizontal)
-                            }
+                            // Wind-down window (circadian) + last night's sleep snapshot
+                            windDownBanner
+                            lastNightStrip
 
-                            // Sleep Preparation Card
-                            SleepPreparationCard {
-                                showSleepPreparation = true
-                            }
-                            .padding(.horizontal)
-
-                            // Category Picker
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
-                                    SleepCategoryPill(title: "Sleep Stories", isSelected: selectedTab == 0) {
-                                        HapticManager.selection()
-                                        withAnimation { selectedTab = 0 }
+                            // Category picker, with duration folded into a trailing
+                            // menu. These were two stacked full-width scrollers,
+                            // which — on top of the tools row and the wind-down
+                            // banner — put four bands of chrome above any content.
+                            // Category is the primary axis and stays visible;
+                            // duration is a refinement and now costs no vertical space.
+                            HStack(spacing: 8) {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 12) {
+                                        ForEach(SleepCategory.allCases, id: \.self) { category in
+                                            SleepCategoryPill(title: category.title, isSelected: selectedCategory == category) {
+                                                HapticManager.selection()
+                                                withAnimation { selectedCategory = category }
+                                            }
+                                        }
                                     }
-                                    SleepCategoryPill(title: "Soundscapes", isSelected: selectedTab == 1) {
-                                        HapticManager.selection()
-                                        withAnimation { selectedTab = 1 }
-                                    }
-                                    SleepCategoryPill(title: "Music", isSelected: selectedTab == 2) {
-                                        HapticManager.selection()
-                                        withAnimation { selectedTab = 2 }
-                                    }
-                                    SleepCategoryPill(title: "ASMR", isSelected: selectedTab == 3) {
-                                        HapticManager.selection()
-                                        withAnimation { selectedTab = 3 }
-                                    }
+                                    .padding(.leading)
+                                    .padding(.trailing, 4)
                                 }
-                                .padding(.horizontal)
-                            }
 
-                            // Duration Filter Pills
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
+                                Menu {
                                     ForEach(DurationFilter.allCases, id: \.rawValue) { filter in
-                                        Text(filter.displayName)
+                                        Button {
+                                            HapticManager.selection()
+                                            withAnimation { durationFilter = filter }
+                                        } label: {
+                                            if durationFilter == filter {
+                                                Label(filter.displayName, systemImage: "checkmark")
+                                            } else {
+                                                Text(filter.displayName)
+                                            }
+                                        }
+                                    }
+                                } label: {
+                                    HStack(spacing: 5) {
+                                        Image(systemName: "clock")
+                                            .font(.caption2)
+                                        Text(durationFilter == .all
+                                             ? String(localized: "Any length")
+                                             : durationFilter.displayName)
                                             .font(.caption)
                                             .fontWeight(.medium)
-                                            .foregroundStyle(durationFilter == filter ? .white : Theme.sleepTextSecondary)
-                                            .padding(.horizontal, 14)
-                                            .padding(.vertical, 7)
-                                            .background(durationFilter == filter ? Color.white.opacity(0.2) : Theme.sleepCardBackground)
-                                            .clipShape(Capsule())
-                                            .contentShape(Capsule())
-                                            .onTapGesture {
-                                                HapticManager.selection()
-                                                withAnimation { durationFilter = filter }
-                                            }
+                                            .lineLimit(1)
                                     }
+                                    .foregroundStyle(durationFilter == .all ? Theme.sleepTextSecondary : .white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 7)
+                                    .background(durationFilter == .all
+                                                ? Theme.sleepCardBackground
+                                                : Color.white.opacity(0.2))
+                                    .clipShape(Capsule())
                                 }
-                                .padding(.horizontal)
+                                .padding(.trailing)
+                                .accessibilityLabel(String(localized: "Filter by length"))
+                                .accessibilityValue(durationFilter == .all
+                                                    ? String(localized: "Any length")
+                                                    : durationFilter.displayName)
                             }
 
                             // Sound Mixer Card (only shown in Soundscapes tab)
-                            if selectedTab == 1 {
+                            if selectedCategory == .soundscapes {
                                 SoundMixerCard {
                                     activeSleepSheet = .soundMixer
                                 }
@@ -248,7 +359,7 @@ struct SleepView: View {
                             // Content Grid - Adaptive for iPad
                             LazyVGrid(
                                 columns: [
-                                    GridItem(.adaptive(minimum: 160, maximum: 200), spacing: 16, alignment: .top)
+                                    GridItem(.adaptive(minimum: 160, maximum: sizeClass == .regular ? 220 : 200), spacing: 16, alignment: .top)
                                 ],
                                 alignment: .leading,
                                 spacing: 24
@@ -302,9 +413,30 @@ struct SleepView: View {
                                 .padding(.top, 40)
                             }
 
+                            // Sleep Lab tools (moved below the content shelves)
+                            SleepToolsSection()
+
+                            // Sleep Preparation + bedtime nudge (secondary, near the bottom)
+                            SleepPreparationCard {
+                                showSleepPreparation = true
+                            }
+                            .padding(.horizontal)
+
+                            if !notificationService.bedtimeReminderEnabled && !dismissedBedtimePrompt {
+                                BedtimeReminderPrompt(
+                                    onEnable: {
+                                        notificationService.setBedtimeReminder(enabled: true)
+                                    },
+                                    onDismiss: {
+                                        dismissedBedtimePrompt = true
+                                    }
+                                )
+                                .padding(.horizontal)
+                            }
+
                             Spacer(minLength: 100)
                         }
-                        .frame(maxWidth: 700)
+                        .frame(maxWidth: sizeClass == .regular ? 1100 : 700)
                         .frame(maxWidth: .infinity)
                         .padding(.bottom)
                     }
@@ -315,12 +447,13 @@ struct SleepView: View {
                                 targetID: "sleepTop",
                                 isVisible: $showScrollToTop
                             )
+                            .accessibilityLabel("Scroll to top")
                         }
                     }
                 }
             }
         }
-        .onChange(of: selectedTab) { _, _ in
+        .onChange(of: selectedCategory) { _, _ in
             showScrollToTop = false
             prefetchCurrentContent()
         }
@@ -345,12 +478,6 @@ struct SleepView: View {
                 SleepAnalyticsDashboard()
             case .soundMixer:
                 SoundMixerView()
-            case .sessionLimit:
-                PremiumPaywallView(
-                    storeManager: StoreManager.shared,
-                    sessionLimitMessage: "This is a premium meditation. Subscribe to unlock the full library.",
-                    onSubscribed: { activeSleepSheet = nil }
-                )
             case .addToPlaylist(let content):
                 AddToPlaylistSheet(content: content)
             }
@@ -405,10 +532,6 @@ struct SleepView: View {
 
     /// Play content with the current tab's queue for auto-play
     private func playContent(_ content: Content, from queue: [Content]) {
-        if !StoreManager.shared.isSubscribed && AppStateManager.shared.hasReachedFreeSessionLimit {
-            activeSleepSheet = .sessionLimit
-            return
-        }
         let startIndex = queue.firstIndex(where: { $0.id == content.id }) ?? 0
         let manager = AudioPlayerManager.shared
         manager.queue = queue
@@ -446,6 +569,8 @@ struct SleepCategoryPill: View {
             .clipShape(Capsule())
             .contentShape(Capsule())
             .onTapGesture { action() }
+            .accessibilityLabel(title)
+            .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 }
 
@@ -619,6 +744,9 @@ struct SleepContentCard: View {
             .frame(height: cardImageHeight)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .onTapGesture { onTap() }
+            .accessibilityLabel(content.title)
+            .accessibilityHint("Plays this content")
+            .accessibilityAddTraits(.isButton)
 
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -647,8 +775,9 @@ struct SleepContentCard: View {
                     .font(.body)
                     .foregroundStyle(Theme.textSecondary)
                     .rotationEffect(.degrees(90))
-                    .frame(width: 32, height: 32)
+                    .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
+                    .accessibilityLabel("More options")
                     .highPriorityGesture(
                         TapGesture().onEnded {
                             ActionSheetManager.shared.show(
@@ -669,12 +798,14 @@ struct SleepTimerView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.horizontalSizeClass) private var sizeClass
     @StateObject private var playerManager = AudioPlayerManager.shared
+    /// Live countdown display (sleep-timer state lives on its own clock).
+    @ObservedObject private var sleepTimerClock = AudioPlayerManager.shared.sleepTimerClock
     @State private var selectedMinutes = 30
 
     let timerOptions = [15, 30, 45, 60, 90, 120]
 
     private var isTimerActive: Bool {
-        playerManager.sleepTimerRemaining != nil
+        playerManager.sleepTimerActive
     }
 
     private var isRegular: Bool { sizeClass == .regular }
@@ -697,17 +828,32 @@ struct SleepTimerView: View {
                     .fontWeight(.bold)
                     .foregroundStyle(Theme.textPrimary)
 
-                if isTimerActive, let remaining = playerManager.sleepTimerRemaining {
-                    // Active timer state
-                    Text(timerFormattedLong(remaining))
-                        .font(.system(size: isRegular ? 64 : 48, weight: .light, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(.white)
-                        .padding(.vertical, isRegular ? 16 : 8)
+                if isTimerActive {
+                    // Active timer state — countdown or stop mode
+                    if let remaining = playerManager.sleepTimerRemaining {
+                        Text(timerFormattedLong(remaining))
+                            .font(.system(size: isRegular ? 64 : 48, weight: .light, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.white)
+                            .padding(.vertical, isRegular ? 16 : 8)
 
-                    Text("Audio will fade out and stop")
-                        .font(isRegular ? .body : .subheadline)
-                        .foregroundStyle(Theme.textSecondary)
+                        Text("Audio will fade out and stop")
+                            .font(isRegular ? .body : .subheadline)
+                            .foregroundStyle(Theme.textSecondary)
+                    } else if let mode = playerManager.sleepStopMode {
+                        Image(systemName: mode == .endOfTrack ? "stop.circle" : "list.bullet.circle")
+                            .font(.system(size: isRegular ? 56 : 44, weight: .light))
+                            .foregroundStyle(.white)
+                            .padding(.vertical, isRegular ? 16 : 8)
+
+                        Text(mode == .endOfTrack
+                             ? "Audio will stop when this session ends"
+                             : "Audio will stop when the queue finishes")
+                            .font(isRegular ? .body : .subheadline)
+                            .foregroundStyle(Theme.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
 
                     Spacer(minLength: 16)
 
@@ -790,6 +936,15 @@ struct SleepTimerView: View {
                     }
                     .padding(.horizontal, isRegular ? 32 : 16)
 
+                    // Stop-at options — no countdown, just a natural end point
+                    HStack(spacing: 12) {
+                        sleepStopModeButton(.endOfTrack, icon: "stop.circle")
+                        if playerManager.queue.count > 1 {
+                            sleepStopModeButton(.endOfQueue, icon: "list.bullet.circle")
+                        }
+                    }
+                    .padding(.horizontal, isRegular ? 32 : 16)
+
                     Spacer(minLength: isRegular ? 24 : 16)
 
                     // Start Timer Button
@@ -822,7 +977,7 @@ struct SleepTimerView: View {
             .frame(maxWidth: isRegular ? 520 : 500)
             .frame(maxWidth: .infinity)
         }
-        .presentationDetents(isRegular ? [.medium] : [.medium, .large])
+        .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
     }
 
@@ -830,6 +985,29 @@ struct SleepTimerView: View {
         let mins = Int(seconds) / 60
         let secs = Int(seconds) % 60
         return String(format: "%d:%02d", mins, secs)
+    }
+
+    /// "End of session" / "End of queue" option — stops playback at a natural
+    /// end point instead of a fixed countdown.
+    private func sleepStopModeButton(_ mode: AudioPlayerManager.SleepStopMode, icon: String) -> some View {
+        Button {
+            HapticManager.success()
+            playerManager.setSleepStopMode(mode)
+            dismiss()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                Text(mode.label)
+                    .font(.subheadline.weight(.medium))
+            }
+            .foregroundStyle(Theme.textPrimary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Theme.cardBackground)
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Stops playback at the \(mode == .endOfTrack ? "end of this session" : "end of the queue")")
     }
 }
 
@@ -931,6 +1109,7 @@ struct SoundMixerRow: View {
                 .labelsHidden()
                 .tint(.white)
                 .disabled(isLoading)
+                .accessibilityLabel(sound.name)
             }
 
             if isActive {
@@ -939,6 +1118,7 @@ struct SoundMixerRow: View {
                     set: { onVolumeChange($0) }
                 ), in: 0...1)
                 .tint(.white)
+                .accessibilityLabel("\(sound.name) volume")
             }
         }
         .padding()
@@ -1061,8 +1241,10 @@ struct BedtimeReminderPrompt: View {
                 Image(systemName: "xmark")
                     .font(.caption)
                     .foregroundStyle(Theme.sleepTextSecondary)
-                    .frame(width: 24, height: 24)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
+            .accessibilityLabel("Dismiss")
         }
         .padding(12)
         .background(Theme.sleepCardBackground)

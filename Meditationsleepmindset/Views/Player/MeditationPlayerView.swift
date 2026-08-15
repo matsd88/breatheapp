@@ -16,6 +16,11 @@ struct MeditationPlayerView: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Query private var favorites: [FavoriteContent]
     @StateObject private var playerManager = AudioPlayerManager.shared
+    /// Fast time updates live on the clock; observing it here keeps the
+    /// scrubber/time labels live while sparing views that don't show time.
+    @ObservedObject private var clock = AudioPlayerManager.shared.clock
+    /// Sleep-timer countdown ("Sleep in 12:34" label).
+    @ObservedObject private var sleepTimerClock = AudioPlayerManager.shared.sleepTimerClock
     @StateObject private var storeManager = StoreManager.shared
     @StateObject private var themeManager = ThemeManager.shared
     @StateObject private var appStateManager = AppStateManager.shared
@@ -32,6 +37,24 @@ struct MeditationPlayerView: View {
     @State private var biometricData: BiometricSessionData?
     @State private var isPreviewMode = false
     @State private var previewTimer: Task<Void, Never>?
+    @State private var showUpNextQueue = false
+
+    // Session-complete moment (natural end of playback)
+    @State private var showSessionComplete = false
+    @State private var completedMinutes = 1
+
+    // Breathe-with-me overlay
+    @State private var showBreathGuide = false
+
+    // Ambient mixer state for the Sounds chip
+    @ObservedObject private var ambientManager = AmbientSoundManager.shared
+
+    // Player display preferences
+    @AppStorage("playerShowsRemainingTime") private var showsRemainingTime = false
+    @AppStorage("playerSkipInterval") private var skipInterval = 15
+
+    // Scrubbing state — seek is committed on release, not on every drag tick
+    @State private var scrubTime: TimeInterval?
 
     // Session tracking - record based on actual listen time
     @State private var sessionStartTime: Date?
@@ -76,6 +99,14 @@ struct MeditationPlayerView: View {
             ZStack {
                 // Themed background gradient
                 theme.gradient
+                    .ignoresSafeArea()
+
+                // Artwork-derived ambient backdrop. The player is where a user
+                // spends the whole session, and it previously read as a small
+                // thumbnail floating in empty space. Bleeding a heavily blurred
+                // copy of the artwork to the edges makes the screen feel like
+                // the session rather than a control panel.
+                ambientArtworkBackdrop
                     .ignoresSafeArea()
 
                 // Animated background overlay (pauses when not playing to save energy)
@@ -125,26 +156,85 @@ struct MeditationPlayerView: View {
                         actionButtonsSection
                             .padding(.top, 28)
 
-                        Spacer()
+                        // Slack used to collect in a single Spacer here, leaving a
+                        // conspicuous void between the actions and the transport.
+                        // Splitting it centres the content block instead, so tall
+                        // screens breathe evenly rather than sagging in the middle.
+                        Spacer(minLength: 12)
 
                         // Bottom controls (progress + play/pause)
                         bottomControlsSection
                             .padding(.horizontal, 24)
-                            .offset(y: -5)
 
-                        // Up Next indicator
-                        if let nextTitle = playerManager.nextTrackTitle {
-                            Text("Up next: \(nextTitle)")
+                        Spacer(minLength: 8)
+
+                        // Chip row: ambient sounds + up-next queue
+                        HStack(spacing: 10) {
+                            // Ambient sounds chip — surfaces the buried mixer
+                            Button {
+                                impactLight.impactOccurred()
+                                showSoundscapeMixer = true
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "waveform")
+                                        .font(isRegular ? .caption : .caption2)
+                                    Text(ambientManager.activeSounds.isEmpty
+                                         ? "Sounds"
+                                         : (ambientManager.activeSounds.count == 1
+                                            ? "1 sound"
+                                            : "\(ambientManager.activeSounds.count) sounds"))
+                                }
                                 .font(isRegular ? .subheadline : .caption)
-                                .foregroundStyle(.white.opacity(0.45))
-                                .lineLimit(1)
-                                .padding(.horizontal, 24)
-                                .padding(.top, 35)
+                                .foregroundStyle(ambientManager.activeSounds.isEmpty
+                                                 ? .white.opacity(0.55)
+                                                 : theme.accentColor)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(ambientManager.activeSounds.isEmpty
+                                            ? Color.white.opacity(0.08)
+                                            : theme.accentColor.opacity(0.15))
+                                .clipShape(Capsule())
+                            }
+                            .accessibilityLabel(ambientManager.activeSounds.isEmpty
+                                                ? "Ambient sounds"
+                                                : "\(ambientManager.activeSounds.count) ambient sounds playing")
+                            .accessibilityHint("Opens the soundscape mixer")
+
+                            // Up Next indicator — opens the browsable queue
+                            if playerManager.queue.count > 1 {
+                                Button {
+                                    impactLight.impactOccurred()
+                                    showUpNextQueue = true
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "list.bullet")
+                                            .font(isRegular ? .caption : .caption2)
+                                        if let nextTitle = playerManager.nextTrackTitle {
+                                            Text("Up next: \(nextTitle)")
+                                                .lineLimit(1)
+                                        } else {
+                                            Text("Queue")
+                                        }
+                                        Image(systemName: "chevron.up")
+                                            .font(isRegular ? .caption : .caption2)
+                                    }
+                                    .font(isRegular ? .subheadline : .caption)
+                                    .foregroundStyle(.white.opacity(0.55))
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 8)
+                                    .background(Color.white.opacity(0.08))
+                                    .clipShape(Capsule())
+                                }
+                                .accessibilityLabel("Up next queue")
+                                .accessibilityHint("Shows the list of upcoming sessions")
+                            }
                         }
+                        .padding(.horizontal, 24)
+                        .padding(.top, 27)
 
                         Spacer().frame(height: 50)
                     }
-                    .frame(maxWidth: isRegular ? 600 : .infinity)
+                    .frame(maxWidth: isRegular ? 720 : .infinity)
                 }
                 // Toast overlay for fullScreenCover context
                 ToastOverlay()
@@ -154,6 +244,17 @@ struct MeditationPlayerView: View {
 
                 // Challenge celebration overlay
                 ChallengeCelebrationOverlay(challengeService: ChallengeService.shared)
+
+                // Breathe-with-me overlay (audio keeps playing underneath)
+                if showBreathGuide {
+                    BreathGuideOverlay(accentColor: theme.accentColor) {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showBreathGuide = false
+                        }
+                    }
+                    .transition(.opacity)
+                    .zIndex(10)
+                }
             }
             .offset(y: dragOffset)
             .scaleEffect(dragOffset > 0 ? 1 - (dragOffset / geometry.size.height) * 0.15 : 1)
@@ -198,6 +299,12 @@ struct MeditationPlayerView: View {
         .sheet(isPresented: $showSoundscapeMixer) {
             SoundscapeMixerView()
         }
+        .sheet(isPresented: $showUpNextQueue) {
+            UpNextQueueView()
+        }
+        .sheet(isPresented: $showSessionComplete) {
+            SessionCompletionView(content: displayedContent, minutesListened: completedMinutes)
+        }
         .sheet(isPresented: $showSpeedSelector) {
             SpeedSelectorView(
                 currentSpeed: playerManager.playbackRate,
@@ -238,6 +345,33 @@ struct MeditationPlayerView: View {
             AppDelegate.allowLandscape = true
             checkSubscriptionAndLoad()
 
+            // Natural end of playback → record + show the completion moment
+            playerManager.onPlaybackFinishedNaturally = { _ in
+                // Fold the live segment in NOW: isPlaying already flipped to
+                // false, so the onChange fold hasn't run and record would
+                // otherwise miss the whole uninterrupted listen.
+                if let start = sessionStartTime {
+                    accumulatedListenTime += Date().timeIntervalSince(start)
+                    sessionStartTime = nil
+                }
+                let listened = accumulatedListenTime
+                completedMinutes = max(1, Int(listened / 60))
+                recordSessionIfEligible(showReflection: false)
+
+                // Only celebrate when a session was genuinely recorded, and
+                // give any open sheet (mixer, queue, timer) time to dismiss —
+                // a second presentation would silently fail.
+                guard listened >= Constants.Session.minimumListenTimeForRecord else { return }
+                showSoundscapeMixer = false
+                showUpNextQueue = false
+                showSleepTimer = false
+                showSpeedSelector = false
+                showAddToPlaylist = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.65) {
+                    showSessionComplete = true
+                }
+            }
+
             // Set up callback for auto-advance session recording
             playerManager.onTrackCompleted = { [weak modelContext] completedContent, completedDuration in
                 guard let modelContext = modelContext else { return }
@@ -259,6 +393,9 @@ struct MeditationPlayerView: View {
                 )
                 modelContext.insert(session)
                 try? modelContext.save()
+                // Streak credit for auto-advance completions too (context: nil —
+                // the session was already inserted above).
+                StreakService.shared.recordSession(durationMinutes: max(1, actualDuration / 60), context: nil)
             }
         }
         .onDisappear {
@@ -272,8 +409,9 @@ struct MeditationPlayerView: View {
             }
             // Record session when player closes (if user listened enough)
             recordSessionIfEligible()
-            // Clear the callback
+            // Clear the callbacks
             playerManager.onTrackCompleted = nil
+            playerManager.onPlaybackFinishedNaturally = nil
             // Keep audio playing so mini player can show — don't call playerManager.stop()
         }
         .onChange(of: scenePhase) { _, newPhase in
@@ -337,8 +475,17 @@ struct MeditationPlayerView: View {
                     .background(Color.white.opacity(0.1))
                     .clipShape(Circle())
             }
+            .accessibilityLabel("Minimize player")
 
             Spacer()
+
+            // AirPlay route picker
+            AirPlayButton()
+                .frame(width: btnSize, height: btnSize)
+                .background(Color.white.opacity(0.1))
+                .clipShape(Circle())
+                .accessibilityLabel("AirPlay")
+                .accessibilityHint("Choose a speaker or TV")
 
             // More menu (Speed, Sounds, Share)
             Menu {
@@ -353,6 +500,13 @@ struct MeditationPlayerView: View {
                     Label("Ambient Sounds", systemImage: "waveform")
                 }
                 Button {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        showBreathGuide = true
+                    }
+                } label: {
+                    Label("Breathe With Me", systemImage: "circle.circle")
+                }
+                Button {
                     shareContent()
                 } label: {
                     Label("Share", systemImage: "square.and.arrow.up")
@@ -365,9 +519,41 @@ struct MeditationPlayerView: View {
                     .background(Color.white.opacity(0.1))
                     .clipShape(Circle())
             }
+            .accessibilityLabel("More options")
         }
         .padding(.horizontal, isRegular ? 24 : 16)
         .padding(.top, 12)
+    }
+
+    // MARK: - Ambient Artwork Backdrop
+    /// A blurred, dimmed copy of the session artwork bled to the screen edges.
+    /// Sits under the theme gradient so themed colour still reads, but the
+    /// screen takes on the mood of whatever is playing.
+    private var ambientArtworkBackdrop: some View {
+        CachedAsyncImage(
+            url: URL(string: content.thumbnailURLComputed),
+            failedIconName: content.contentType.iconName,
+            content: { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .blur(radius: 60, opaque: true)
+                    .overlay(theme.gradient.opacity(0.72))
+                    .overlay(
+                        // Darken top and bottom so the nav bar and transport
+                        // controls keep contrast against bright artwork.
+                        LinearGradient(
+                            colors: [.black.opacity(0.45), .clear, .black.opacity(0.55)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            },
+            placeholder: { Color.clear }
+        )
+        .allowsHitTesting(false)
+        // Decorative only — VoiceOver should never announce it.
+        .accessibilityHidden(true)
     }
 
     // MARK: - Video Player Section
@@ -449,7 +635,9 @@ struct MeditationPlayerView: View {
                             .aspectRatio(1, contentMode: .fit)
                     }
                 )
-                .frame(maxWidth: isRegular ? 400 : 280)
+                // Artwork is the focal point of an audio session — 280pt left it
+                // looking incidental on a 6.7" screen.
+                .frame(maxWidth: isRegular ? 500 : 330)
                 .padding(.vertical, 20)
 
                 // Error overlay for audio-only mode
@@ -505,16 +693,18 @@ struct MeditationPlayerView: View {
 
                         // Bottom controls
                         VStack(spacing: 16) {
-                            // Progress bar
+                            // Progress bar — same preview-then-commit scrubbing
+                            // as the portrait bar (seek only on release).
                             HStack(spacing: 12) {
-                                Text(formatTime(playerManager.currentTime))
+                                Text(formatTime(scrubTime ?? playerManager.currentTime))
                                     .font(.caption)
                                     .foregroundStyle(.white)
                                     .monospacedDigit()
 
                                 GeometryReader { geo in
+                                    let displayTime = scrubTime ?? playerManager.currentTime
                                     let progress = playerManager.duration > 0
-                                        ? playerManager.currentTime / playerManager.duration
+                                        ? max(0, min(1, displayTime / playerManager.duration))
                                         : 0
 
                                     ZStack(alignment: .leading) {
@@ -526,12 +716,22 @@ struct MeditationPlayerView: View {
                                             .fill(Color.white)
                                             .frame(width: max(0, geo.size.width * progress), height: 4)
                                     }
+                                    .contentShape(Rectangle())
                                     .gesture(
                                         DragGesture(minimumDistance: 0)
                                             .onChanged { value in
-                                                let progress = max(0, min(1, value.location.x / geo.size.width))
-                                                let newTime = progress * playerManager.duration
-                                                playerManager.seek(to: newTime)
+                                                if scrubTime == nil {
+                                                    impactLight.impactOccurred()
+                                                }
+                                                let p = max(0, min(1, value.location.x / geo.size.width))
+                                                scrubTime = p * playerManager.duration
+                                                scheduleControlsHide()
+                                            }
+                                            .onEnded { value in
+                                                let p = max(0, min(1, value.location.x / geo.size.width))
+                                                playerManager.seek(to: p * playerManager.duration)
+                                                impactLight.impactOccurred()
+                                                scrubTime = nil
                                             }
                                     )
                                 }
@@ -547,13 +747,15 @@ struct MeditationPlayerView: View {
                             // Playback controls
                             HStack(spacing: 48) {
                                 Button {
-                                    playerManager.skipBackward(seconds: 15)
+                                    playerManager.skipBackward(seconds: TimeInterval(skipInterval))
                                     scheduleControlsHide()
                                 } label: {
-                                    Image(systemName: "gobackward.15")
+                                    Image(systemName: "gobackward.\(skipInterval)")
                                         .font(.title2)
                                         .foregroundStyle(.white)
                                 }
+                                .contextMenu { skipIntervalMenu }
+                                .accessibilityLabel("Skip back \(skipInterval) seconds")
 
                                 Button {
                                     playerManager.togglePlayPause()
@@ -565,13 +767,15 @@ struct MeditationPlayerView: View {
                                 }
 
                                 Button {
-                                    playerManager.skipForward(seconds: 15)
+                                    playerManager.skipForward(seconds: TimeInterval(skipInterval))
                                     scheduleControlsHide()
                                 } label: {
-                                    Image(systemName: "goforward.15")
+                                    Image(systemName: "goforward.\(skipInterval)")
                                         .font(.title2)
                                         .foregroundStyle(.white)
                                 }
+                                .contextMenu { skipIntervalMenu }
+                                .accessibilityLabel("Skip forward \(skipInterval) seconds")
                             }
                             .padding(.bottom, 8)
                         }
@@ -662,9 +866,14 @@ struct MeditationPlayerView: View {
     // MARK: - Action Buttons Section
     private var actionButtonsSection: some View {
         VStack(spacing: 8) {
-            // Sleep timer countdown (visible when active)
+            // Sleep timer status (visible when active)
             if let remaining = playerManager.sleepTimerRemaining {
                 Text("Sleep in \(formatTime(remaining))")
+                    .font(.caption)
+                    .foregroundStyle(theme.accentColor)
+                    .transition(.opacity)
+            } else if let mode = playerManager.sleepStopMode {
+                Text("Stopping at: \(mode.label)")
                     .font(.caption)
                     .foregroundStyle(theme.accentColor)
                     .transition(.opacity)
@@ -679,6 +888,7 @@ struct MeditationPlayerView: View {
                     toggleFavorite()
                 }
                 .animation(.spring(response: 0.3), value: isFavorite)
+                .accessibilityLabel(isFavorite ? "Remove from favorites" : "Add to favorites")
 
                 // Playlist
                 actionButton(icon: "text.badge.plus",
@@ -687,14 +897,18 @@ struct MeditationPlayerView: View {
                     impactLight.impactOccurred()
                     showAddToPlaylist = true
                 }
+                .accessibilityLabel("Add to playlist")
 
-                // Sleep Timer
+                // Sleep Timer — label becomes the live countdown when running
                 actionButton(icon: "timer",
-                             label: "Timer",
-                             active: playerManager.sleepTimerRemaining != nil) {
+                             label: playerManager.sleepTimerRemaining.map { formatTime($0) }
+                                ?? (playerManager.sleepStopMode != nil ? String(localized: "On") : String(localized: "Timer")),
+                             active: playerManager.sleepTimerActive) {
                     impactLight.impactOccurred()
                     showSleepTimer = true
                 }
+                .accessibilityLabel("Sleep timer")
+                .accessibilityValue(playerManager.sleepTimerActive ? "On" : "Off")
 
                 // Repeat
                 actionButton(icon: playerManager.repeatMode.icon,
@@ -705,9 +919,27 @@ struct MeditationPlayerView: View {
                         playerManager.repeatMode = playerManager.repeatMode.next
                     }
                 }
+                .accessibilityLabel("Repeat mode")
             }
         }
         .padding(.horizontal, 24)
+    }
+
+    /// Long-press menu for choosing the skip interval (shared by both buttons).
+    @ViewBuilder
+    private var skipIntervalMenu: some View {
+        ForEach([15, 30, 60], id: \.self) { seconds in
+            Button {
+                HapticManager.selection()
+                skipInterval = seconds
+            } label: {
+                if skipInterval == seconds {
+                    Label("\(seconds) seconds", systemImage: "checkmark")
+                } else {
+                    Text("\(seconds) seconds")
+                }
+            }
+        }
     }
 
     private func actionButton(icon: String, label: String, active: Bool = false, action: @escaping () -> Void) -> some View {
@@ -732,11 +964,13 @@ struct MeditationPlayerView: View {
         VStack(spacing: 26) {
             // Progress bar - Custom styled to match reference
             VStack(spacing: 8) {
-                // Custom progress bar with draggable thumb
+                // Custom progress bar with draggable thumb.
+                // Dragging previews the target position; the seek commits on release.
                 GeometryReader { geometry in
                     let trackWidth = geometry.size.width - 16 // inset for thumb radius
+                    let displayTime = scrubTime ?? playerManager.currentTime
                     let progress = playerManager.duration > 0
-                        ? playerManager.currentTime / playerManager.duration
+                        ? max(0, min(1, displayTime / playerManager.duration))
                         : 0
                     let thumbX = 8 + trackWidth * progress // 8pt left margin to center of thumb
 
@@ -753,37 +987,83 @@ struct MeditationPlayerView: View {
                             .frame(width: max(0, 8 + trackWidth * progress), height: 4)
                             .padding(.leading, 8)
 
-                        // Thumb/knob
+                        // Thumb/knob — grows slightly while scrubbing
                         Circle()
                             .fill(.white)
-                            .frame(width: 16, height: 16)
+                            .frame(width: scrubTime != nil ? 20 : 16, height: scrubTime != nil ? 20 : 16)
                             .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
                             .position(x: thumbX, y: 8)
+                            .animation(.spring(response: 0.25), value: scrubTime != nil)
+
+                        // Scrub preview time bubble
+                        if scrubTime != nil {
+                            Text(formatTime(displayTime))
+                                .font(.caption.weight(.semibold))
+                                .monospacedDigit()
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color.black.opacity(0.6))
+                                .clipShape(Capsule())
+                                .position(x: min(max(thumbX, 34), geometry.size.width - 34), y: -22)
+                                .transition(.opacity)
+                        }
                     }
+                    // Inset by a negative amount to grow the touch target well
+                    // beyond the 16pt visual track (~44pt effective height).
+                    .contentShape(Rectangle().inset(by: -14))
                     .gesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { value in
+                                if scrubTime == nil {
+                                    impactLight.impactOccurred()
+                                }
                                 let p = max(0, min(1, (value.location.x - 8) / trackWidth))
-                                let newTime = p * playerManager.duration
-                                playerManager.seek(to: newTime)
+                                scrubTime = p * playerManager.duration
+                            }
+                            .onEnded { value in
+                                let p = max(0, min(1, (value.location.x - 8) / trackWidth))
+                                playerManager.seek(to: p * playerManager.duration)
+                                impactLight.impactOccurred()
+                                scrubTime = nil
                             }
                     )
                 }
                 .frame(height: 16)
+                .accessibilityElement()
+                .accessibilityLabel("Playback position")
+                .accessibilityValue("\(formatTime(playerManager.currentTime)) of \(formatTime(playerManager.duration))")
+                .accessibilityAdjustableAction { direction in
+                    switch direction {
+                    case .increment: playerManager.skipForward(seconds: 15)
+                    case .decrement: playerManager.skipBackward(seconds: 15)
+                    @unknown default: break
+                    }
+                }
 
-                // Time labels
+                // Time labels — tap the right label to flip total ⇄ remaining
                 HStack {
-                    Text(formatTime(playerManager.currentTime))
+                    Text(formatTime(scrubTime ?? playerManager.currentTime))
                         .font(isRegular ? .body : .subheadline)
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(scrubTime != nil ? .white : .white.opacity(0.6))
                         .monospacedDigit()
 
                     Spacer()
 
-                    Text(formatTime(playerManager.duration))
-                        .font(isRegular ? .body : .subheadline)
-                        .foregroundStyle(.white.opacity(0.6))
-                        .monospacedDigit()
+                    Button {
+                        HapticManager.light()
+                        showsRemainingTime.toggle()
+                    } label: {
+                        Text(showsRemainingTime
+                             ? "-\(formatTime(max(0, playerManager.duration - (scrubTime ?? playerManager.currentTime))))"
+                             : formatTime(playerManager.duration))
+                            .font(isRegular ? .body : .subheadline)
+                            .foregroundStyle(.white.opacity(0.6))
+                            .monospacedDigit()
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(showsRemainingTime ? "Time remaining" : "Total duration")
+                    .accessibilityHint("Switches between total duration and time remaining")
                 }
             }
 
@@ -799,17 +1079,20 @@ struct MeditationPlayerView: View {
                         .foregroundStyle(.white.opacity(0.8))
                         .frame(width: isRegular ? 56 : 44, height: isRegular ? 56 : 44)
                 }
+                .accessibilityLabel("Previous track")
 
-                // Skip backward 15 seconds
+                // Skip backward (long-press to change the interval)
                 Button {
                     impactLight.impactOccurred()
-                    playerManager.skipBackward(seconds: 15)
+                    playerManager.skipBackward(seconds: TimeInterval(skipInterval))
                 } label: {
-                    Image(systemName: "gobackward.15")
+                    Image(systemName: "gobackward.\(skipInterval)")
                         .font(isRegular ? .largeTitle : .title)
                         .foregroundStyle(.white.opacity(0.8))
                         .frame(width: isRegular ? 64 : 50, height: isRegular ? 64 : 50)
                 }
+                .contextMenu { skipIntervalMenu }
+                .accessibilityLabel("Skip back \(skipInterval) seconds")
 
                 // Play/Pause button
                 Button {
@@ -845,17 +1128,20 @@ struct MeditationPlayerView: View {
                         }
                     }
                 }
+                .accessibilityLabel(playerManager.isPlaying ? "Pause" : "Play")
 
-                // Skip forward 15 seconds
+                // Skip forward (long-press to change the interval)
                 Button {
                     impactLight.impactOccurred()
-                    playerManager.skipForward(seconds: 15)
+                    playerManager.skipForward(seconds: TimeInterval(skipInterval))
                 } label: {
-                    Image(systemName: "goforward.15")
+                    Image(systemName: "goforward.\(skipInterval)")
                         .font(isRegular ? .largeTitle : .title)
                         .foregroundStyle(.white.opacity(0.8))
                         .frame(width: isRegular ? 64 : 50, height: isRegular ? 64 : 50)
                 }
+                .contextMenu { skipIntervalMenu }
+                .accessibilityLabel("Skip forward \(skipInterval) seconds")
 
                 // Next track
                 Button {
@@ -867,6 +1153,7 @@ struct MeditationPlayerView: View {
                         .foregroundStyle(.white.opacity(0.8))
                         .frame(width: isRegular ? 56 : 44, height: isRegular ? 56 : 44)
                 }
+                .accessibilityLabel("Next track")
             }
         }
     }
@@ -1047,12 +1334,16 @@ struct MeditationPlayerView: View {
     }
 
     /// Records session only if user listened for minimum required time
-    private func recordSessionIfEligible() {
+    private func recordSessionIfEligible(showReflection: Bool = true) {
         guard !hasRecordedSession else { return }
 
-        // Calculate total listen time including current playing session
+        // Calculate total listen time including current playing session.
+        // sessionStartTime is nilled whenever a segment is folded in, so
+        // counting it here whenever present never double-counts — and NOT
+        // requiring isPlaying avoids missing the segment in the window where
+        // playback just stopped but the onChange fold hasn't run yet.
         var totalListenTime = accumulatedListenTime
-        if let startTime = sessionStartTime, playerManager.isPlaying {
+        if let startTime = sessionStartTime {
             totalListenTime += Date().timeIntervalSince(startTime)
         }
 
@@ -1087,12 +1378,21 @@ struct MeditationPlayerView: View {
                 #endif
             }
 
+            // Keep the streak alive from guided sessions too — this was only
+            // ever called by the timers/breathing/body-scan flows, so the
+            // app's core loop never grew the streak. context: nil because the
+            // MeditationSession was already inserted above.
+            StreakService.shared.recordSession(durationMinutes: max(1, actualListenedSeconds / 60), context: nil)
+
             // Trigger review prompt after completed sessions
             if isCompleted {
                 appStateManager.onSessionCompleted()
-                // Show post-session reflection
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    showPostSessionReflection = true
+                // Show post-session reflection (suppressed when the caller is
+                // about to present the richer SessionCompletionView instead)
+                if showReflection {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        showPostSessionReflection = true
+                    }
                 }
             }
 
@@ -1140,11 +1440,14 @@ struct MeditationPlayerView: View {
                             modelContext.insert(bioData)
                             try? modelContext.save()
                             biometricData = bioData
-                            // Only show directly if post-session reflection won't be shown
-                            // (otherwise the reflection onDismiss handler will chain it)
+                            // Only show directly if no other end-of-session sheet
+                            // is up (reflection chains it from its onDismiss; a
+                            // second presentation would silently fail).
                             if !sessionCompleted {
                                 try? await Task.sleep(nanoseconds: 1_500_000_000)
-                                showBiometricSummary = true
+                                if !showSessionComplete {
+                                    showBiometricSummary = true
+                                }
                             }
                         }
                     }
