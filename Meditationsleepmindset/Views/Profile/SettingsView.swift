@@ -603,7 +603,7 @@ struct SettingsView: View {
                 Text("Your data will stay on this device. You can sign back in anytime to sync across devices.")
             }
             .alert("Delete Account", isPresented: $showingDeleteAccountConfirmation) {
-                Button("Delete", role: .destructive) {
+                Button("Delete Account", role: .destructive) {
                     Task {
                         do {
                             try await accountService.deleteAccount()

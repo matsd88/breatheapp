@@ -585,18 +585,29 @@ struct MyCreationsView: View {
             .fullScreenCover(item: $selectedMeditation) { meditation in
                 AIGeneratedPlayerView(meditation: meditation)
             }
-            .alert("Delete Meditation?", isPresented: .constant(meditationToDelete != nil)) {
+            // Was isPresented: .constant(...), which is read-only — SwiftUI
+            // cannot write false back when the alert dismisses, so any dismissal
+            // that isn't one of these buttons leaves meditationToDelete set and
+            // the presentation state desynced. This binding clears it on dismiss,
+            // and `presenting:` gives the message the actual meditation so the
+            // user can see which one they're about to lose.
+            .alert(
+                "Delete Meditation?",
+                isPresented: Binding(
+                    get: { meditationToDelete != nil },
+                    set: { if !$0 { meditationToDelete = nil } }
+                ),
+                presenting: meditationToDelete
+            ) { meditation in
                 Button("Cancel", role: .cancel) {
                     meditationToDelete = nil
                 }
-                Button("Delete", role: .destructive) {
-                    if let meditation = meditationToDelete {
-                        AIMeditationService.shared.deleteMeditation(meditation, context: modelContext)
-                        meditationToDelete = nil
-                    }
+                Button("Delete Meditation", role: .destructive) {
+                    AIMeditationService.shared.deleteMeditation(meditation, context: modelContext)
+                    meditationToDelete = nil
                 }
-            } message: {
-                Text("This will permanently delete this meditation.")
+            } message: { meditation in
+                Text("This will permanently delete \"\(meditation.title)\". This cannot be undone.")
             }
         }
     }

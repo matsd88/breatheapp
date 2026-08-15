@@ -209,7 +209,7 @@ struct PlaylistDetailView: View {
                 Button("Cancel", role: .cancel) {}
             }
             .alert("Delete Playlist?", isPresented: $showDeleteConfirmation) {
-                Button("Delete", role: .destructive) {
+                Button("Delete Playlist", role: .destructive) {
                     deletePlaylist()
                 }
                 Button("Cancel", role: .cancel) {}

@@ -131,7 +131,7 @@ struct ChatView: View {
                 isKeyboardVisible = false
             }
             .alert("Clear Chat History", isPresented: $showingClearConfirmation) {
-                Button("Clear", role: .destructive) {
+                Button("Clear History", role: .destructive) {
                     chatService.clearAllHistory(in: modelContext)
                 }
                 Button("Cancel", role: .cancel) { }
