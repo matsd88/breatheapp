@@ -1331,6 +1331,7 @@ struct ShareStatsView: View {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark")
+                            .accessibilityLabel("Close")
                             .font(.title3)
                             .fontWeight(.medium)
                             .foregroundStyle(.white.opacity(0.7))

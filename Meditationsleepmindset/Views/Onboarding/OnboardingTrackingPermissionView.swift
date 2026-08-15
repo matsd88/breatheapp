@@ -31,6 +31,7 @@ struct OnboardingTrackingPermissionView: View {
                         onBack()
                     } label: {
                         Image(systemName: "chevron.left")
+                            .accessibilityLabel("Back")
                             .font(.title2)
                             .foregroundStyle(.white)
                             .frame(width: 44, height: 44)

@@ -1776,6 +1776,7 @@ struct PostSessionReflectionView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: {
                         Image(systemName: "xmark.circle.fill")
+                            .accessibilityLabel("Close")
                             .foregroundStyle(.white.opacity(0.6))
                     }
                 }

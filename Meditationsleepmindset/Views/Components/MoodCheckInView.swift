@@ -301,6 +301,7 @@ struct PreSessionMoodCheck: View {
                         isPresented = false
                     } label: {
                         Image(systemName: "xmark.circle.fill")
+                            .accessibilityLabel("Close")
                             .font(.title2)
                             .foregroundStyle(Theme.textSecondary)
                     }

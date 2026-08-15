@@ -69,6 +69,7 @@ struct ChallengesView: View {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark")
+                            .accessibilityLabel("Close")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundStyle(.white.opacity(0.7))
                             .frame(width: 30, height: 30)

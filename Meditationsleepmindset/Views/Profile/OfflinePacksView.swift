@@ -69,6 +69,7 @@ struct OfflinePacksView: View {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark")
+                            .accessibilityLabel("Close")
                             .font(.system(size: isRegular ? 14 : 12, weight: .bold))
                             .foregroundStyle(.white.opacity(0.7))
                             .frame(width: isRegular ? 40 : 32, height: isRegular ? 40 : 32)

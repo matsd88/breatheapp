@@ -101,6 +101,7 @@ struct BreathingExercisesListView: View {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark")
+                            .accessibilityLabel("Close")
                             .font(.body.weight(.semibold))
                             .foregroundStyle(.white.opacity(0.7))
                             .frame(width: 32, height: 32)

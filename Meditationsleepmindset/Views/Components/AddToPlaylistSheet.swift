@@ -44,6 +44,8 @@ struct AddToPlaylistSheet: View {
                                 newPlaylistName = ""
                             } label: {
                                 Image(systemName: "xmark")
+                                    .accessibilityLabel("Close")
+                                    .accessibilityLabel("Close")
                                     .font(.caption)
                                     .foregroundStyle(.white.opacity(0.6))
                             }

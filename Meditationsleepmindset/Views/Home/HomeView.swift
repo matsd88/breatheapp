@@ -1612,6 +1612,7 @@ struct RecentlyPlayedListView: View {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark")
+                            .accessibilityLabel("Close")
                             .font(.body.weight(.semibold))
                             .foregroundStyle(.white)
                     }
