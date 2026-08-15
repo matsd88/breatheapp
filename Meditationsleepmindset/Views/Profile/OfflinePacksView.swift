@@ -82,6 +82,7 @@ struct OfflinePacksView: View {
             .sheet(isPresented: $showingPaywall) {
                 PremiumPaywallView(
                     storeManager: storeManager,
+                    context: .offlinePacks,
                     onSubscribed: {
                         showingPaywall = false
                         if let pack = packToDownload {

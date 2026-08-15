@@ -35,7 +35,7 @@ struct PremiumView: View {
                         .padding(.bottom, 16)
                 }
             } else {
-                PremiumPaywallView(storeManager: storeManager, showDismissButton: false)
+                PremiumPaywallView(storeManager: storeManager, context: .settings, showDismissButton: false)
                     .frame(maxWidth: 700)
                     .frame(maxWidth: .infinity)
             }
@@ -46,9 +46,74 @@ struct PremiumView: View {
     }
 }
 
+// MARK: - Paywall Context
+
+/// Where the paywall was opened from, and what the user was reaching for.
+///
+/// Previously every entry point rendered an identical paywall — same headline,
+/// same feature order — and only an optional subtitle string differed. Someone
+/// blocked from an AI meditation saw "Sleep Stories" pitched first. This makes
+/// the pitch answer the question the user actually asked, and leads with the
+/// feature they just tried to use.
+enum PaywallContext: String {
+    case general
+    case chatLimit
+    case aiStudio
+    case kidsStories
+    case offlinePacks
+    case premiumSession
+    case sleepStories
+    case settings
+    case homeBanner
+
+    var headline: String {
+        switch self {
+        case .chatLimit:      return String(localized: "Keep the conversation going")
+        case .aiStudio:       return String(localized: "Meditations made for you")
+        case .kidsStories:    return String(localized: "A new story every night")
+        case .offlinePacks:   return String(localized: "Take it with you, offline")
+        case .premiumSession: return String(localized: "Unlock the full library")
+        case .sleepStories:   return String(localized: "Fall asleep to a story")
+        case .general, .settings, .homeBanner:
+            return String(localized: "Unlock Your Full Potential")
+        }
+    }
+
+    /// Nil falls back to the generic line, or to an explicit override.
+    var subtitle: String? {
+        switch self {
+        case .chatLimit:      return String(localized: "You've reached today's free messages. Premium keeps Breathe AI available whenever you need it.")
+        case .aiStudio:       return String(localized: "Generate a meditation for any mood, any length, in your chosen voice.")
+        case .kidsStories:    return String(localized: "Unlimited personalized bedtime stories, so bedtime never runs out of material.")
+        case .offlinePacks:   return String(localized: "Download packs and play them on a plane, a commute, or anywhere without signal.")
+        case .premiumSession: return String(localized: "This session is part of Premium — along with the rest of the library.")
+        case .sleepStories:   return String(localized: "100+ narrated stories designed to get you to sleep, not keep you listening.")
+        case .general, .settings, .homeBanner: return nil
+        }
+    }
+
+    /// SF Symbol of the preview card that should lead, so the first thing the
+    /// user sees is the thing they just reached for.
+    var leadFeatureIcon: String? {
+        switch self {
+        case .chatLimit:      return "bubble.left.and.text.bubble.right.fill"
+        case .aiStudio:       return "wand.and.stars"
+        case .kidsStories:    return "bubble.left.and.text.bubble.right.fill"
+        case .sleepStories:   return "moon.stars.fill"
+        case .offlinePacks:   return "music.note.list"
+        case .premiumSession, .general, .settings, .homeBanner: return nil
+        }
+    }
+
+    var analyticsSource: String { rawValue }
+}
+
 // MARK: - Premium Paywall (Matches Onboarding Paywall)
 struct PremiumPaywallView: View {
     @ObservedObject var storeManager: StoreManager
+    /// Drives the headline, supporting line and which feature leads.
+    var context: PaywallContext = .general
+    /// Explicit override; when nil the context supplies the line.
     var sessionLimitMessage: String? = nil
     var onSubscribed: (() -> Void)? = nil
     var showDismissButton: Bool = true
@@ -65,13 +130,93 @@ struct PremiumPaywallView: View {
 
     private var isRegular: Bool { sizeClass == .regular }
 
-    // Feature preview cards — AI studio leads (the feature competitors can't match).
-    private var previewCards: [(image: String, title: String, description: String)] {[
-        ("wand.and.stars", String(localized: "Personal AI Meditation Studio"), String(localized: "Meditations generated just for you — any mood, any length")),
-        ("bubble.left.and.text.bubble.right.fill", String(localized: "AI Companion & Kids Stories"), String(localized: "24/7 wellness chat, plus personalized AI bedtime stories")),
-        ("moon.stars.fill", String(localized: "100+ Sleep Stories"), String(localized: "Drift off with narrated stories designed for deep sleep")),
-        ("music.note.list", String(localized: "Calming Soundscapes"), String(localized: "Rain, ocean waves, forest — mix your own"))
-    ]}
+    // Feature preview cards — AI studio leads by default (the feature
+    // competitors can't match), but the context can promote whichever card
+    // matches what the user just reached for.
+    private var previewCards: [(image: String, title: String, description: String)] {
+        let base: [(image: String, title: String, description: String)] = [
+            ("wand.and.stars", String(localized: "Personal AI Meditation Studio"), String(localized: "Meditations generated just for you — any mood, any length")),
+            ("bubble.left.and.text.bubble.right.fill", String(localized: "AI Companion & Kids Stories"), String(localized: "24/7 wellness chat, plus personalized AI bedtime stories")),
+            ("moon.stars.fill", String(localized: "100+ Sleep Stories"), String(localized: "Drift off with narrated stories designed for deep sleep")),
+            ("music.note.list", String(localized: "Calming Soundscapes"), String(localized: "Rain, ocean waves, forest — mix your own"))
+        ]
+        guard let lead = context.leadFeatureIcon,
+              let idx = base.firstIndex(where: { $0.image == lead }), idx != 0
+        else { return base }
+        var reordered = base
+        let card = reordered.remove(at: idx)
+        reordered.insert(card, at: 0)
+        return reordered
+    }
+
+    // MARK: - Trial Timeline
+
+    /// Spells out exactly what happens and when, including the reminder before
+    /// billing. Nothing here is a promise the app can't keep — the day-5 line
+    /// describes Apple's own pre-renewal notice for introductory offers.
+    private var trialTimeline: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            timelineRow(
+                icon: "lock.open.fill",
+                title: String(localized: "Today"),
+                detail: String(localized: "Full access unlocks — the whole library, AI studio and sleep stories."),
+                isLast: false
+            )
+            timelineRow(
+                icon: "bell.fill",
+                title: String(localized: "Day 5"),
+                detail: String(localized: "Apple emails you a reminder that the trial is ending."),
+                isLast: false
+            )
+            timelineRow(
+                icon: "creditcard.fill",
+                title: String(localized: "Day 7"),
+                detail: String(localized: "Your subscription begins. Cancel any time before then and you pay nothing."),
+                isLast: true
+            )
+        }
+        .padding(16)
+        .background(Color.white.opacity(0.07))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .padding(.horizontal, 24)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(String(localized: "Free trial timeline: full access today, a reminder on day 5, billing begins on day 7. Cancel before then and you pay nothing."))
+    }
+
+    private func timelineRow(icon: String, title: String, detail: String, isLast: Bool) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(spacing: 0) {
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(0.15))
+                        .frame(width: 26, height: 26)
+                    Image(systemName: icon)
+                        .font(.caption2)
+                        .foregroundStyle(.white)
+                }
+                if !isLast {
+                    Rectangle()
+                        .fill(Color.white.opacity(0.15))
+                        .frame(width: 2)
+                        .frame(maxHeight: .infinity)
+                }
+            }
+            .frame(minHeight: isLast ? 26 : 46)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.65))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.bottom, isLast ? 0 : 12)
+
+            Spacer(minLength: 0)
+        }
+    }
 
     // Before/after metrics
     private var beforeAfterItems: [(label: String, before: String, after: String, icon: String)] {[
@@ -93,26 +238,23 @@ struct PremiumPaywallView: View {
                     urgencyBanner
                 }
 
-                // Header text
+                // Header text — headline and supporting line both follow the
+                // context the paywall was opened from.
                 VStack(spacing: 10) {
-                    Text("Unlock Your Full Potential")
+                    Text(context.headline)
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
 
-                    if let message = sessionLimitMessage {
-                        Text(message)
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.7))
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 24)
-                    } else {
-                        Text("Transform your mind, transform your life")
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.7))
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 24)
-                    }
+                    Text(sessionLimitMessage
+                         ?? context.subtitle
+                         ?? String(localized: "Transform your mind, transform your life"))
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
                 }
 
                 // Before / After comparison
@@ -215,6 +357,11 @@ struct PremiumPaywallView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
 
+                // Trial timeline — the single strongest trust device on a
+                // wellness paywall: it removes the "when am I actually charged?"
+                // doubt that stops people starting a trial at all.
+                trialTimeline
+
                 // Trust signals
                 VStack(spacing: 12) {
                     Text("Cancel anytime · No commitment")
@@ -259,7 +406,7 @@ struct PremiumPaywallView: View {
             }
             startCountdown()
             AppStateManager.shared.recordPaywallShown()
-            FirebaseService.shared.logPaywallViewed(source: "settings")
+            FirebaseService.shared.logPaywallViewed(source: context.analyticsSource)
         }
         .task {
             if storeManager.subscriptions.isEmpty {
@@ -309,7 +456,7 @@ struct PremiumPaywallView: View {
             // Dismiss X button (top-right corner)
             if showDismissButton {
                 Button {
-                    FirebaseService.shared.logPaywallDismissed(source: "settings")
+                    FirebaseService.shared.logPaywallDismissed(source: context.analyticsSource)
                     SmartRatingManager.recordPaywallDismiss()
                     dismiss()
                 } label: {

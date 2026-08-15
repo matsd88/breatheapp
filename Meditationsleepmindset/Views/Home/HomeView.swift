@@ -822,6 +822,7 @@ struct HomeView: View {
                 case .premium:
                     PremiumPaywallView(
                         storeManager: storeManager,
+                        context: .homeBanner,
                         onSubscribed: { activeHomeSheet = nil }
                     )
                 }

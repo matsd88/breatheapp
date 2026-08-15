@@ -1644,6 +1644,7 @@ struct SessionPaywallView: View {
 
             PremiumPaywallView(
                 storeManager: storeManager,
+                context: .premiumSession,
                 sessionLimitMessage: "This is a premium meditation. Subscribe to unlock the full library.",
                 onSubscribed: {
                     onSubscribed()

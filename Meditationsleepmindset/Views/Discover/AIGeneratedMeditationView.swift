@@ -173,6 +173,7 @@ struct AIGeneratedMeditationView: View {
                 case .paywall:
                     PremiumPaywallView(
                         storeManager: storeManager,
+                        context: .aiStudio,
                         sessionLimitMessage: "AI Meditation is a premium feature. Subscribe to create personalized meditations.",
                         onSubscribed: { activeAISheet = nil }
                     )
@@ -344,7 +345,7 @@ struct AIGeneratedMeditationView: View {
 
                 Spacer(minLength: 40)
             }
-            .frame(maxWidth: 600)
+            .frame(maxWidth: isRegular ? 820 : 600)
             .frame(maxWidth: .infinity)
         }
     }
@@ -479,7 +480,7 @@ struct AIGeneratedMeditationView: View {
         Task {
             do {
                 let meditation = try await aiService.generateMeditation(request: request, context: modelContext)
-                recordGeneration()
+                if !aiService.lastResultWasCached { recordGeneration() }
                 HapticManager.success()
                 generatedMeditation = meditation
             } catch {
