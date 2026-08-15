@@ -869,44 +869,57 @@ struct DiscoverContentCard: View {
             .accessibilityLabel(content.title)
             .accessibilityHint("Plays this content")
             .accessibilityAddTraits(.isButton)
+            // The menu used to sit beside the title in a 44pt-tall HStack, which
+            // set the row's height and left the duration floating well below the
+            // title it belongs to. It also took 44 of the card's 160pt, so every
+            // title truncated after a word or two. On the artwork it costs the
+            // text nothing.
+            .overlay(alignment: .topTrailing) { moreButton }
 
-            HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(content.title)
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .foregroundStyle(Theme.textPrimary)
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .onTapGesture { onTap() }
+                    .lineLimit(2, reservesSpace: true)
+                    .multilineTextAlignment(.leading)
 
-                // More button
-                Image(systemName: "ellipsis")
-                    .font(.body)
+                Text(content.durationFormatted)
+                    .font(.caption)
                     .foregroundStyle(Theme.textSecondary)
-                    .rotationEffect(.degrees(90))
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-                    .accessibilityLabel("More options")
-                    .accessibilityAddTraits(.isButton)
-                    .highPriorityGesture(
-                        TapGesture().onEnded {
-                            ActionSheetManager.shared.show(
-                                content: content,
-                                isFavorite: isFavorite,
-                                onToggleFavorite: { onFavorite?() },
-                                onAddToPlaylist: onAddToPlaylist,
-                                onShare: { onShare?() }
-                            )
-                        }
-                    )
             }
-
-            Text(content.durationFormatted)
-                .font(.caption)
-                .foregroundStyle(Theme.textSecondary)
-                .onTapGesture { onTap() }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture { onTap() }
         }
         .frame(width: cardWidth, alignment: .top)
+    }
+
+    /// Sits on the artwork, so it needs its own scrim to stay legible against
+    /// the bright thumbnails in the library.
+    private var moreButton: some View {
+        Image(systemName: "ellipsis")
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.white)
+            .rotationEffect(.degrees(90))
+            .frame(width: 26, height: 26)
+            .background(.black.opacity(0.45), in: Circle())
+            .padding(6)
+            .frame(width: 44, height: 44, alignment: .topTrailing)
+            .contentShape(Rectangle())
+            .accessibilityLabel("More options")
+            .accessibilityAddTraits(.isButton)
+            .highPriorityGesture(
+                TapGesture().onEnded {
+                    ActionSheetManager.shared.show(
+                        content: content,
+                        isFavorite: isFavorite,
+                        onToggleFavorite: { onFavorite?() },
+                        onAddToPlaylist: onAddToPlaylist,
+                        onShare: { onShare?() }
+                    )
+                }
+            )
     }
 }
 
