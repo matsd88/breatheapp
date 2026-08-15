@@ -210,6 +210,9 @@ struct BreathingExerciseView: View {
     @State private var cycleCount = 0
     @State private var timer: Timer?
     @State private var glowOpacity: Double = 0.3
+    /// The phone honours Reduce Motion in BreathGuideOverlay; the watch did not,
+    /// despite running a repeatForever pulse on a device worn against the body.
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let totalCycles = 3
 
@@ -324,8 +327,13 @@ struct BreathingExerciseView: View {
         }
         .onAppear {
             startBreathingCycle()
-            withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
-                glowOpacity = 0.5
+            if reduceMotion {
+                // Hold a steady glow; the breath cues still come through haptics.
+                glowOpacity = 0.45
+            } else {
+                withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
+                    glowOpacity = 0.5
+                }
             }
         }
         .onDisappear {
