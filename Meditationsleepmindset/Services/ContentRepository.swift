@@ -90,7 +90,6 @@ class ContentRepository {
         ("5-Minute Stress Relief", "Quick calm", "inpok4MKVLM", .meditation, 318, "Goodful", ["Reduce Stress", "Reduce Anxiety"], false, "A quick 5-minute meditation to release stress and find calm whenever you need it."),
         ("Morning Energy Boost", "Energizing start", "O-6f5wQXSu8", .meditation, 612, "Great Meditation", ["Increase Happiness", "Improve Performance"], false, "Start your day with this energizing 10-minute morning meditation to boost focus and positivity."),
         ("Box Breathing", "One minute reset", "n6RbW2LtdFs", .meditation, 60, "Conscious Works", ["Reduce Stress", "Reduce Anxiety"], false, "A guided one-minute box breathing exercise to quickly calm your nervous system."),
-        ("Mindfulness Meditation", "Release and let go", "z1F2Knly81o", .meditation, 300, "Mindfulness", ["Reduce Stress", "Better Sleep"], false, "A gentle five-minute meditation that guides you to melt away tension and find stillness."),
         ("Focus Meditation", "Sharpen your mind", "BhQ_ISSPbpM", .meditation, 180, "Mallory Grimste", ["Improve Performance", "Reduce Stress"], false, "A three-minute guided meditation to clear mental fog and sharpen your focus."),
 
         // Sleep Stories - Verified popular sleep content with unique video IDs
@@ -105,7 +104,7 @@ class ContentRepository {
         ("Winter Fireplace", "Winter wonderland", "A5J1MZ4SMrU", .sleepStory, 2400, nil, ["Better Sleep"], false, "Cozy up by a crackling fireplace on a winter night."),
         ("Garden Rain", "Nature dreams", "C9np6f1PgMY", .sleepStory, 2700, "Relaxing Sounds", ["Better Sleep"], false, "Rain falling gently in a peaceful garden."),
         ("Lakeside Evening", "Lakeside calm", "q5QUH0pmjOA", .sleepStory, 3000, "Calm", ["Better Sleep"], false, "Spend a peaceful evening by a serene lake."),
-        ("Mountain Retreat", "Alpine peace", "Rmwh9uUshfE", .sleepStory, 2700, "Calm", ["Better Sleep"], false, "Cozy up in a mountain retreat."),
+        ("Spring at the Mountain Cabin", "Alpine peace", "yFL5Ox0zlCo", .sleepStory, 2440, "Get Sleepy", ["Better Sleep"], false, "Settle into a quiet mountain cabin as spring arrives outside."),
         ("Desert Night", "Endless sky", "oMwbXCdMhXc", .sleepStory, 3000, "Sleep Tube", ["Better Sleep"], false, "Watch stars under the desert sky."),
         ("English Garden", "Peaceful bloom", "R7bV4hF9A7Q", .sleepStory, 2400, "Relaxing Sounds", ["Better Sleep"], false, "Stroll through an English garden."),
         ("Snow Falling", "Winter peace", "gisytJ0n2jI", .sleepStory, 2700, nil, ["Better Sleep"], false, "Watch snow fall on a quiet night."),
@@ -653,7 +652,6 @@ class ContentRepository {
         ("12 Min Daily Stretch", "Full Body Mobility & Flexibility", "itJE4neqDJw", .movement, 857, "MadFit", ["Reduce Stress", "Improve Performance", "Increase Happiness"], false, "A 12-minute daily full body stretch routine targeting tight muscles and improving overall mobility and flexibility for better everyday movement."),
         ("20 Min Morning Yoga", "Full Body Flow for Beginners", "vJMbsWrGMVA", .movement, 1462, "MadFit", ["Reduce Stress", "Increase Happiness", "Build Self Esteem"], false, "A beginner-friendly 20-minute morning yoga flow that combines stretching and strength to energize the body and uplift the mind."),
         ("15 Min Stretch/Yoga for Stress Relief", "Stress & Anxiety Relief Flow", "utrAlZf_Pjs", .movement, 1105, "MadFit", ["Reduce Stress", "Reduce Anxiety", "Better Sleep"], false, "A calming 15-minute stretch and yoga combination focused on releasing physical tension and relieving stress and anxiety from the body."),
-        ("20 Min Relaxing Stretch/Yoga", "Flexibility & Stress Relief", "Yzm3IjnQSdo", .movement, 1486, "MadFit", ["Reduce Stress", "Reduce Anxiety", "Better Sleep"], false, "A relaxing 20-minute stretch and yoga session that improves flexibility while melting away stress, perfect for winding down after a long day."),
         ("Morning Yoga Workout", "Better Than The Gym - Strength & Stretch", "oX6I6vs1EFs", .movement, 1030, "Boho Beautiful Yoga", ["Improve Performance", "Increase Happiness", "Build Self Esteem"], false, "An invigorating morning yoga workout that combines strength-building poses with deep stretches for a complete mind-body start to your day."),
         ("Easy Yoga For Beginners", "Full Body Gentle Flow", "3_Q-yYfjeBM", .movement, 1182, "Boho Beautiful Yoga", ["Reduce Stress", "Reduce Anxiety", "Build Self Esteem"], false, "A gentle and welcoming 20-minute beginner yoga flow that builds confidence while stretching and strengthening the entire body."),
         ("Stress Relief Yoga", "A Relaxed & Calming Flow", "7CTsdbf81W8", .movement, 772, "Boho Beautiful Yoga", ["Reduce Stress", "Reduce Anxiety", "Better Sleep"], false, "A beautifully calming yoga flow designed to clear your mind and release stored stress through gentle movements and conscious breathing."),
@@ -1051,7 +1049,7 @@ class ContentRepository {
 
         // Movement — 10 new (chair yoga, tai chi, pilates, desk yoga)
         ("Chair Yoga", "Seated practice", "-Ts01MC2mIo", .movement, 1800, "Yoga With Adriene", ["Reduce Stress", "Reduce Anxiety"], false, "A gentle chair yoga practice accessible for all levels and mobility ranges."),
-        ("Relaxing Stretch & Yoga", "20-min flexibility", "tRLAZbz3NUs", .movement, 1200, "MadFit", ["Reduce Stress", "Better Sleep"], false, "A 20-minute relaxing stretch and yoga session for flexibility and stress relief."),
+        ("Relaxing Stretch & Yoga", "20-min flexibility", "tRLAZbz3NUs", .movement, 1486, "MadFit", ["Reduce Stress", "Better Sleep"], false, "A 20-minute relaxing stretch and yoga session for flexibility and stress relief."),
         ("Tai Chi for Beginners", "Best instructional", "bcpelNJTDbY", .movement, 1800, "BodyWisdom", ["Reduce Stress", "Improve Performance"], false, "The best instructional video for learning tai chi as a complete beginner."),
         ("Tai Chi Basics", "Dr. Paul Lam teaches", "hIOHGrYCEJ4", .movement, 1200, "Dr Paul Lam", ["Reduce Stress", "Reduce Anxiety"], false, "Dr. Paul Lam teaches tai chi for beginners with clear, easy-to-follow instruction."),
         ("Sunrise Tai Chi", "15-min morning flow", "1DeihMgXLDk", .movement, 900, "Tai Chi Made Easy", ["Reduce Stress", "Improve Performance"], false, "A 15-minute sunrise tai chi flow perfect for beginners to start the morning."),
@@ -1077,7 +1075,7 @@ class ContentRepository {
         ("Rainy Night ASMR", "Peaceful whispers", "6q5ai9GjVqo", .asmr, 2400, "ASMR Zeitgeist", ["Better Sleep", "Reduce Anxiety"], false, "ASMR on a rainy night with peaceful soft whispers for deep relaxation and sleep."),
         ("Whispers & Hand Movements", "Visual triggers", "BSL446RlJHk", .asmr, 1800, "Gentle Whispering ASMR", ["Better Sleep", "Reduce Stress"], false, "Whispers and hand movements for visual ASMR triggers and deep relaxation."),
         ("Zen Garden ASMR", "45-min no talking", "bCFALoEfBGw", .asmr, 2700, "Made In France ASMR", ["Better Sleep", "Reduce Anxiety"], true, "ASMR zen garden with decreasing brightness as a sleep aid — no talking, pure zen."),
-        ("Simple Pleasures ASMR", "Personal attention", "B4jUVci17vE", .asmr, 1800, "Gentle Whispering ASMR", ["Better Sleep", "Reduce Stress"], false, "Simple pleasures ASMR with soft spoken personal attention for total relaxation."),
+        ("Simple Pleasures ASMR", "Personal attention", "B8jUVci17vE", .asmr, 2294, "Gentle Whispering ASMR", ["Better Sleep", "Reduce Stress"], false, "Simple pleasures ASMR with soft spoken personal attention for total relaxation."),
         ("Taps for Your Nap", "Tapping triggers", "y1ucBSGR2Do", .asmr, 1800, "Gentle Whispering ASMR", ["Better Sleep", "Reduce Stress"], false, "Gentle tapping triggers for your nap — relaxing ASMR for quick rest."),
         ("10 Hours of Tapping", "No talking marathon", "jbAy9MwBR-I", .asmr, 36000, "MassageASMR", ["Better Sleep", "Reduce Anxiety"], true, "Ten hours of tapping, crinkle and trigger sounds with no talking for all-night sleep."),
         ("21 ASMR Trigger Words", "Word triggers", "o3cpQi9-RlA", .asmr, 900, "Gibi ASMR", ["Better Sleep", "Reduce Stress"], false, "21 words to trigger ASMR — a variety of whispered word triggers for tingles."),
