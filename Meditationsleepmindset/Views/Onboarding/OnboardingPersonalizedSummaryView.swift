@@ -82,7 +82,7 @@ struct OnboardingPersonalizedSummaryView: View {
                 }
                 .padding(.horizontal, 16)
 
-                OnboardingProgressDotsView(step: .sleepAssessment)
+                OnboardingProgressDotsView(step: .personalizedSummary)
 
                 Spacer()
 

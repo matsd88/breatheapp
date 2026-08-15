@@ -21,9 +21,8 @@ struct OnboardingView: View {
     @State private var selectedPainPoint: PainPoint?
     @State private var selectedGoals: Set<OnboardingGoal> = []
 
-    // 7 steps: Welcome(0), Goals(1), Breathing(2), Testimonials(3),
-    //          Notifications(4), Tracking/ATT(5), Paywall(6)
-    private let totalSteps = 7
+    // Order lives in OnboardingStep so the flow and the progress bar can't drift.
+    private let totalSteps = OnboardingStep.total
 
     var body: some View {
         ZStack {
@@ -99,6 +98,30 @@ struct OnboardingView: View {
                     ))
 
                 case 6:
+                    // Sleep assessment → persona + projection, priming the paywall (skippable).
+                    SleepAssessmentView(onComplete: { advanceStep() })
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .trailing).combined(with: .opacity),
+                            removal: .move(edge: .leading).combined(with: .opacity)
+                        ))
+
+                case 7:
+                    // "Your plan is ready" — echoes the pain point and goals the
+                    // user picked back as concrete recommendations, so the paywall
+                    // that follows is unlocking a plan they just watched being
+                    // built rather than a generic feature list.
+                    OnboardingPersonalizedSummaryView(
+                        painPoint: selectedPainPoint ?? .calm,
+                        goals: selectedGoals,
+                        onContinue: { advanceStep() },
+                        onBack: { goBack() }
+                    )
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing).combined(with: .opacity),
+                        removal: .move(edge: .leading).combined(with: .opacity)
+                    ))
+
+                case 8:
                     OnboardingPaywall(
                         painPoint: selectedPainPoint ?? .calm,
                         goals: selectedGoals,
@@ -139,7 +162,9 @@ struct OnboardingView: View {
         case 3: return "testimonials"
         case 4: return "notifications"
         case 5: return "tracking_permission"
-        case 6: return "paywall"
+        case 6: return "sleep_assessment"
+        case 7: return "personalized_summary"
+        case 8: return "paywall"
         default: return "unknown"
         }
     }

@@ -196,6 +196,9 @@ enum OnboardingStep: Int, CaseIterable {
     case notifications
     case tracking
     case sleepAssessment
+    /// Reflects the user's own answers back as a plan before the paywall — the
+    /// payoff that makes the preceding questions feel worth having answered.
+    case personalizedSummary
     case paywall
 
     static var total: Int { allCases.count }
