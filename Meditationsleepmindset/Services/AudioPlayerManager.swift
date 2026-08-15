@@ -159,6 +159,10 @@ class AudioPlayerManager: ObservableObject {
     /// Pre-built AVPlayerItem for the next track in queue (instant advance)
     private var prefetchedPlayerItem: AVPlayerItem?
     private var prefetchedVideoID: String?
+    /// Which mode the prefetched item was actually built in. Without this, an
+    /// item prefetched audio-only could be handed to a video-mode load and
+    /// leave isVideoMode claiming video over an audio-only asset.
+    private var prefetchedAudioOnly: Bool?
     /// Track retry attempts for the current content to prevent infinite loops
     private var currentRetryCount = 0
     private static let maxAutoRetries = 2
@@ -602,12 +606,15 @@ class AudioPlayerManager: ObservableObject {
                 #endif
                 prefetchedPlayerItem = nil
                 prefetchedVideoID = nil
+                isVideoMode = !(prefetchedAudioOnly ?? audioOnly)
+                prefetchedAudioOnly = nil
                 setupPlayerWithItem(prefetchedItem)
                 prefetchNextInQueue()
                 return
             }
             prefetchedPlayerItem = nil
             prefetchedVideoID = nil
+            prefetchedAudioOnly = nil
 
             // Race disk cache vs stream URL extraction — use whichever resolves first
             let videoID = content.youtubeVideoID
@@ -845,6 +852,7 @@ class AudioPlayerManager: ObservableObject {
                 guard self.queue[safe: self.currentIndex + 1]?.youtubeVideoID == videoID else { return }
                 self.prefetchedPlayerItem = item
                 self.prefetchedVideoID = videoID
+                self.prefetchedAudioOnly = audioOnly
                 #if DEBUG
                 print("[AudioPlayerManager] Pre-built AVPlayerItem for next: \(nextContent.title)")
                 #endif

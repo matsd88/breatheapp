@@ -28,7 +28,17 @@ struct MeditationPlayerView: View {
     @State private var showAddToPlaylist = false
     @State private var showSpeedSelector = false
     @State private var showSoundscapeMixer = false
-    @State private var isVideoMode = true
+    /// What this screen asks the loader for. What actually ends up playing is
+    /// `playerManager.isVideoMode` — the loader silently falls back to an
+    /// audio-only stream when video extraction fails, which is common.
+    private let prefersVideo = true
+
+    /// Render from the stream that actually loaded, never from the request.
+    /// This used to be a `@State` initialised to true and never assigned, so
+    /// the view always drew a VideoPlayer — over an audio-only asset after any
+    /// fallback, which is a black rectangle with sound. It also made the
+    /// audio-artwork branch below unreachable.
+    private var isVideoMode: Bool { playerManager.isVideoMode }
     @State private var hasRecordedSession = false
     @State private var showPaywall = false
     @State private var hasCheckedSubscription = false
@@ -1255,7 +1265,7 @@ struct MeditationPlayerView: View {
             // Clear stale stream cache for this video so we get a fresh extraction
             await MediaStreamService.shared.evictCacheEntry(for: retryContent.youtubeVideoID)
             await VideoCache.shared.evictCacheEntry(for: retryContent.youtubeVideoID)
-            await playerManager.loadContent(retryContent, videoMode: isVideoMode)
+            await playerManager.loadContent(retryContent, videoMode: prefersVideo)
             playerManager.play()
         }
     }
@@ -1285,7 +1295,7 @@ struct MeditationPlayerView: View {
            idx == playerManager.currentIndex {
             // Queue already set and pointing at the right content — just load
             Task {
-                await playerManager.loadContent(content, videoMode: isVideoMode)
+                await playerManager.loadContent(content, videoMode: prefersVideo)
                 playerManager.play()
             }
         } else if playerManager.queue.isEmpty {
@@ -1293,13 +1303,13 @@ struct MeditationPlayerView: View {
             playerManager.queue = [content]
             playerManager.currentIndex = 0
             Task {
-                await playerManager.loadContent(content, videoMode: isVideoMode)
+                await playerManager.loadContent(content, videoMode: prefersVideo)
                 playerManager.play()
             }
         } else {
             // Queue is set but content doesn't match index — just load normally
             Task {
-                await playerManager.loadContent(content, videoMode: isVideoMode)
+                await playerManager.loadContent(content, videoMode: prefersVideo)
                 playerManager.play()
             }
         }
