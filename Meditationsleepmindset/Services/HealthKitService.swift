@@ -42,6 +42,11 @@ class HealthKitService: ObservableObject {
     @Published var sleepData: [DaySleepData] = []
     @Published var sleepHoursToday: Double = 0
 
+    // Heart-Rate Dip: how much the heart slows during sleep vs. daytime (a recovery indicator).
+    @Published var sleepingHeartRate: Int?
+    @Published var wakingHeartRate: Int?
+    @Published var heartRateDip: Double?   // percentage drop, e.g. 18.0 means HR was 18% lower asleep
+
     static var isAvailable: Bool {
         HKHealthStore.isHealthDataAvailable()
     }
@@ -242,6 +247,36 @@ class HealthKitService: ObservableObject {
             print("HealthKit heart rate read failed: \(error)")
             #endif
             return (nil, nil, nil)
+        }
+    }
+
+    /// Computes the heart-rate dip: how much lower the average heart rate was during last
+    /// night's sleep vs. the prior day's waking hours. A larger dip generally signals better recovery.
+    func loadHeartRateDip() async {
+        guard Self.isAvailable, isEnabled else { return }
+        let cal = Calendar.current
+        let now = Date()
+        let todayStart = cal.startOfDay(for: now)
+
+        // Last night's sleep window: ~11 PM yesterday → 7 AM today.
+        guard let sleepStart = cal.date(byAdding: .hour, value: -1, to: todayStart),
+              let sleepEndRaw = cal.date(byAdding: .hour, value: 7, to: todayStart) else { return }
+        let sleepEnd = min(sleepEndRaw, now)
+
+        // Prior day's waking window: ~9 AM → 9 PM yesterday.
+        guard let dayStart = cal.date(byAdding: .hour, value: -15, to: todayStart),
+              let dayEnd = cal.date(byAdding: .hour, value: -3, to: todayStart) else { return }
+
+        let sleeping = await getHeartRateDuringSession(start: sleepStart, end: sleepEnd)
+        let waking = await getHeartRateDuringSession(start: dayStart, end: dayEnd)
+
+        sleepingHeartRate = sleeping.avgHR
+        wakingHeartRate = waking.avgHR
+
+        if let s = sleeping.avgHR, let w = waking.avgHR, w > 0, s > 0 {
+            heartRateDip = (Double(w - s) / Double(w)) * 100.0
+        } else {
+            heartRateDip = nil
         }
     }
 

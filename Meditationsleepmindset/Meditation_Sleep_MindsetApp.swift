@@ -10,6 +10,20 @@ import SwiftData
 import StoreKit
 import CoreSpotlight
 
+/// Throttle for StoreKit re-checks on foreground. Quick app switches shouldn't
+/// re-hit StoreKit every time — only refresh if it's been a while. `lastRun`
+/// starts nil so the first activation after launch always refreshes.
+@MainActor
+private enum SubscriptionRefreshThrottle {
+    static var lastRun: Date?
+    static let minInterval: TimeInterval = 15 * 60  // 15 minutes
+
+    static func shouldRun(now: Date = Date()) -> Bool {
+        guard let lastRun else { return true }
+        return now.timeIntervalSince(lastRun) > minInterval
+    }
+}
+
 @main
 struct Meditation_Sleep_MindsetApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -34,6 +48,10 @@ struct Meditation_Sleep_MindsetApp: App {
             ProgramProgress.self,
             AIGeneratedMeditation.self,
             BiometricSessionData.self,
+            GratitudeEntry.self,
+            DailyIntentionRecord.self,
+            SleepRecordingSession.self,
+            SavedSoundMix.self,
         ])
 
         let modelConfiguration = ModelConfiguration(
@@ -60,7 +78,16 @@ struct Meditation_Sleep_MindsetApp: App {
             do {
                 return try ModelContainer(for: schema, configurations: [modelConfiguration])
             } catch {
-                fatalError("Could not create ModelContainer after reset: \(error)")
+                // Last resort: in-memory container so the app doesn't crash
+                #if DEBUG
+                print("Could not create ModelContainer after reset: \(error). Falling back to in-memory storage.")
+                #endif
+                do {
+                    let inMemoryConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+                    return try ModelContainer(for: schema, configurations: [inMemoryConfig])
+                } catch {
+                    fatalError("Could not create even an in-memory ModelContainer: \(error)")
+                }
             }
         }
     }()
@@ -68,6 +95,7 @@ struct Meditation_Sleep_MindsetApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .appAccessibilityPreferences()
                 .statusBarHidden(UIDevice.current.userInterfaceIdiom != .pad)
                 .environmentObject(appState)
                 .environmentObject(accountService)
@@ -109,11 +137,16 @@ struct Meditation_Sleep_MindsetApp: App {
                         await ContentHealthService.shared.fetchManifestAndApplyReplacements(in: sharedModelContainer.mainContext)
                     }
 
-                    // Index content for Spotlight search
-                    Task {
-                        let descriptor = FetchDescriptor<Content>()
-                        if let allContent = try? sharedModelContainer.mainContext.fetch(descriptor) {
-                            SpotlightService.shared.indexAllContent(allContent)
+                    // Index content for Spotlight search — only when the catalog
+                    // version changed, not on every launch (562-item re-index).
+                    let catalogVersion = UserDefaults.standard.integer(forKey: "ContentRepositoryVersion")
+                    if UserDefaults.standard.integer(forKey: "SpotlightIndexedVersion") != catalogVersion {
+                        Task { @MainActor in
+                            let descriptor = FetchDescriptor<Content>()
+                            if let allContent = try? sharedModelContainer.mainContext.fetch(descriptor) {
+                                SpotlightService.shared.indexAllContent(allContent)
+                                UserDefaults.standard.set(catalogVersion, forKey: "SpotlightIndexedVersion")
+                            }
                         }
                     }
 
@@ -148,9 +181,13 @@ struct Meditation_Sleep_MindsetApp: App {
                 // Update quick actions when app becomes active
                 appDelegate.updateQuickActions()
                 // Re-check subscription status (Apple reviewers test lapsed subscriptions)
-                Task { await StoreManager.shared.refreshSubscriptionStatus() }
-                // Check if trial user cancelled (entitlement expired without converting)
-                Task { await StoreManager.shared.checkTrialCancellation() }
+                // Throttled to once per 15 min — quick app switches skip the StoreKit hit.
+                if SubscriptionRefreshThrottle.shouldRun() {
+                    SubscriptionRefreshThrottle.lastRun = Date()
+                    Task { await StoreManager.shared.refreshSubscriptionStatus() }
+                    // Check if trial user cancelled (entitlement expired without converting)
+                    Task { await StoreManager.shared.checkTrialCancellation() }
+                }
                 // Reset re-engagement notifications and clear badge
                 notificationService.resetReengagementOnAppOpen()
                 notificationService.clearBadge()
@@ -183,6 +220,15 @@ struct Meditation_Sleep_MindsetApp: App {
         // Preload all thumbnails first (fast, small files)
         await CacheManager.shared.preloadThumbnails(for: allContent)
 
+        // Video preloads are large downloads: delay them ~5s so they never
+        // compete with first-frame/launch work, and only run on Wi-Fi
+        // (connected and not an expensive path — cellular/hotspot).
+        try? await Task.sleep(nanoseconds: 5_000_000_000)
+        let canPreloadVideos = await MainActor.run {
+            NetworkMonitor.shared.isConnected && !NetworkMonitor.shared.isExpensive
+        }
+        guard canPreloadVideos else { return }
+
         // Get favorited video IDs
         let favoritesDescriptor = FetchDescriptor<FavoriteContent>()
         let favoriteVideoIDs = Set((try? context.fetch(favoritesDescriptor))?.map { $0.youtubeVideoID } ?? [])
@@ -206,6 +252,8 @@ struct RootView: View {
     @State private var selectedTab: AppTab = .home
     @State private var showingTimer = false
     @State private var showingPaywall = false
+    @State private var showingAIStudio = false
+    @State private var showingKidsStories = false
     @State private var initialDiscoverCategory: ContentType?
 
     var body: some View {
@@ -218,6 +266,8 @@ struct RootView: View {
                     selectedTab: $selectedTab,
                     showingTimer: $showingTimer,
                     showingPaywall: $showingPaywall,
+                    showingAIStudio: $showingAIStudio,
+                    showingKidsStories: $showingKidsStories,
                     initialDiscoverCategory: $initialDiscoverCategory
                 )
             }
@@ -225,6 +275,13 @@ struct RootView: View {
         .onReceive(NotificationCenter.default.publisher(for: .quickActionTriggered)) { notification in
             guard let action = notification.userInfo?["action"] as? AppDelegate.QuickAction else { return }
             handleQuickAction(action)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .notificationActionTriggered)) { notification in
+            guard let route = notification.userInfo?["route"] as? AppDelegate.NotificationActionRoute else { return }
+            handleNotificationAction(route)
+        }
+        .onChange(of: appState.pendingAppRoute) { _, route in
+            handleAppRoute(route)
         }
         .onAppear {
             // For users who already completed onboarding, request ATT here.
@@ -238,6 +295,95 @@ struct RootView: View {
                 handleQuickAction(action)
                 AppDelegate.pendingQuickAction = nil
             }
+
+            // Handle a notification action tapped from a cold launch
+            if let route = AppDelegate.pendingNotificationAction {
+                handleNotificationAction(route)
+                AppDelegate.pendingNotificationAction = nil
+            }
+
+            // Handle an app route set from a cold-launch notification tap
+            // (e.g. a trial/win-back nudge → paywall). onChange covers the
+            // warm case; onAppear catches the route set before this mounted.
+            if appState.pendingAppRoute != nil {
+                handleAppRoute(appState.pendingAppRoute)
+            }
+        }
+    }
+
+    private func handleNotificationAction(_ route: AppDelegate.NotificationActionRoute) {
+        switch route {
+        case .startQuickSession:
+            selectedTab = .home
+            showingTimer = true
+        case .playSleepStory:
+            selectedTab = .sleep
+        case .openAIChat:
+            selectedTab = .chat
+        }
+    }
+
+    /// Consume tab-level app routes (support bot links, meditation://go/… URLs).
+    /// Routes may be set while sheets are still presented (e.g. the support bot
+    /// inside Settings), so sheet-presenting routes wait for the dismissal
+    /// chain to finish before presenting.
+    private func handleAppRoute(_ route: AppRoute?) {
+        guard let route else { return }
+        let appState = AppStateManager.shared
+
+        switch route {
+        case .home, .sleep, .discover, .chat, .profile:
+            // Clear immediately (nothing else consumes tab routes), but apply
+            // the switch after a beat so a dismissing sheet chain (support bot
+            // → Settings) isn't torn down mid-animation.
+            appState.pendingAppRoute = nil
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                switch route {
+                case .home: selectedTab = .home
+                case .sleep: selectedTab = .sleep
+                case .discover:
+                    initialDiscoverCategory = nil
+                    selectedTab = .discover
+                case .chat: selectedTab = .chat
+                case .profile: selectedTab = .profile
+                default: break
+                }
+            }
+
+        case .focusTimer:
+            selectedTab = .home
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                guard appState.pendingAppRoute == .focusTimer else { return }
+                appState.pendingAppRoute = nil
+                showingTimer = true
+            }
+        case .premium:
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                guard appState.pendingAppRoute == .premium else { return }
+                appState.pendingAppRoute = nil
+                showingPaywall = true
+            }
+
+        case .aiStudio:
+            // Presented from the shell — the Home sections that host these
+            // tools live in a LazyVStack and may not be mounted at all.
+            selectedTab = .home
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                guard appState.pendingAppRoute == .aiStudio else { return }
+                appState.pendingAppRoute = nil
+                showingAIStudio = true
+            }
+        case .kidsStories:
+            selectedTab = .home
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                guard appState.pendingAppRoute == .kidsStories else { return }
+                appState.pendingAppRoute = nil
+                showingKidsStories = true
+            }
+
+        case .notificationSettings, .offlineDownloads:
+            // Consumed by SettingsView.
+            break
         }
     }
 
@@ -264,11 +410,15 @@ struct MainTabViewWithQuickActions: View {
     @Binding var selectedTab: AppTab
     @Binding var showingTimer: Bool
     @Binding var showingPaywall: Bool
+    @Binding var showingAIStudio: Bool
+    @Binding var showingKidsStories: Bool
     @Binding var initialDiscoverCategory: ContentType?
     @EnvironmentObject var appState: AppStateManager
     @StateObject private var storeManager = StoreManager.shared
     @StateObject private var playerManager = AudioPlayerManager.shared
     @StateObject private var morningCheckIn = MorningCheckInManager.shared
+    @StateObject private var networkMonitor = NetworkMonitor.shared
+    @StateObject private var challengeService = ChallengeService.shared
     @Query(sort: \MeditationSession.startedAt, order: .reverse) private var sessions: [MeditationSession]
     @State private var showFullPlayer = false
     @State private var deepLinkContent: Content?
@@ -277,13 +427,17 @@ struct MainTabViewWithQuickActions: View {
     @Environment(\.modelContext) private var modelContext
 
     private var shouldHideTabBar: Bool {
-        isKeyboardVisible && selectedTab == .chat
+        // A custom bottom-overlay tab bar should never float above the keyboard —
+        // hide it whenever the keyboard is up (search, playlist naming, chat, etc.).
+        isKeyboardVisible
     }
 
-    init(selectedTab: Binding<AppTab>, showingTimer: Binding<Bool>, showingPaywall: Binding<Bool>, initialDiscoverCategory: Binding<ContentType?>) {
+    init(selectedTab: Binding<AppTab>, showingTimer: Binding<Bool>, showingPaywall: Binding<Bool>, showingAIStudio: Binding<Bool>, showingKidsStories: Binding<Bool>, initialDiscoverCategory: Binding<ContentType?>) {
         self._selectedTab = selectedTab
         self._showingTimer = showingTimer
         self._showingPaywall = showingPaywall
+        self._showingAIStudio = showingAIStudio
+        self._showingKidsStories = showingKidsStories
         self._initialDiscoverCategory = initialDiscoverCategory
 
         // Hide native tab bar
@@ -312,6 +466,24 @@ struct MainTabViewWithQuickActions: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay(alignment: .top) {
+                if !networkMonitor.isConnected {
+                    HStack(spacing: 8) {
+                        Image(systemName: "wifi.slash")
+                            .font(.caption)
+                        Text("No internet connection")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.red.opacity(0.85))
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .animation(.spring(response: 0.3), value: networkMonitor.isConnected)
+                }
+            }
             if !shouldHideTabBar {
                 // Bottom fade gradient to hide content behind tab bar
                 VStack {
@@ -319,8 +491,8 @@ struct MainTabViewWithQuickActions: View {
                     LinearGradient(
                         colors: [
                             Color.clear,
-                            Color(red: 0.1, green: 0.2, blue: 0.35).opacity(0.8),
-                            Color(red: 0.1, green: 0.2, blue: 0.35)
+                            Theme.tabBarBackgroundColor.opacity(0.8),
+                            Theme.tabBarBackgroundColor
                         ],
                         startPoint: .top,
                         endPoint: .bottom
@@ -334,7 +506,7 @@ struct MainTabViewWithQuickActions: View {
                 VStack {
                     Spacer()
                     Rectangle()
-                        .fill(Color(red: 0.1, green: 0.2, blue: 0.35))
+                        .fill(Theme.tabBarBackgroundColor)
                         .frame(height: 50)
                 }
                 .ignoresSafeArea(.all, edges: .bottom)
@@ -362,6 +534,9 @@ struct MainTabViewWithQuickActions: View {
         .overlay(alignment: .top) {
             ToastOverlay()
         }
+        .overlay {
+            ChallengeCelebrationOverlay(challengeService: challengeService)
+        }
         .sheet(isPresented: $appState.shouldShowNotificationPrompt, onDismiss: {
             appState.markNotificationPromptHandled()
         }) {
@@ -372,6 +547,19 @@ struct MainTabViewWithQuickActions: View {
         }
         .sheet(isPresented: $showingPaywall) {
             DiscountedPaywallView()
+        }
+        .sheet(isPresented: $showingAIStudio) {
+            AIGeneratedMeditationView()
+        }
+        .sheet(isPresented: $showingKidsStories) {
+            KidsView()
+        }
+        .sheet(isPresented: $appState.shouldShowFirstSessionPaywall) {
+            PremiumPaywallView(
+                storeManager: storeManager,
+                sessionLimitMessage: "You just took a moment for yourself. Unlock the full library and keep the habit going.",
+                onSubscribed: { appState.shouldShowFirstSessionPaywall = false }
+            )
         }
         .fullScreenCover(isPresented: $showFullPlayer) {
             if let content = playerManager.currentContent {
@@ -399,6 +587,8 @@ struct MainTabViewWithQuickActions: View {
             }
             // Check for morning check-in prompt
             morningCheckIn.checkForMorningPrompt(sessions: sessions)
+            // Check and rotate challenges on app launch
+            challengeService.checkAndRotateChallenges()
 
             // Track first time user reaches the main app (post-onboarding activation)
             let firstHomeKey = "hasLoggedFirstHomeView"
@@ -467,6 +657,7 @@ struct MainTabViewWithQuickActions: View {
             #if DEBUG
             print("[DeepLink] Content not found for video ID: \(videoID)")
             #endif
+            ToastManager.shared.show("Content not found", icon: "exclamationmark.triangle.fill", style: .error)
             appState.clearPendingDeepLink()
         }
     }
@@ -605,6 +796,7 @@ struct DiscountedPaywallView: View {
                     await storeManager.loadProducts()
                 }
             }
+            .onAppear { AppStateManager.shared.recordPaywallShown() }
             .alert("Purchase Failed", isPresented: $storeManager.showError) {
                 Button("OK", role: .cancel) { }
             } message: {

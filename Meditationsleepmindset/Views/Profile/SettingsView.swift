@@ -23,6 +23,11 @@ struct SettingsView: View {
     @State private var showingDeleteAccountConfirmation = false
     @State private var showingSupportChat = false
     @State private var showingOfflinePacks = false
+    @State private var navToNotificationSettings = false
+    @AppStorage(FirebaseService.anonymousModeKey) private var anonymousMode = false
+    @StateObject private var voice = VoiceManager.shared
+    @AppStorage(Constants.UserDefaultsKeys.childName) private var childName: String = ""
+    @State private var showingClearAIConfirmation = false
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     private let headerSolidColor = Color(red: 0.08, green: 0.15, blue: 0.28)
@@ -43,140 +48,7 @@ struct SettingsView: View {
                             PremiumUpsellCard()
                         }
 
-                        // Support Section
-                        SettingsSection(title: "Support") {
-                            Button {
-                                HapticManager.light()
-                                showingSupportChat = true
-                            } label: {
-                                SettingsRow(
-                                    icon: "message.fill",
-                                    title: "Get Help"
-                                )
-                            }
-
-                            NavigationLink {
-                                FAQView()
-                            } label: {
-                                SettingsRow(
-                                    icon: "text.bubble.fill",
-                                    title: "FAQ",
-                                    showChevron: true
-                                )
-                            }
-
-                            Button {
-                                HapticManager.light()
-                                showingRatingDialog = true
-                            } label: {
-                                SettingsRow(
-                                    icon: "star.fill",
-                                    title: "Rate the App"
-                                )
-                            }
-
-                            ShareLink(item: Constants.AppStore.shareURL) {
-                                SettingsRow(
-                                    icon: "square.and.arrow.up",
-                                    title: "Share with Friends"
-                                )
-                            }
-                        }
-
-                        // Preferences Section
-                        SettingsSection(title: "Preferences") {
-                            NavigationLink {
-                                NotificationSettingsView()
-                            } label: {
-                                NotificationSettingsRow()
-                            }
-
-                            Button {
-                                HapticManager.light()
-                                showingThemeSettings = true
-                            } label: {
-                                ThemeSettingsRow()
-                            }
-                        }
-
-                        // Downloads Section
-                        SettingsSection(title: "Downloads") {
-                            Button {
-                                HapticManager.light()
-                                showingOfflinePacks = true
-                            } label: {
-                                HStack(spacing: 12) {
-                                    Image(systemName: "arrow.down.circle.fill")
-                                        .foregroundStyle(.cyan)
-                                        .frame(width: 28, height: 28)
-                                        .background(Color.cyan.opacity(0.15))
-                                        .clipShape(RoundedRectangle(cornerRadius: 6))
-
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Offline Packs")
-                                            .font(.subheadline)
-                                            .foregroundStyle(.white)
-                                        Text("Download content for travel")
-                                            .font(.caption)
-                                            .foregroundStyle(Theme.textSecondary)
-                                    }
-
-                                    Spacer()
-
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundStyle(Theme.textTertiary)
-                                }
-                                .padding()
-                            }
-                        }
-
-                        // Integrations
-                        if HealthKitService.isAvailable {
-                            SettingsSection(title: "Integrations") {
-                                HStack(spacing: 12) {
-                                    Image(systemName: "heart.fill")
-                                        .foregroundStyle(.red)
-                                        .frame(width: 28, height: 28)
-                                        .background(Color.red.opacity(0.15))
-                                        .clipShape(RoundedRectangle(cornerRadius: 6))
-
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Apple Health")
-                                            .font(.subheadline)
-                                            .foregroundStyle(.white)
-                                        Text("Sync mindful minutes")
-                                            .font(.caption)
-                                            .foregroundStyle(Theme.textSecondary)
-                                    }
-
-                                    Spacer()
-
-                                    Toggle("", isOn: Binding(
-                                        get: { HealthKitService.shared.isEnabled },
-                                        set: { HealthKitService.shared.isEnabled = $0 }
-                                    ))
-                                    .labelsHidden()
-                                    .tint(Theme.profileAccent)
-                                }
-                                .padding()
-                            }
-                        }
-
-                        // Accessibility
-                        SettingsSection(title: "Accessibility") {
-                            NavigationLink {
-                                AccessibilitySettingsView()
-                            } label: {
-                                SettingsRow(
-                                    icon: "accessibility",
-                                    title: "Accessibility",
-                                    showChevron: true
-                                )
-                            }
-                        }
-
-                        // Account Section
+                        // Account (top — most-accessed)
                         SettingsSection(title: "Account") {
                             // Sign in with Apple row
                             if accountService.isSignedIn {
@@ -321,6 +193,248 @@ struct SettingsView: View {
                                 }
                             }
                         }
+                        // Preferences Section
+                        SettingsSection(title: "Preferences") {
+                            NavigationLink {
+                                NotificationSettingsView()
+                            } label: {
+                                NotificationSettingsRow()
+                            }
+
+                            NavigationLink {
+                                PlaybackSettingsView()
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "speedometer")
+                                        .foregroundStyle(.green)
+                                        .frame(width: 28, height: 28)
+                                        .background(Color.green.opacity(0.15))
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Playback")
+                                            .font(.subheadline)
+                                            .foregroundStyle(.white)
+                                        Text("Default speed, auto-play, downloads")
+                                            .font(.caption)
+                                            .foregroundStyle(Theme.textSecondary)
+                                    }
+
+                                    Spacer()
+
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundStyle(Theme.textTertiary)
+                                }
+                                .padding()
+                            }
+
+                            Button {
+                                HapticManager.light()
+                                showingThemeSettings = true
+                            } label: {
+                                ThemeSettingsRow()
+                            }
+                        }
+
+                        // AI & Voice Section
+                        SettingsSection(title: "AI & Voice") {
+                            Toggle(isOn: Binding(
+                                get: { voice.voiceOutputEnabled },
+                                set: { newValue in
+                                    voice.voiceOutputEnabled = newValue
+                                    if !newValue { voice.stopSpeaking() }
+                                }
+                            )) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "speaker.wave.2.fill")
+                                        .foregroundStyle(.white)
+                                        .frame(width: 28)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Read replies aloud")
+                                            .foregroundStyle(Theme.textPrimary)
+                                        Text("Breathe AI speaks its responses in chat")
+                                            .font(.caption)
+                                            .foregroundStyle(Theme.textSecondary)
+                                    }
+                                }
+                            }
+                            .padding()
+                            .tint(Theme.profileAccent)
+
+                            Button {
+                                HapticManager.light()
+                                showingClearAIConfirmation = true
+                            } label: {
+                                SettingsRow(icon: "trash", title: "Clear Chat History & AI Memory")
+                            }
+
+                            if !childName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                Button {
+                                    HapticManager.light()
+                                    childName = ""
+                                    ToastManager.shared.show("Child name cleared", icon: "checkmark.circle.fill", style: .success)
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "teddybear.fill")
+                                            .foregroundStyle(.cyan)
+                                            .frame(width: 28)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("Kids name: \(childName)")
+                                                .foregroundStyle(Theme.textPrimary)
+                                            Text("Used to personalize bedtime stories · tap to clear")
+                                                .font(.caption)
+                                                .foregroundStyle(Theme.textSecondary)
+                                        }
+                                        Spacer()
+                                    }
+                                    .padding()
+                                }
+                            }
+                        }
+
+                        // Downloads Section
+                        SettingsSection(title: "Downloads") {
+                            Button {
+                                HapticManager.light()
+                                showingOfflinePacks = true
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "arrow.down.circle.fill")
+                                        .foregroundStyle(.cyan)
+                                        .frame(width: 28, height: 28)
+                                        .background(Color.cyan.opacity(0.15))
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Offline Packs")
+                                            .font(.subheadline)
+                                            .foregroundStyle(.white)
+                                        Text("Download content for travel")
+                                            .font(.caption)
+                                            .foregroundStyle(Theme.textSecondary)
+                                    }
+
+                                    Spacer()
+
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundStyle(Theme.textTertiary)
+                                }
+                                .padding()
+                            }
+                        }
+
+                        // Integrations
+                        if HealthKitService.isAvailable {
+                            SettingsSection(title: "Integrations") {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "heart.fill")
+                                        .foregroundStyle(.red)
+                                        .frame(width: 28, height: 28)
+                                        .background(Color.red.opacity(0.15))
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Apple Health")
+                                            .font(.subheadline)
+                                            .foregroundStyle(.white)
+                                        Text("Sync mindful minutes")
+                                            .font(.caption)
+                                            .foregroundStyle(Theme.textSecondary)
+                                    }
+
+                                    Spacer()
+
+                                    Toggle("", isOn: Binding(
+                                        get: { HealthKitService.shared.isEnabled },
+                                        set: { HealthKitService.shared.isEnabled = $0 }
+                                    ))
+                                    .labelsHidden()
+                                    .tint(Theme.profileAccent)
+                                }
+                                .padding()
+                            }
+                        }
+
+                        // Accessibility
+                        SettingsSection(title: "Accessibility") {
+                            NavigationLink {
+                                AccessibilitySettingsView()
+                            } label: {
+                                SettingsRow(
+                                    icon: "accessibility",
+                                    title: "Accessibility",
+                                    showChevron: true
+                                )
+                            }
+                        }
+
+                        // Privacy Section
+                        SettingsSection(title: "Privacy") {
+                            Toggle(isOn: Binding(
+                                get: { anonymousMode },
+                                set: { newValue in
+                                    anonymousMode = newValue
+                                    FirebaseService.shared.setAnonymousMode(newValue)
+                                }
+                            )) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "eye.slash.fill")
+                                        .foregroundStyle(.white)
+                                        .frame(width: 28)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Anonymous Mode")
+                                            .foregroundStyle(Theme.textPrimary)
+                                        Text("Turn off all analytics & attribution. Your data stays on your device.")
+                                            .font(.caption)
+                                            .foregroundStyle(Theme.textSecondary)
+                                    }
+                                }
+                            }
+                            .padding()
+                            .tint(Theme.profileAccent)
+                        }
+
+                        // Support Section (help/feedback — below core settings)
+                        SettingsSection(title: "Support") {
+                            Button {
+                                HapticManager.light()
+                                showingSupportChat = true
+                            } label: {
+                                SettingsRow(
+                                    icon: "message.fill",
+                                    title: "Get Help"
+                                )
+                            }
+
+                            NavigationLink {
+                                FAQView()
+                            } label: {
+                                SettingsRow(
+                                    icon: "text.bubble.fill",
+                                    title: "FAQ",
+                                    showChevron: true
+                                )
+                            }
+
+                            Button {
+                                HapticManager.light()
+                                showingRatingDialog = true
+                            } label: {
+                                SettingsRow(
+                                    icon: "star.fill",
+                                    title: "Rate the App"
+                                )
+                            }
+
+                            ShareLink(item: Constants.AppStore.shareURL) {
+                                SettingsRow(
+                                    icon: "square.and.arrow.up",
+                                    title: "Share with Friends"
+                                )
+                            }
+                        }
 
                         // Legal Section
                         SettingsSection(title: "Legal") {
@@ -438,6 +552,7 @@ struct SettingsView: View {
                             .background(Color.white.opacity(0.15))
                             .clipShape(Circle())
                     }
+                    .accessibilityLabel("Close")
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
@@ -469,6 +584,15 @@ struct SettingsView: View {
                     OfflinePacksView()
                 }
             }
+            .alert("Clear Chat History & AI Memory", isPresented: $showingClearAIConfirmation) {
+                Button("Clear", role: .destructive) {
+                    ChatService.shared.clearAllHistory(in: modelContext)
+                    ToastManager.shared.show("Chat history & memory cleared", icon: "checkmark.circle.fill", style: .success)
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("This permanently deletes all your conversations and what the AI remembers about you. This cannot be undone.")
+            }
             .alert("Sign Out", isPresented: $showingSignOutConfirmation) {
                 Button("Sign Out", role: .destructive) {
                     accountService.signOut()
@@ -498,8 +622,50 @@ struct SettingsView: View {
             } message: {
                 Text("No email app found. The support email address has been copied to your clipboard: \(Constants.Support.email)")
             }
+            .navigationDestination(isPresented: $navToNotificationSettings) {
+                NotificationSettingsView()
+            }
         }
         .preferredColorScheme(.dark)
+        .onChange(of: appState.pendingAppRoute) { _, route in
+            consumeAppRoute(route)
+        }
+        .onAppear {
+            consumeAppRoute(appState.pendingAppRoute)
+        }
+    }
+
+    /// Handle app routes while Settings is presented (they come from the
+    /// support bot sheet, which lives on top of this screen). Settings owns
+    /// its own sub-screens; for anything tab-level it dismisses itself and
+    /// lets the tab shell take over. Delays let the support sheet finish
+    /// dismissing first.
+    private func consumeAppRoute(_ route: AppRoute?) {
+        guard let route else { return }
+        // A stale route (set long ago, consumer never on screen) must not
+        // replay out of context — e.g. auto-pushing reminder settings days
+        // after a missed deep link, or dismissing Settings right after opening.
+        guard appState.pendingAppRouteIsFresh else {
+            appState.pendingAppRoute = nil
+            return
+        }
+        switch route {
+        case .notificationSettings:
+            appState.pendingAppRoute = nil
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                navToNotificationSettings = true
+            }
+        case .offlineDownloads:
+            appState.pendingAppRoute = nil
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                showingOfflinePacks = true
+            }
+        default:
+            // Tab-level route — get out of the way; RootView handles it.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                dismiss()
+            }
+        }
     }
 
     // Cached DateFormatter for performance
@@ -674,30 +840,9 @@ struct PremiumUpsellCard: View {
         NavigationLink {
             PremiumView()
         } label: {
-            VStack(spacing: 12) {
-                Text("Try Premium Free")
-                    .font(.headline)
-                    .foregroundStyle(Theme.textPrimary)
-
-                Text("Unlock all meditations, sleep stories & more")
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.textSecondary)
-
-                Text("Start Free Trial")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.black)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .padding(.top, 4)
-            }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Theme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadiusLarge))
+            PremiumUpsellBanner()
         }
+        .buttonStyle(.plain)
     }
 }
 
@@ -781,146 +926,14 @@ struct ManageSubscriptionView: View {
     }
 }
 
-// MARK: - Reminder Settings View
-struct ReminderSettingsView: View {
-    @EnvironmentObject var appState: AppStateManager
-    @State private var reminderEnabled = true
-    @State private var reminderTime = Date()
-
-    var body: some View {
-        ZStack {
-            Theme.profileGradient.ignoresSafeArea()
-
-            ScrollView {
-                VStack(spacing: 24) {
-                    SettingsSection(title: "Daily Reminder") {
-                        Toggle(isOn: $reminderEnabled) {
-                            HStack(spacing: 12) {
-                                Image(systemName: "bell.fill")
-                                    .foregroundStyle(.white)
-                                    .frame(width: 28)
-
-                                Text("Enable Reminder")
-                                    .foregroundStyle(Theme.textPrimary)
-                            }
-                        }
-                        .padding()
-                        .tint(.white)
-
-                        if reminderEnabled {
-                            DatePicker(
-                                "Reminder Time",
-                                selection: $reminderTime,
-                                displayedComponents: .hourAndMinute
-                            )
-                            .datePickerStyle(.wheel)
-                            .labelsHidden()
-                            .colorScheme(.dark)
-                            .padding()
-                            .onChange(of: reminderTime) { _, newValue in
-                                Task {
-                                    do {
-                                        try await appState.scheduleDailyReminder(at: newValue)
-                                    } catch {
-                                        ToastManager.shared.show("Failed to schedule reminder", icon: "xmark.circle", style: .error)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Quick presets
-                    if reminderEnabled {
-                        SettingsSection(title: "Quick Presets") {
-                            HStack(spacing: 12) {
-                                TimePresetButton(title: "Morning", time: "7:00 AM") {
-                                    setTime(hour: 7, minute: 0)
-                                }
-
-                                TimePresetButton(title: "Noon", time: "12:00 PM") {
-                                    setTime(hour: 12, minute: 0)
-                                }
-
-                                TimePresetButton(title: "Evening", time: "8:00 PM") {
-                                    setTime(hour: 20, minute: 0)
-                                }
-
-                                TimePresetButton(title: "Night", time: "10:00 PM") {
-                                    setTime(hour: 22, minute: 0)
-                                }
-                            }
-                            .padding()
-                        }
-                    }
-                }
-                .padding()
-                .frame(maxWidth: 600)
-                .frame(maxWidth: .infinity)
-            }
-        }
-        .navigationTitle("Daily Reminder")
-        .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            if let savedTime = appState.dailyReminderTime {
-                reminderTime = savedTime
-            }
-        }
-    }
-
-    private func setTime(hour: Int, minute: Int) {
-        var components = Calendar.current.dateComponents([.year, .month, .day], from: Date())
-        components.hour = hour
-        components.minute = minute
-        if let date = Calendar.current.date(from: components) {
-            reminderTime = date
-            Task {
-                do {
-                    try await appState.scheduleDailyReminder(at: date)
-                } catch {
-                    ToastManager.shared.show("Failed to schedule reminder", icon: "xmark.circle", style: .error)
-                }
-            }
-        }
-    }
-}
-
-struct TimePresetButton: View {
-    let title: String
-    let time: String
-    let action: () -> Void
-
-    var body: some View {
-        Button {
-            HapticManager.selection()
-            action()
-        } label: {
-            VStack(spacing: 4) {
-                Text(title)
-                    .font(.caption)
-                    .fontWeight(.medium)
-
-                Text(time)
-                    .font(.caption2)
-                    .foregroundStyle(Theme.textSecondary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(Theme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadiusSmall))
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(Theme.textPrimary)
-    }
-}
-
 // MARK: - Playback Settings View
 struct PlaybackSettingsView: View {
     @StateObject private var audioManager = AudioPlayerManager.shared
     @AppStorage(Constants.UserDefaultsKeys.autoPlayNextContent) private var autoPlayNext = true
-    @State private var downloadOverCellular = false
-    @State private var defaultPlaybackSpeed: Float = 1.0
+    @AppStorage(Constants.UserDefaultsKeys.downloadOverCellular) private var downloadOverCellular = false
+    @AppStorage(Constants.UserDefaultsKeys.preferredPlaybackSpeed) private var defaultPlaybackSpeed: Double = 1.0
 
-    private let playbackSpeeds: [Float] = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
+    private let playbackSpeeds: [Double] = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
 
     var body: some View {
         ZStack {
@@ -1005,7 +1018,7 @@ struct PlaybackSettingsView: View {
         .navigationTitle("Playback")
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: defaultPlaybackSpeed) { _, newValue in
-            audioManager.setPlaybackRate(newValue)
+            audioManager.setPlaybackRate(Float(newValue))
         }
     }
 }
@@ -1018,7 +1031,7 @@ struct TermsOfServiceView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    Text("Last Updated: February 2026")
+                    Text("Last Updated: June 2026")
                         .font(.caption)
                         .foregroundStyle(Theme.textTertiary)
 
@@ -1027,7 +1040,7 @@ struct TermsOfServiceView: View {
                     }
 
                     LegalSection(title: "2. Description of Service") {
-                        Text("Meditation Sleep Mindset provides guided meditations, AI-generated personalized meditations, sleep stories, soundscapes, ASMR content, breathing exercises, body scan experiences, Micro-Moment quick sessions, guided multi-day programs, movement and yoga sessions, a Pomodoro focus timer, mood tracking and insights, a sleep alarm, AI wellness chat, downloadable offline content packs, user-added YouTube content, playlists, post-session reflections, playback speed control, AirPlay support, Siri Shortcuts, an Apple Watch companion app, and mindfulness content designed to help users relax, sleep better, and improve their mental well-being. The App offers both free and premium subscription-based content, including an AI-powered wellness companion for personalized support.")
+                        Text("Meditation Sleep Mindset provides guided meditations, AI-generated personalized meditations, sleep stories, soundscapes, ASMR content, breathing exercises (including a haptic-guided breathing experience), body scan experiences, Micro-Moment quick sessions, guided multi-day programs, movement and yoga sessions, a Pomodoro focus timer, mood tracking and insights, a daily intention and monthly check-in ritual, a gratitude journal, personalized AI bedtime stories for children, a sleep alarm, an AI wellness chat with optional specialized coaches and an optional voice mode, downloadable offline content packs, user-added YouTube content, playlists, post-session reflections, playback speed control, AirPlay support, Siri Shortcuts, an Apple Watch companion app, and mindfulness content designed to help users relax, sleep better, and improve their mental well-being. The App offers both free and premium subscription-based content, including an AI-powered wellness companion for personalized support.")
                     }
 
                     LegalSection(title: "3. Subscription and Billing") {
@@ -1057,13 +1070,16 @@ struct TermsOfServiceView: View {
 
                     LegalSection(title: "6. AI Features") {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("The App includes AI-powered features including a wellness chat companion and AI-generated personalized meditations. By using these features, you acknowledge that:")
+                            Text("The App includes AI-powered features including a wellness chat companion (with optional specialized coaches and an optional voice mode), AI-generated personalized meditations, and personalized AI bedtime stories for children. By using these features, you acknowledge that:")
                             Text("• The AI is not a licensed therapist, counselor, or medical professional")
-                            Text("• AI-generated meditations and chat responses are created by artificial intelligence and should not be considered professional advice")
-                            Text("• The AI chat is intended for general wellness support and is not a substitute for professional mental health care")
+                            Text("• AI-generated meditations, stories, and chat responses are created by artificial intelligence and should not be considered professional advice")
+                            Text("• The AI chat and its coach personas are intended for general wellness support and are not a substitute for professional mental health care")
                             Text("• AI-generated meditations are personalized based on your selected preferences (focus area, duration) and are for relaxation purposes only")
                             Text("• If you are in crisis or experiencing a mental health emergency, please contact emergency services (911) or the Suicide & Crisis Lifeline (988)")
                             Text("• Chat messages are processed by our AI service to generate responses and are not stored on external servers or used for AI training")
+                            Text("• To personalize future conversations, the App keeps a short long-term memory summary of your chats on your device (and your private iCloud). You can erase it any time by clearing your chat history")
+                            Text("• Voice mode is optional: if you tap the microphone, your speech is transcribed using Apple's speech recognition, and replies can be read aloud on your device. The microphone is only active while you are recording")
+                            Text("• AI bedtime stories are intended to be set up by a parent or guardian; any child name you enter is used only to personalize the story and stays on your device (and is sent to our AI provider solely to generate that story)")
                             Text("• Free users are limited to \(Constants.Chat.freeMessageLimit) messages per day")
                         }
                     }
@@ -1170,12 +1186,12 @@ struct PrivacyPolicyView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    Text("Last Updated: February 2026")
+                    Text("Last Updated: June 2026")
                         .font(.caption)
                         .foregroundStyle(Theme.textTertiary)
 
                     LegalSection(title: "Introduction") {
-                        Text("Meditation Sleep Mindset (\"we\", \"our\", or \"us\") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application and Apple Watch companion app, including our AI wellness chat, AI-generated meditations, breathing exercises, body scan, Micro-Moment quick sessions, focus timer, guided programs, movement sessions, mood tracking, post-session reflections, offline content packs, sleep timer, sleep alarm, AirPlay, Siri Shortcuts, home screen widgets, playlist, and content features.")
+                        Text("Meditation Sleep Mindset (\"we\", \"our\", or \"us\") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application and Apple Watch companion app, including our AI wellness chat (with optional coaches and voice mode), AI-generated meditations, personalized AI bedtime stories for children, breathing exercises, body scan, Micro-Moment quick sessions, focus timer, guided programs, movement sessions, mood tracking, post-session reflections, daily intention and monthly check-in, gratitude journal, offline content packs, sleep timer, sleep alarm, AirPlay, Siri Shortcuts, home screen widgets, playlist, and content features.")
                     }
 
                     LegalSection(title: "Information We Collect") {
@@ -1197,6 +1213,8 @@ struct PrivacyPolicyView: View {
                             Text("• Focus timer sessions and work/break intervals")
                             Text("• Guided program progress and completion")
                             Text("• Mood check-ins and mood tracking history")
+                            Text("• Daily intentions, monthly check-in reflections, and gratitude journal entries")
+                            Text("• A child's first name, if you enter one to personalize an AI bedtime story")
                             Text("• App preferences, theme, and playback speed settings")
                             Text("• Favorite content selections and playlists")
                             Text("• User-added YouTube content selections")
@@ -1209,7 +1227,16 @@ struct PrivacyPolicyView: View {
                                 .padding(.top, 8)
                             Text("• Chat messages and conversation history are stored locally on your device")
                             Text("• Messages are sent to our AI service provider to generate responses but are not stored on external servers or used for AI training")
-                            Text("• AI meditation generation preferences (focus area, duration) are sent to our AI provider to create personalized meditation scripts")
+                            Text("• A short long-term \"memory\" summary of your conversations is stored on your device and your private iCloud to personalize future chats; clearing your chat history erases it")
+                            Text("• AI meditation and bedtime-story preferences (focus area, duration, theme, child name) are sent to our AI provider to create personalized scripts")
+
+                            Text("Voice Data (Optional):")
+                                .fontWeight(.medium)
+                                .padding(.top, 8)
+                            Text("• If you use voice mode, the microphone is active only while you are recording")
+                            Text("• Your speech is transcribed using Apple's Speech Recognition; depending on your device, Apple may process audio to provide the transcription, governed by Apple's privacy policies")
+                            Text("• Spoken replies are generated on your device and no voice data leaves your device for that purpose")
+                            Text("• We do not store audio recordings")
 
                             Text("Health Data (Optional):")
                                 .fontWeight(.medium)
@@ -1262,6 +1289,7 @@ struct PrivacyPolicyView: View {
                             Text("• Apple WatchConnectivity (for iPhone-Watch data sync)")
                             Text("• Apple Spotlight (for on-device content indexing)")
                             Text("• Apple Siri (for voice-activated shortcuts)")
+                            Text("• Apple Speech Recognition (for optional voice-to-text in the AI chat)")
                             Text("• YouTube (for streaming and searching meditation and sleep content)")
                             Text("• AI service provider (to process chat messages and generate wellness responses and personalized meditations)")
                             Text("Data sent to our AI provider is used solely to generate responses and personalized content. It is not retained or used for training.")
@@ -1277,6 +1305,9 @@ struct PrivacyPolicyView: View {
                             Text("You have the right to:")
                             Text("• Access your personal data (stored on your device)")
                             Text("• Delete all your data by uninstalling the App")
+                            Text("• Clear your AI chat history and long-term memory at any time from the chat screen")
+                            Text("• Remove a saved child name used for bedtime stories at any time")
+                            Text("• Turn voice mode and spoken replies on or off at any time")
                             Text("• Delete downloaded offline content packs at any time")
                             Text("• Disable Apple Health integration at any time")
                             Text("• Disable iCloud sync at any time in iOS Settings")
@@ -1287,7 +1318,11 @@ struct PrivacyPolicyView: View {
                     }
 
                     LegalSection(title: "Children's Privacy") {
-                        Text("The App is not intended for children under 13 years of age. We do not knowingly collect personal information from children under 13. If you are a parent or guardian and believe your child has provided us with personal information, please contact us.")
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("The App is intended for users 13 and older and is designed to be operated by an adult. We do not knowingly collect personal information from children under 13.")
+                            Text("The AI bedtime stories feature is meant to be set up by a parent or guardian for a child. A child's first name is optional, is used only to personalize the generated story, is stored on your device, and is sent to our AI provider solely to create that story — it is never used for advertising, profiling, or AI training. You can remove the name at any time in the App.")
+                            Text("If you are a parent or guardian and believe a child has provided us with personal information, please contact us and we will delete it.")
+                        }
                     }
 
                     LegalSection(title: "Data Retention") {
@@ -1623,6 +1658,8 @@ struct RatingDialogView: View {
                                         .foregroundStyle(star <= selectedRating ? .yellow : Theme.textSecondary)
                                         .scaleEffect(star <= selectedRating ? 1.1 : 1.0)
                                 }
+                                .accessibilityLabel(star == 1 ? "1 star" : "\(star) stars")
+                                .accessibilityAddTraits(star <= selectedRating ? .isSelected : [])
                             }
                         }
                         .padding(.vertical, 20)
@@ -1661,6 +1698,7 @@ struct RatingDialogView: View {
                             .font(.body.weight(.semibold))
                             .foregroundStyle(.white)
                     }
+                    .accessibilityLabel("Close")
                 }
             }
         }
@@ -1772,9 +1810,43 @@ struct ThemeSettingsRow: View {
 
 // MARK: - Invite Friends Card
 struct InviteFriendsCard: View {
+    @StateObject private var streakService = StreakService.shared
+    @State private var shareCard: ShareableCardType?
+
+    /// Share a personal achievement card when the user has one; brand-new users
+    /// (no streak/sessions yet) just share the plain app link.
+    private var achievementCard: ShareableCardType? {
+        if streakService.currentStreak >= 1 {
+            return .streak(days: streakService.currentStreak)
+        } else if streakService.totalSessions >= 1 {
+            return .milestone(totalSessions: streakService.totalSessions)
+        }
+        return nil
+    }
+
     var body: some View {
-        ShareLink(item: Constants.AppStore.shareURL) {
-            VStack(spacing: 12) {
+        Group {
+            if let card = achievementCard {
+                Button {
+                    HapticManager.light()
+                    shareCard = card
+                } label: {
+                    cardBody
+                }
+                .buttonStyle(.plain)
+                .sheet(item: $shareCard) { card in
+                    ShareableCardSheet(cardType: card)
+                }
+            } else {
+                ShareLink(item: Constants.AppStore.shareURL) {
+                    cardBody
+                }
+            }
+        }
+    }
+
+    private var cardBody: some View {
+        VStack(spacing: 12) {
                 HStack(spacing: 12) {
                     ZStack {
                         Circle()
@@ -1818,7 +1890,6 @@ struct InviteFriendsCard: View {
             .padding()
             .background(Theme.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadiusLarge))
-        }
     }
 }
 
@@ -1838,6 +1909,7 @@ struct AccessibilitySettingsView: View {
     @AppStorage("accessibilityLargeText") private var largeText = false
     @AppStorage("accessibilityHighContrast") private var highContrast = false
     @AppStorage("accessibilityReduceMotion") private var reduceMotion = false
+    @AppStorage(HapticManager.enabledKey) private var hapticsEnabled = true
 
     var body: some View {
         ZStack {
@@ -1885,7 +1957,7 @@ struct AccessibilitySettingsView: View {
                         .tint(.white)
                     }
 
-                    SettingsSection(title: "Motion") {
+                    SettingsSection(title: "Motion & Feedback") {
                         Toggle(isOn: $reduceMotion) {
                             HStack(spacing: 12) {
                                 Image(systemName: "hand.raised.slash.fill")
@@ -1897,6 +1969,25 @@ struct AccessibilitySettingsView: View {
                                         .foregroundStyle(Theme.textPrimary)
 
                                     Text("Minimize animations and transitions")
+                                        .font(.caption)
+                                        .foregroundStyle(Theme.textSecondary)
+                                }
+                            }
+                        }
+                        .padding()
+                        .tint(.white)
+
+                        Toggle(isOn: $hapticsEnabled) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "iphone.radiowaves.left.and.right")
+                                    .foregroundStyle(.white)
+                                    .frame(width: 28)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Haptics")
+                                        .foregroundStyle(Theme.textPrimary)
+
+                                    Text("Vibration feedback for taps and the haptic breathing exercise")
                                         .font(.caption)
                                         .foregroundStyle(Theme.textSecondary)
                                 }

@@ -19,6 +19,40 @@ class StreakService: ObservableObject {
     @Published var totalSessions: Int = 0
     @Published var weeklyActivity: [DayActivity] = []
     @Published var meditatedToday: Bool = false
+    /// True when today's session was kept alive by a forgiven "grace" day rather than a real consecutive day.
+    @Published var streakFrozenToday: Bool = false
+
+    /// A streak freeze (one forgiven missed day) is available if none has been used in the last 7 days.
+    private func isStreakFreezeAvailable(on day: Date) -> Bool {
+        guard let last = UserDefaults.standard.object(forKey: "lastStreakFreezeDate") as? Date else { return true }
+        let days = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: last), to: day).day ?? 0
+        return days >= 7
+    }
+
+    private func consumeStreakFreeze(on day: Date) {
+        UserDefaults.standard.set(day, forKey: "lastStreakFreezeDate")
+    }
+
+    // MARK: - Streak Shield (public surface for the grace day)
+
+    /// Date the weekly grace "streak shield" was last consumed, if ever.
+    var lastStreakShieldUsedDate: Date? {
+        UserDefaults.standard.object(forKey: "lastStreakFreezeDate") as? Date
+    }
+
+    /// True when the streak shield is ready — no grace day has been consumed in the last 7 days.
+    var isStreakShieldAvailable: Bool {
+        isStreakFreezeAvailable(on: Calendar.current.startOfDay(for: Date()))
+    }
+
+    /// Whole days until the shield renews (0 when it's already available).
+    var daysUntilStreakShieldRenews: Int {
+        guard let last = lastStreakShieldUsedDate else { return 0 }
+        let lastDay = Calendar.current.startOfDay(for: last)
+        let today = Calendar.current.startOfDay(for: Date())
+        let elapsed = Calendar.current.dateComponents([.day], from: lastDay, to: today).day ?? 0
+        return max(0, 7 - elapsed)
+    }
 
     @AppStorage("isFirstMeditationSession") private var isFirstSession = true
 
@@ -175,7 +209,8 @@ class StreakService: ObservableObject {
         totalMinutes += durationMinutes
         totalSessions += 1
 
-        // Check streak logic
+        // Check streak logic (non-punitive: one forgiven "grace" miss per 7 days
+        // keeps a single skipped day from resetting the whole streak).
         if let lastDate = lastSessionDate {
             let lastDay = Calendar.current.startOfDay(for: lastDate)
             let daysDifference = Calendar.current.dateComponents([.day], from: lastDay, to: today).day ?? 0
@@ -185,9 +220,16 @@ class StreakService: ObservableObject {
             } else if daysDifference == 1 {
                 // Consecutive day, increment streak
                 currentStreak += 1
+                streakFrozenToday = false
+            } else if daysDifference == 2 && isStreakFreezeAvailable(on: today) {
+                // Missed exactly one day — forgive it with a streak freeze instead of resetting.
+                currentStreak += 1
+                consumeStreakFreeze(on: today)
+                streakFrozenToday = true
             } else {
                 // Streak broken, reset to 1
                 currentStreak = 1
+                streakFrozenToday = false
             }
         } else {
             // First session ever
@@ -282,8 +324,14 @@ class StreakService: ObservableObject {
         let lastDay = Calendar.current.startOfDay(for: lastDate)
         let daysDifference = Calendar.current.dateComponents([.day], from: lastDay, to: today).day ?? 0
 
-        // If more than 1 day has passed without a session, reset streak
-        if daysDifference > 1 {
+        // One missed day (daysDifference == 2) is still recoverable by the
+        // Streak Shield when the user meditates today — recordSession handles
+        // that path. Resetting here would wipe the streak the shield promises
+        // to protect (and consumption must stay in recordSession only).
+        if daysDifference > 2 {
+            currentStreak = 0
+            saveStreakData()
+        } else if daysDifference == 2 && !isStreakFreezeAvailable(on: today) {
             currentStreak = 0
             saveStreakData()
         }

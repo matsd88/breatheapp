@@ -7,11 +7,20 @@ import SwiftUI
 
 // MARK: - Shareable Card Types
 
-enum ShareableCardType {
+enum ShareableCardType: Identifiable {
     case streak(days: Int)
     case milestone(totalSessions: Int)
     case minutesMilestone(totalMinutes: Int)
     case sessionComplete(title: String, duration: Int)
+
+    var id: String {
+        switch self {
+        case .streak(let d): return "streak-\(d)"
+        case .milestone(let s): return "milestone-\(s)"
+        case .minutesMilestone(let m): return "minutes-\(m)"
+        case .sessionComplete(let t, let d): return "session-\(t)-\(d)"
+        }
+    }
 }
 
 // MARK: - Card Generator
@@ -184,8 +193,13 @@ struct ShareableCardSheet: View {
         let cardView = ShareableCardView(cardType: cardType)
         let image = cardView.renderAsImage()
 
+        // Include the App Store link so every shared achievement also drives downloads.
         let activityVC = UIActivityViewController(
-            activityItems: [image, "Check out my meditation journey on Meditation Sleep Mindset! 🧘"],
+            activityItems: [
+                image,
+                "Check out my meditation journey on Breathe! 🧘",
+                Constants.AppStore.shareURL
+            ],
             applicationActivities: nil
         )
         activityVC.completionWithItemsHandler = { _, completed, _, _ in

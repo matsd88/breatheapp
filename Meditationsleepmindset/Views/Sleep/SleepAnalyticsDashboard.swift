@@ -175,10 +175,11 @@ struct SleepAnalyticsDashboard: View {
                         Image(systemName: "xmark")
                             .font(.body.weight(.semibold))
                             .foregroundStyle(.white.opacity(0.7))
-                            .frame(width: 32, height: 32)
+                            .frame(width: 40, height: 40)
                             .background(Color.white.opacity(0.15))
                             .clipShape(Circle())
                     }
+                    .accessibilityLabel("Close")
                 }
             }
         }
@@ -413,7 +414,7 @@ struct SleepAnalyticsDashboard: View {
                     }
                 }
             }
-            .chartYScale(domain: 20...28) // 8 PM to 4 AM range
+            .chartYScale(domain: 18...30) // 6 PM to 6 AM (avoids clipping early/late bedtimes)
             .chartYAxis {
                 AxisMarks(values: [20, 22, 24, 26, 28]) { value in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))

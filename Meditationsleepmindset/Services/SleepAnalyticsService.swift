@@ -491,6 +491,83 @@ class SleepAnalyticsService: ObservableObject {
         return insights
     }
 
+    // MARK: - Sleep Rhythm (bedtime consistency)
+
+    struct SleepRhythm {
+        let score: Int          // 0-100, higher = more consistent
+        let averageBedtime: Date?
+        let variabilityMinutes: Int   // how much bedtime swings night to night
+        let nightsTracked: Int
+
+        var label: String {
+            switch score {
+            case 80...100: return "Very consistent"
+            case 60..<80: return "Fairly consistent"
+            case 40..<60: return "Somewhat variable"
+            case 1..<40: return "Irregular"
+            default: return "Not enough data"
+            }
+        }
+
+        var description: String {
+            guard nightsTracked >= 3 else {
+                return "Keep using sleep content for a few nights to see your rhythm."
+            }
+            if score >= 80 {
+                return "Your bedtime barely moves — that steady rhythm is great for sleep."
+            } else if score >= 60 {
+                return "Your bedtime is fairly steady. Tightening it a little can deepen rest."
+            } else {
+                return "Your bedtime swings about \(variabilityMinutes) min night to night. A steadier schedule helps."
+            }
+        }
+    }
+
+    /// Measures how consistent the user's bedtime is over the recent window (lower swing = higher score).
+    func calculateSleepRhythm(from sessions: [MeditationSession], days: Int = 14) -> SleepRhythm {
+        let trends = getBedtimeTrends(from: sessions, days: days)
+        guard trends.count >= 3 else {
+            let avg = trends.first?.bedtime
+            return SleepRhythm(score: 0, averageBedtime: avg, variabilityMinutes: 0, nightsTracked: trends.count)
+        }
+
+        // Standard deviation of bedtime (in hours), using the wrap-adjusted hourOfDay.
+        let hours = trends.map { $0.hourOfDay }
+        let mean = hours.reduce(0, +) / Double(hours.count)
+        let variance = hours.reduce(0) { $0 + pow($1 - mean, 2) } / Double(hours.count)
+        let stdDevHours = sqrt(variance)
+        let variabilityMinutes = Int((stdDevHours * 60).rounded())
+
+        // Map std dev to a 0-100 score: 0 min swing → 100; ~2.5h swing → 0.
+        let score = max(0, min(100, Int((1.0 - min(stdDevHours / 2.5, 1.0)) * 100)))
+
+        // Average bedtime across the window.
+        let avgBedtime = calculateAverageBedtime(from: trends.map { $0.bedtime })
+
+        return SleepRhythm(
+            score: score,
+            averageBedtime: avgBedtime,
+            variabilityMinutes: variabilityMinutes,
+            nightsTracked: trends.count
+        )
+    }
+
+    /// Honest, self-referential context for the headline Sleep Score: how this period
+    /// compares to the user's own previous period (no fabricated community benchmark).
+    func sleepScoreTrend(from sessions: [MeditationSession]) -> (current: Int, previous: Int, delta: Int) {
+        let calendar = Calendar.current
+        let now = Date()
+        let current = calculateSleepScore(from: sessions).overall
+
+        // Previous 30-day window (days 30–60 ago).
+        guard let cutoff = calendar.date(byAdding: .day, value: -30, to: now) else {
+            return (current, current, 0)
+        }
+        let priorSessions = sessions.filter { $0.startedAt < cutoff }
+        let previous = calculateSleepScore(from: priorSessions).overall
+        return (current, previous, current - previous)
+    }
+
     // MARK: - Helper Methods
 
     private func calculateAverageBedtime(from times: [Date]) -> Date? {

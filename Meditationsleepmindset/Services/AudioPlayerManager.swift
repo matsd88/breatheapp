@@ -9,6 +9,22 @@ import MediaPlayer
 import Combine
 import ActivityKit
 
+/// Fast-changing playback time state, split out of AudioPlayerManager so its
+/// 2 Hz updates don't invalidate every observer of the manager. All writes
+/// happen on the main thread (same as the previous @Published behavior).
+@MainActor
+final class PlaybackClock: ObservableObject {
+    @Published var currentTime: TimeInterval = 0
+}
+
+/// Sleep-timer countdown state, separate from PlaybackClock so views that
+/// only show the countdown (Sleep tab tile, timer sheet) tick at most 1 Hz
+/// while a timer is active — and never re-render from 2 Hz playback time.
+@MainActor
+final class SleepTimerClock: ObservableObject {
+    @Published var remaining: TimeInterval?
+}
+
 @MainActor
 class AudioPlayerManager: ObservableObject {
     static let shared = AudioPlayerManager()
@@ -37,14 +53,32 @@ class AudioPlayerManager: ObservableObject {
     // MARK: - Published Properties
     @Published var repeatMode: RepeatMode = .off
     @Published var isPlaying = false
-    @Published var currentTime: TimeInterval = 0
     @Published var duration: TimeInterval = 0
     @Published var isLoading = false
     @Published var isBuffering = false
     @Published var error: String?
     @Published var contentUnavailable = false
     @Published var playbackRate: Float = 1.0
-    @Published var sleepTimerRemaining: TimeInterval?
+
+    // MARK: - Fast-changing time state (isolated)
+    /// 2 Hz `currentTime` and the 1 Hz sleep-timer countdown live on
+    /// separate ObservableObjects so they only re-render the few views that
+    /// actually display them (player scrubber, mini-player progress, timer
+    /// labels) — not every view observing AudioPlayerManager (tab shell,
+    /// SleepView, …). Views showing live time must observe `clock` /
+    /// `sleepTimerClock`.
+    let clock = PlaybackClock()
+    let sleepTimerClock = SleepTimerClock()
+
+    var currentTime: TimeInterval {
+        get { clock.currentTime }
+        set { clock.currentTime = newValue }
+    }
+
+    var sleepTimerRemaining: TimeInterval? {
+        get { sleepTimerClock.remaining }
+        set { sleepTimerClock.remaining = newValue }
+    }
     /// Set to true to request the full-screen player be presented (observed by MainTabView)
     @Published var shouldPresentPlayer = false
 
@@ -71,6 +105,45 @@ class AudioPlayerManager: ObservableObject {
 
     /// Callback for views to record session when a track auto-advances
     var onTrackCompleted: ((Content, TimeInterval) -> Void)?
+
+    /// Fired when playback comes to a natural stop with the player idle —
+    /// track ended with no auto-advance, or a sleep stop mode kicked in.
+    /// MeditationPlayerView uses it to show the session-complete moment.
+    var onPlaybackFinishedNaturally: ((Content) -> Void)?
+
+    // MARK: - Sleep Stop Modes
+    /// Alternative sleep-timer behavior: stop at the end of the current track
+    /// or at the end of the queue instead of after a fixed duration.
+    /// Mutually exclusive with the countdown timer.
+    enum SleepStopMode: String {
+        case endOfTrack
+        case endOfQueue
+
+        var label: String {
+            switch self {
+            case .endOfTrack: return String(localized: "End of session")
+            case .endOfQueue: return String(localized: "End of queue")
+            }
+        }
+    }
+
+    @Published var sleepStopMode: SleepStopMode?
+
+    /// Whether any form of sleep timer is active (countdown or stop mode).
+    var sleepTimerActive: Bool {
+        sleepTimerRemaining != nil || sleepStopMode != nil
+    }
+
+    func setSleepStopMode(_ mode: SleepStopMode?) {
+        // The countdown and the stop modes are mutually exclusive.
+        if mode != nil {
+            sleepTimer?.invalidate()
+            sleepTimer = nil
+            sleepTimerRemaining = nil
+            player?.volume = 1.0
+        }
+        sleepStopMode = mode
+    }
 
     // MARK: - Player Properties
     @Published private(set) var player: AVPlayer?
@@ -113,6 +186,12 @@ class AudioPlayerManager: ObservableObject {
         UserDefaults.standard.register(defaults: [
             Constants.UserDefaultsKeys.autoPlayNextContent: true
         ])
+
+        // Restore the user's preferred playback speed (0 means never set).
+        let savedRate = UserDefaults.standard.double(forKey: Constants.UserDefaultsKeys.preferredPlaybackSpeed)
+        if savedRate > 0 {
+            playbackRate = Float(savedRate)
+        }
     }
 
     // MARK: - Audio Session Setup
@@ -309,15 +388,77 @@ class AudioPlayerManager: ObservableObject {
         isSkipping = true
         Task { try? await Task.sleep(nanoseconds: 300_000_000); isSkipping = false }
 
-        // Notify about completed track before advancing
+        // Notify about the track being left before advancing — pass the actual
+        // listen position, NOT the full duration (a manual skip 3s in must not
+        // record a fully-completed session).
         if let content = currentContent {
-            onTrackCompleted?(content, duration)
+            onTrackCompleted?(content, currentTime)
         }
 
         currentIndex += 1
         updateRemoteCommandState()
 
         guard let content = queue[safe: currentIndex] else { return }
+
+        Task {
+            await loadContentWithCrossfade(content, videoMode: isVideoMode)
+            play()
+        }
+    }
+
+    /// Remove an upcoming (or already-played) item from the queue.
+    /// The currently playing item can't be removed.
+    func removeFromQueue(at index: Int) {
+        guard queue.indices.contains(index), index != currentIndex else { return }
+        queue.remove(at: index)
+        if index < currentIndex {
+            currentIndex -= 1
+        }
+        updateRemoteCommandState()
+        prefetchQueueURLs()
+    }
+
+    /// Reorder queue items (List onMove semantics). The playing item keeps
+    /// playing; currentIndex is recomputed from its new position.
+    func moveQueueItems(from source: IndexSet, to destination: Int) {
+        let currentID = currentContent?.youtubeVideoID
+        queue.move(fromOffsets: source, toOffset: destination)
+        if let currentID,
+           let newIndex = queue.firstIndex(where: { $0.youtubeVideoID == currentID }) {
+            currentIndex = newIndex
+        }
+        updateRemoteCommandState()
+        prefetchQueueURLs()
+    }
+
+    /// Append items to the end of the queue, skipping ones already queued.
+    func appendToQueue(_ items: [Content]) {
+        let queuedIDs = Set(queue.map { $0.youtubeVideoID })
+        let newItems = items.filter { !queuedIDs.contains($0.youtubeVideoID) }
+        guard !newItems.isEmpty else { return }
+        queue.append(contentsOf: newItems)
+        updateRemoteCommandState()
+        prefetchQueueURLs()
+    }
+
+    /// Jump directly to a specific item in the queue (from the Up Next list)
+    func playItem(at index: Int) {
+        guard index != currentIndex, queue.indices.contains(index), !isSkipping else { return }
+        isSkipping = true
+        Task { try? await Task.sleep(nanoseconds: 300_000_000); isSkipping = false }
+
+        // Notify about the track being left before jumping — pass the actual
+        // listen position, not the full duration.
+        if let content = currentContent {
+            onTrackCompleted?(content, currentTime)
+        }
+
+        currentIndex = index
+        updateRemoteCommandState()
+
+        guard let content = queue[safe: currentIndex] else { return }
+
+        prefetchQueueURLs()
 
         Task {
             await loadContentWithCrossfade(content, videoMode: isVideoMode)
@@ -341,9 +482,10 @@ class AudioPlayerManager: ObservableObject {
             return
         }
 
-        // Notify about completed track before going back
+        // Notify about the track being left before going back — pass the
+        // actual listen position, not the full duration.
         if let content = currentContent {
-            onTrackCompleted?(content, duration)
+            onTrackCompleted?(content, currentTime)
         }
 
         currentIndex -= 1
@@ -359,8 +501,31 @@ class AudioPlayerManager: ObservableObject {
 
     /// Called when AVPlayer reaches end of current item
     private func handlePlaybackEnded() {
-        // Repeat One: loop the current track
-        if repeatMode == .one {
+        // AVPlayerItemDidPlayToEndTime can occasionally fire twice (e.g. after
+        // a seek to the end) — a second invocation after we already stopped
+        // must not restart playback or defeat a sleep stop.
+        guard isPlaying else { return }
+
+        // Sleep stop modes win over repeat/auto-play: stop at the end of this
+        // track, or at the end of the queue.
+        if sleepStopMode == .endOfTrack || (sleepStopMode == .endOfQueue && !hasNextTrack) {
+            sleepStopMode = nil
+            isPlaying = false
+            updateNowPlayingInfo(force: true)
+            Task {
+                await LiveActivityManager.shared.endActivity(showFinalState: true)
+            }
+            liveActivityStarted = false
+            if let content = currentContent {
+                onPlaybackFinishedNaturally?(content)
+            }
+            return
+        }
+
+        // Repeat One: loop the current track. Suspended while a sleep stop
+        // mode is set — "end of queue" must advance toward the queue's end,
+        // not loop this track all night.
+        if repeatMode == .one && sleepStopMode == nil {
             let cmTime = CMTime(seconds: 0, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
             player?.seek(to: cmTime) { [weak self] finished in
                 guard finished else { return }
@@ -391,7 +556,10 @@ class AudioPlayerManager: ObservableObject {
         let autoPlayEnabled = UserDefaults.standard.bool(forKey: Constants.UserDefaultsKeys.autoPlayNextContent)
 
         guard autoPlayEnabled && hasNextTrack else {
-            // Track ended, no auto-play or no next track
+            // Track ended, no auto-play or no next track — playback has come
+            // to rest, so any pending sleep stop mode is moot; clearing it
+            // prevents it from firing on an unrelated session days later.
+            sleepStopMode = nil
             isPlaying = false
             updateNowPlayingInfo(force: true)
             // End Live Activity with completion state
@@ -399,6 +567,9 @@ class AudioPlayerManager: ObservableObject {
                 await LiveActivityManager.shared.endActivity(showFinalState: true)
             }
             liveActivityStarted = false
+            if let content = currentContent {
+                onPlaybackFinishedNaturally?(content)
+            }
             return
         }
 
@@ -1059,6 +1230,8 @@ class AudioPlayerManager: ObservableObject {
 
     func setPlaybackRate(_ rate: Float) {
         playbackRate = rate
+        // Persist so the preferred speed survives relaunches and syncs via iCloud.
+        UserDefaults.standard.set(Double(rate), forKey: Constants.UserDefaultsKeys.preferredPlaybackSpeed)
         if isPlaying {
             player?.rate = rate
         }
@@ -1135,10 +1308,20 @@ class AudioPlayerManager: ObservableObject {
         // Load artwork asynchronously if not yet cached for this content
         if cachedArtworkVideoID != content.youtubeVideoID {
             let videoID = content.youtubeVideoID
+            let thumbnailURLString = content.thumbnailURLComputed
             Task {
-                if let artworkURL = URL(string: content.thumbnailURLComputed),
-                   let (data, _) = try? await URLSession.shared.data(from: artworkURL),
-                   let image = UIImage(data: data) {
+                guard let artworkURL = URL(string: thumbnailURLString) else { return }
+
+                // The thumbnail cache almost certainly has this image already
+                // (it's the same URL every content card displays) — avoid a
+                // redundant network fetch per track change.
+                var image = await ImageCache.shared.image(for: artworkURL)
+                if image == nil,
+                   let (data, _) = try? await URLSession.shared.data(from: artworkURL) {
+                    image = UIImage(data: data)
+                }
+
+                if let image {
                     let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
                     self.cachedArtwork = artwork
                     self.cachedArtworkVideoID = videoID
@@ -1180,6 +1363,7 @@ class AudioPlayerManager: ObservableObject {
         sleepTimer?.invalidate()
         sleepTimer = nil
         sleepTimerRemaining = nil
+        sleepStopMode = nil
         player?.volume = 1.0
     }
 
@@ -1191,6 +1375,8 @@ class AudioPlayerManager: ObservableObject {
 
     // MARK: - Cleanup
     func stop() {
+        // Tear down any sleep timer state with the session it belonged to.
+        cancelSleepTimer()
         pause()
         cleanupPlayer()
         stopCrossfade()

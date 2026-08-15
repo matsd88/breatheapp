@@ -149,6 +149,58 @@ enum AIMeditationBackground: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Kids Bedtime Story Theme
+
+enum KidsStoryTheme: String, CaseIterable, Identifiable {
+    case sleepyForest = "sleepy_forest"
+    case oceanDreams = "ocean_dreams"
+    case starlightAdventure = "starlight_adventure"
+    case cozyClouds = "cozy_clouds"
+    case magicalGarden = "magical_garden"
+    case friendlyAnimals = "friendly_animals"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .sleepyForest: return String(localized: "Sleepy Forest")
+        case .oceanDreams: return String(localized: "Ocean Dreams")
+        case .starlightAdventure: return String(localized: "Starlight Adventure")
+        case .cozyClouds: return String(localized: "Cozy Clouds")
+        case .magicalGarden: return String(localized: "Magical Garden")
+        case .friendlyAnimals: return String(localized: "Friendly Animals")
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .sleepyForest: return "tree.fill"
+        case .oceanDreams: return "water.waves"
+        case .starlightAdventure: return "moon.stars.fill"
+        case .cozyClouds: return "cloud.fill"
+        case .magicalGarden: return "leaf.fill"
+        case .friendlyAnimals: return "pawprint.fill"
+        }
+    }
+
+    var promptContext: String {
+        switch self {
+        case .sleepyForest:
+            return "a quiet, mossy forest where soft animals yawn and tuck themselves in for the night"
+        case .oceanDreams:
+            return "a gentle, glowing ocean with slow waves and sleepy sea creatures floating calmly"
+        case .starlightAdventure:
+            return "a soft floating journey among warm, twinkling stars and the friendly moon"
+        case .cozyClouds:
+            return "a snuggly ride on the softest, warmest clouds drifting slowly across a peaceful sky"
+        case .magicalGarden:
+            return "a peaceful glowing garden where flowers hum lullabies and fireflies dance softly"
+        case .friendlyAnimals:
+            return "a warm meadow of kind, gentle animals settling down together for a cozy sleep"
+        }
+    }
+}
+
 // MARK: - AI Meditation Request
 
 struct AIMeditationRequest {
@@ -158,9 +210,10 @@ struct AIMeditationRequest {
     let background: AIMeditationBackground
     let personalNote: String?
 
-    /// Unique identifier for caching
+    /// Unique identifier for caching. Uses a deterministic hash so cached audio
+    /// is reused across app launches (Swift's `hashValue` is randomized per process).
     var cacheKey: String {
-        let noteHash = personalNote?.hashValue ?? 0
+        let noteHash = (personalNote?.isEmpty == false ? personalNote! : "none").stableHash
         return "ai_meditation_\(duration.rawValue)_\(focus.rawValue)_\(voice.rawValue)_\(background.rawValue)_\(noteHash)"
     }
 }

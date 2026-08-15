@@ -335,9 +335,11 @@ struct FocusTimerView: View {
         isRunning = true
         sessionStartTime = Date()
 
-        // Start ambient sound
+        // Start ambient sound (real streamed audio, own player — doesn't touch
+        // the soundscape mixer; no-op if this sound is already playing so it
+        // carries across work/break cycles)
         if let sound = selectedSound {
-            ambientManager.playSound(sound)
+            AmbientSoundService.shared.play(catalogSound: sound)
         }
 
         startTimer()
@@ -392,8 +394,10 @@ struct FocusTimerView: View {
         if timer != nil {
             timer?.invalidate()
             timer = nil
+            AmbientSoundService.shared.pause()
         } else {
             startTimer()
+            AmbientSoundService.shared.resume()
         }
     }
 
@@ -401,10 +405,9 @@ struct FocusTimerView: View {
         timer?.invalidate()
         timer = nil
 
-        // Stop ambient sounds
-        if let sound = selectedSound {
-            ambientManager.stopSound(sound)
-        }
+        // Stop ambient sound (only this timer's player — a soundscape mix
+        // playing in the mixer is untouched)
+        AmbientSoundService.shared.stop()
 
         if isRunning, !isBreak, let start = sessionStartTime {
             let elapsed = Int(Date().timeIntervalSince(start))

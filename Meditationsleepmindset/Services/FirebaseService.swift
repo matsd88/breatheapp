@@ -45,8 +45,27 @@ class FirebaseService {
     /// Enable analytics collection. Call after ATT authorization completes.
     func enableAnalyticsCollection() {
         #if !DEBUG
+        // Respect Anonymous Mode — never turn analytics on if the user opted out.
+        guard !Self.isAnonymousModeEnabled else { return }
         Analytics.setAnalyticsCollectionEnabled(true)
         #endif
+    }
+
+    // MARK: - Anonymous Mode (privacy)
+
+    static let anonymousModeKey = "anonymousModeEnabled"
+    static var isAnonymousModeEnabled: Bool {
+        UserDefaults.standard.bool(forKey: anonymousModeKey)
+    }
+
+    /// When on, disables all analytics collection (Firebase Analytics + AppsFlyer attribution).
+    /// Crashlytics crash reporting is kept on (anonymous, no personal data) so we can still fix crashes.
+    func setAnonymousMode(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: Self.anonymousModeKey)
+        #if !DEBUG
+        Analytics.setAnalyticsCollectionEnabled(!enabled)
+        #endif
+        AppsFlyerService.shared.setAnonymous(enabled)
     }
 
     // MARK: - Crash Reporting
@@ -301,6 +320,16 @@ class FirebaseService {
 
     func configure() {}
     func enableAnalyticsCollection() {}
+
+    static let anonymousModeKey = "anonymousModeEnabled"
+    static var isAnonymousModeEnabled: Bool {
+        UserDefaults.standard.bool(forKey: anonymousModeKey)
+    }
+    func setAnonymousMode(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: Self.anonymousModeKey)
+        AppsFlyerService.shared.setAnonymous(enabled)
+    }
+
     func logError(_ error: Error, context: String? = nil) {}
     func log(_ message: String) {}
     func setCustomValue(_ value: Any, forKey key: String) {}

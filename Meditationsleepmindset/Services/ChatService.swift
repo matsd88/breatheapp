@@ -22,6 +22,20 @@ class ChatService: ObservableObject {
     @Published var needsMoodCheckIn: Bool = true
     @Published var messagesSentCount: Int
 
+    /// Selected domain-specific coach persona (persisted).
+    @Published var selectedCoach: WellnessCoach {
+        didSet { UserDefaults.standard.set(selectedCoach.rawValue, forKey: "selectedWellnessCoach") }
+    }
+
+    /// Long-term memory summary about the user, built from past conversations.
+    private var userMemory: String {
+        get { UserDefaults.standard.string(forKey: "aiUserMemory") ?? "" }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "aiUserMemory")
+            cloudStore.set(newValue, forKey: "cloud_aiUserMemory")
+        }
+    }
+
     // MARK: - Chat History Item (messages + date dividers)
     enum ChatHistoryItem: Identifiable {
         case dateDivider(id: String, date: Date)
@@ -38,6 +52,9 @@ class ChatService: ObservableObject {
     // MARK: - Private
     private var conversationHistory: [OpenAIProxyService.MessagePayload] = []
     private var currentAPITask: Task<Void, Never>?
+    private var revealTimer: Timer?
+    /// Bumped whenever memory is cleared, so an in-flight summarization can't repopulate it.
+    private var memoryGeneration = 0
     /// Stores the last failed message text for retry
     @Published var lastFailedMessage: String?
 
@@ -48,6 +65,30 @@ class ChatService: ObservableObject {
         let localCount = UserDefaults.standard.integer(forKey: Constants.UserDefaultsKeys.chatMessagesSentCount)
         let cloudCount = Int(cloudStore.longLong(forKey: "cloud_chatMessagesSentCount"))
         self.messagesSentCount = max(localCount, cloudCount)
+
+        // Restore selected coach
+        let savedCoach = UserDefaults.standard.string(forKey: "selectedWellnessCoach")
+        self.selectedCoach = savedCoach.flatMap { WellnessCoach(rawValue: $0) } ?? .general
+
+        // Merge cloud memory into local if the device has none yet
+        if (UserDefaults.standard.string(forKey: "aiUserMemory") ?? "").isEmpty,
+           let cloudMemory = cloudStore.string(forKey: "cloud_aiUserMemory"), !cloudMemory.isEmpty {
+            UserDefaults.standard.set(cloudMemory, forKey: "aiUserMemory")
+        }
+    }
+
+    /// Switch coach persona. Takes effect on the next session.
+    func setCoach(_ coach: WellnessCoach) {
+        selectedCoach = coach
+    }
+
+    /// Switch coach mid-conversation: persists the choice and rebuilds the active
+    /// session's system prompt so the new persona applies immediately, keeping history.
+    func switchCoach(to coach: WellnessCoach, in context: ModelContext) {
+        selectedCoach = coach
+        guard currentSession != nil else { return }
+        lastHealthContext = buildHealthContext(in: context)
+        rebuildConversationHistory(mood: currentSession?.moodLevel)
     }
 
     // MARK: - Computed Properties
@@ -77,8 +118,14 @@ class ChatService: ObservableObject {
         messages = []
         needsMoodCheckIn = false
 
-        // Build system prompt with mood context
-        let systemPrompt = OpenAIProxyService.buildSystemPrompt(moodLevel: mood)
+        // Build system prompt with mood context, coach persona, long-term memory, and live data.
+        lastHealthContext = buildHealthContext(in: context)
+        let systemPrompt = OpenAIProxyService.buildSystemPrompt(
+            moodLevel: mood,
+            coach: selectedCoach,
+            memory: userMemory,
+            healthContext: lastHealthContext
+        )
         conversationHistory = [
             .init(role: "system", content: systemPrompt)
         ]
@@ -105,15 +152,36 @@ class ChatService: ObservableObject {
     func endSession(in context: ModelContext) {
         currentAPITask?.cancel()
         currentAPITask = nil
+        revealTimer?.invalidate()
+        revealTimer = nil
         isLoading = false
         lastFailedMessage = nil
         currentSession?.endSession()
         currentSession = nil
         messages = []
+        // Fold this conversation into long-term memory before discarding it.
+        updateMemory(from: conversationHistory)
         conversationHistory = []
         needsMoodCheckIn = true
         try? context.save()
         // Keep chatHistory intact — history stays visible behind mood picker
+    }
+
+    /// Summarize the just-ended conversation into durable long-term memory (fire-and-forget).
+    private func updateMemory(from history: [OpenAIProxyService.MessagePayload]) {
+        let userTurns = history.filter { $0.role == "user" }.count
+        guard userTurns >= 2 else { return } // skip trivial sessions
+        let existing = userMemory
+        let snapshot = history
+        let generation = memoryGeneration
+        Task { [weak self] in
+            guard let self else { return }
+            if let updated = try? await OpenAIProxyService.summarizeMemory(existingMemory: existing, conversation: snapshot) {
+                // Bail if the user cleared their memory while we were summarizing.
+                guard generation == self.memoryGeneration else { return }
+                self.userMemory = updated
+            }
+        }
     }
 
     func clearAllHistory(in context: ModelContext) {
@@ -124,6 +192,12 @@ class ChatService: ObservableObject {
         conversationHistory = []
         chatHistory = []
         needsMoodCheckIn = true
+
+        // Clearing history also wipes long-term memory (user's explicit reset).
+        memoryGeneration += 1
+        revealTimer?.invalidate()
+        revealTimer = nil
+        userMemory = ""
 
         // Delete all sessions and messages
         let sessionDescriptor = FetchDescriptor<ChatSession>()
@@ -177,12 +251,15 @@ class ChatService: ObservableObject {
 
                 guard !Task.isCancelled else { return }
 
-                // Create assistant message
+                // Create assistant message. When voice output is on, show it in full
+                // immediately (so it's spoken correctly); otherwise stream it in with a
+                // typewriter reveal for a more alive feel.
+                let speakingAloud = VoiceManager.shared.voiceOutputEnabled
                 let assistantMessage = ChatMessage(
                     sessionID: session.id,
                     role: .assistant,
                     type: .text,
-                    content: responseText
+                    content: speakingAloud ? responseText : ""
                 )
                 context.insert(assistantMessage)
                 messages.append(assistantMessage)
@@ -199,6 +276,11 @@ class ChatService: ObservableObject {
                 // Update session message count
                 session.messageCount = messages.count
                 try? context.save()
+
+                // Typewriter reveal when not reading aloud.
+                if !speakingAloud {
+                    revealText(responseText, into: assistantMessage, context: context)
+                }
 
             } catch {
                 guard !Task.isCancelled else { return }
@@ -228,6 +310,30 @@ class ChatService: ObservableObject {
         }
         currentAPITask = task
         await task.value
+    }
+
+    /// Typewriter-reveal the assistant's reply into the (initially empty) message for a
+    /// streaming feel. SwiftData @Model is Observable, so mutating `content` updates the UI live.
+    private func revealText(_ full: String, into message: ChatMessage, context: ModelContext) {
+        revealTimer?.invalidate()
+        let chars = Array(full)
+        guard !chars.isEmpty else { return }
+        // ~120 ticks total max, so long replies finish in ~2.4s; short ones reveal per character.
+        let chunk = max(1, chars.count / 120)
+        var idx = 0
+        revealTimer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { [weak self] timer in
+            Task { @MainActor in
+                guard let self else { timer.invalidate(); return }
+                idx = min(chars.count, idx + chunk)
+                message.content = String(chars[0..<idx])
+                if idx >= chars.count {
+                    timer.invalidate()
+                    self.revealTimer = nil
+                    message.content = full
+                    try? context.save()
+                }
+            }
+        }
     }
 
     /// Retry the last failed message
@@ -275,6 +381,9 @@ class ChatService: ObservableObject {
             predicate: #Predicate { $0.isActive == true },
             sortBy: [SortDescriptor(\.startedAt, order: .reverse)]
         )
+
+        // Refresh the wellness-data summary for grounding before rebuilding the prompt.
+        lastHealthContext = buildHealthContext(in: context)
 
         if let activeSession = try? context.fetch(activeDescriptor).first {
             currentSession = activeSession
@@ -430,8 +539,43 @@ class ChatService: ObservableObject {
 
     // MARK: - Private Helpers
 
+    /// Most recently computed wellness-data summary, injected into the system prompt
+    /// so the coach can ground advice in the user's own numbers.
+    private var lastHealthContext: String?
+
+    /// Builds a compact summary of the user's recent wellness data (streak, sleep score,
+    /// last night's sleep, heart-rate dip) from the on-device sources.
+    func buildHealthContext(in context: ModelContext) -> String? {
+        var parts: [String] = []
+
+        let streak = StreakService.shared.currentStreak
+        if streak > 0 { parts.append("meditation streak: \(streak) day\(streak == 1 ? "" : "s")") }
+
+        let descriptor = FetchDescriptor<MeditationSession>()
+        if let sessions = try? context.fetch(descriptor), !sessions.isEmpty {
+            let score = SleepAnalyticsService.shared.calculateSleepScore(from: sessions)
+            if score.overall > 0 { parts.append("sleep score: \(score.overall) (\(score.label))") }
+        }
+
+        let health = HealthKitService.shared
+        if health.sleepHoursToday > 0 {
+            parts.append(String(format: "last night ~%.1fh sleep", health.sleepHoursToday))
+        }
+        if let dip = health.heartRateDip, dip > 0 {
+            parts.append(String(format: "heart-rate dip %.0f%%", dip))
+        }
+
+        guard !parts.isEmpty else { return nil }
+        return parts.joined(separator: "; ") + "."
+    }
+
     private func rebuildConversationHistory(mood: MoodLevel?) {
-        let systemPrompt = OpenAIProxyService.buildSystemPrompt(moodLevel: mood)
+        let systemPrompt = OpenAIProxyService.buildSystemPrompt(
+            moodLevel: mood,
+            coach: selectedCoach,
+            memory: userMemory,
+            healthContext: lastHealthContext
+        )
         conversationHistory = [.init(role: "system", content: systemPrompt)]
 
         for message in messages where message.messageType == .text {
@@ -478,6 +622,10 @@ class ChatService: ObservableObject {
     }
 
     private func buildWelcomeMessage(mood: MoodLevel?) -> String {
+        // A specialized coach greets in-character (still warm if the user shared a low mood).
+        if selectedCoach != .general, mood == nil || mood == .great || mood == .good || mood == .okay {
+            return selectedCoach.welcomeLine
+        }
         if let mood = mood {
             switch mood {
             case .great:

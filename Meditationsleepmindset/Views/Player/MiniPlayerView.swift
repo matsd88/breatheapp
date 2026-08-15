@@ -8,9 +8,14 @@ import SwiftData
 
 struct MiniPlayerView: View {
     @ObservedObject var playerManager: AudioPlayerManager
+    /// Observed for the live progress line (2 Hz time lives on the clock).
+    @ObservedObject private var clock = AudioPlayerManager.shared.clock
     @Binding var showFullPlayer: Bool
     @Environment(\.modelContext) private var modelContext
     @Query private var favorites: [FavoriteContent]
+
+    // Swipe-down-to-dismiss state
+    @State private var dragOffset: CGFloat = 0
 
     private func isFavorite(for content: Content) -> Bool {
         favorites.contains { $0.contentID == content.id || $0.youtubeVideoID == content.youtubeVideoID }
@@ -90,6 +95,7 @@ struct MiniPlayerView: View {
                         .frame(width: 44, height: 44)
                 }
                 .animation(.spring(response: 0.3), value: favorite)
+                .accessibilityLabel(favorite ? "Remove from favorites" : "Add to favorites")
 
                 // Play/Pause button
                 Button {
@@ -107,10 +113,33 @@ struct MiniPlayerView: View {
                     }
                     .frame(width: 44, height: 44)
                 }
+                .accessibilityLabel(playerManager.isPlaying ? "Pause" : "Play")
 
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
+            .overlay(alignment: .bottom) {
+                // Thin playback progress line
+                GeometryReader { geo in
+                    let progress = playerManager.duration > 0
+                        ? max(0, min(1, playerManager.currentTime / playerManager.duration))
+                        : 0
+
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color.white.opacity(0.15))
+
+                        Capsule()
+                            .fill(Color.white.opacity(0.7))
+                            .frame(width: geo.size.width * progress)
+                    }
+                }
+                .frame(height: 3)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 6)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
             .background(
                 // Frosted glass effect with rounded corners to match tab bar
                 ZStack {
@@ -133,8 +162,54 @@ struct MiniPlayerView: View {
             .frame(maxWidth: 500)
             .padding(.horizontal, 16)
             .contentShape(RoundedRectangle(cornerRadius: 24))
+            .offset(y: max(0, dragOffset))
+            .opacity(dragOffset > 0 ? max(0.4, 1 - dragOffset / 120) : 1)
             .onTapGesture {
                 showFullPlayer = true
+            }
+            .gesture(
+                DragGesture(minimumDistance: 15)
+                    .onChanged { value in
+                        // Track downward drags only
+                        if value.translation.height > 0 {
+                            dragOffset = value.translation.height
+                        }
+                    }
+                    .onEnded { value in
+                        // Stop only on a genuinely downward gesture — release
+                        // velocity alone can be positive at the end of an
+                        // upward swipe that bounces at the finger-lift.
+                        if value.translation.height > 0
+                            && (value.translation.height > 60 || value.velocity.height > 500) {
+                            // Swipe down dismisses the mini player and stops playback
+                            HapticManager.light()
+                            playerManager.stop()
+                            dragOffset = 0
+                        } else if value.translation.height < -30 {
+                            // Swipe up expands to the full player
+                            dragOffset = 0
+                            showFullPlayer = true
+                        } else {
+                            withAnimation(.spring(response: 0.3)) {
+                                dragOffset = 0
+                            }
+                        }
+                    }
+            )
+            .onDisappear {
+                // A system-cancelled drag (call banner, backgrounding) never
+                // fires onEnded — don't leave the card stuck offset/faded.
+                dragOffset = 0
+            }
+            .animation(.interactiveSpring(), value: dragOffset)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Mini player: \(content.title)")
+            .accessibilityHint("Double tap to open the full player")
+            .accessibilityAction(named: "Open full player") {
+                showFullPlayer = true
+            }
+            .accessibilityAction(named: "Dismiss and stop playback") {
+                playerManager.stop()
             }
         }
     }

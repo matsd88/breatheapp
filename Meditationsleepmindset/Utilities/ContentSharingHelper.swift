@@ -11,23 +11,12 @@ enum ContentSharingHelper {
 
     /// Share a content item via the system share sheet, optionally at a specific timestamp
     static func share(_ content: Content, atTimestamp timestamp: Int? = nil) {
-        var timestampText = ""
+        var timestampSuffix = ""
         if let t = timestamp {
-            let m = t / 60; let s = t % 60
-            timestampText = "\nStart at: \(m):\(String(format: "%02d", s))"
+            timestampSuffix = "&t=\(t)"
         }
-        let deepLink: String
-        if let t = timestamp {
-            deepLink = "meditation://content/\(content.youtubeVideoID)?t=\(t)"
-        } else {
-            deepLink = content.deepLinkURL.absoluteString
-        }
-        let shareText = """
-        I'm listening to '\(content.title)' on Meditation Sleep Mindset.\(timestampText)
-
-        Open in app: \(deepLink)
-        Get the app: \(content.appStoreURL.absoluteString)
-        """
+        let shareURL = "\(content.shareURL.absoluteString)\(timestampSuffix)"
+        let shareText = "I'm listening to '\(content.title)' on Breathe\n\(shareURL)"
 
         let activityVC = UIActivityViewController(
             activityItems: [shareText],
@@ -68,7 +57,14 @@ enum ContentSharingHelper {
 
 // MARK: - Content URL Extensions
 extension Content {
-    /// Deep link URL for opening this content directly in the app
+    /// Universal Link URL for sharing — opens the app via Associated Domains if installed,
+    /// or shows a branded landing page with App Store link if not.
+    var shareURL: URL {
+        let encodedID = youtubeVideoID.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? youtubeVideoID
+        return URL(string: "https://www.meditationandsleepapp.com/content/?v=\(encodedID)")!
+    }
+
+    /// Custom URL scheme for in-app deep links (Live Activity, Spotlight, etc.)
     var deepLinkURL: URL {
         let encodedID = youtubeVideoID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? youtubeVideoID
         return URL(string: "meditation://content/\(encodedID)") ?? URL(string: "meditation://home")!
@@ -76,7 +72,6 @@ extension Content {
 
     /// App Store URL for sharing
     var appStoreURL: URL {
-        // This URL is constant and will never fail, so force unwrap is safe
         URL(string: "https://apps.apple.com/app/meditation-sleep-mindset/id\(Constants.AppStore.appID)")!
     }
 }

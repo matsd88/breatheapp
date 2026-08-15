@@ -39,6 +39,9 @@ class AmbientSoundManager: ObservableObject {
     private var sleepModeTimer: Timer?
     private var sleepModeStartTime: Date?
     private var originalVolumes: [String: Double] = [:]
+    /// Per-sound fade-IN timers (keyed by sound id). Fade-out uses detached timers.
+    private var fadeTimers: [String: Timer] = [:]
+    private let fadeSteps = 16
 
     let availableSounds: [AmbientSound] = [
         AmbientSound(id: "rain", name: "Rain", iconName: "cloud.rain.fill", youtubeVideoID: "yIQd2Ya0Ziw"),
@@ -138,9 +141,8 @@ class AmbientSoundManager: ObservableObject {
         let player = AVPlayer(playerItem: playerItem)
         player.automaticallyWaitsToMinimizeStalling = false
 
-        // Set initial volume
-        let volume = volumes[sound.id] ?? 0.5
-        player.volume = Float(volume)
+        // Start silent and fade in for a smooth entrance.
+        player.volume = 0
 
         // Store player
         players[sound.id] = player
@@ -165,25 +167,65 @@ class AmbientSoundManager: ObservableObject {
         if volumes[sound.id] == nil {
             volumes[sound.id] = 0.5
         }
+
+        // Fade in to the target volume.
+        fadeIn(soundID: sound.id, player: player, to: Float(volumes[sound.id] ?? 0.5))
+    }
+
+    /// Smoothly ramp a freshly-started player up to its target volume.
+    private func fadeIn(soundID: String, player: AVPlayer, to target: Float) {
+        fadeTimers[soundID]?.invalidate()
+        var step = 0
+        fadeTimers[soundID] = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] timer in
+            Task { @MainActor in
+                step += 1
+                player.volume = target * Float(step) / Float(self?.fadeSteps ?? 16)
+                if step >= (self?.fadeSteps ?? 16) {
+                    player.volume = target
+                    timer.invalidate()
+                    self?.fadeTimers[soundID] = nil
+                }
+            }
+        }
     }
 
     func stopSound(_ sound: AmbientSound) {
         guard let player = players[sound.id] else { return }
 
-        player.pause()
+        // Cancel any in-progress fade-in.
+        fadeTimers[sound.id]?.invalidate()
+        fadeTimers[sound.id] = nil
 
-        // Remove loop observer
+        // Detach from shared state immediately (UI shows off; id can be reused cleanly).
         if let observer = loopObservers[sound.id] {
             NotificationCenter.default.removeObserver(observer)
             loopObservers.removeValue(forKey: sound.id)
         }
-
         players.removeValue(forKey: sound.id)
         activeSounds.remove(sound.id)
         isLoading[sound.id] = false
+
+        // Gracefully fade the detached player out, then pause it. The timer retains
+        // `player` until it finishes, so this can't race a new playSound for the same id.
+        let start = player.volume
+        var step = 0
+        Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] timer in
+            Task { @MainActor in
+                let steps = self?.fadeSteps ?? 16
+                step += 1
+                player.volume = max(0, start * Float(steps - step) / Float(steps))
+                if step >= steps {
+                    timer.invalidate()
+                    player.pause()
+                }
+            }
+        }
     }
 
     func setVolume(for sound: AmbientSound, volume: Double) {
+        // A manual change wins over an in-progress fade-in.
+        fadeTimers[sound.id]?.invalidate()
+        fadeTimers[sound.id] = nil
         volumes[sound.id] = volume
         players[sound.id]?.volume = Float(volume)
     }
@@ -216,6 +258,31 @@ class AmbientSoundManager: ObservableObject {
         activeSounds.contains(sound.id)
     }
 
+    // MARK: - Saved Mixes
+
+    /// Snapshot of the currently active sounds and their volumes (for saving a mix).
+    func currentMixSnapshot() -> [String: Double] {
+        var result: [String: Double] = [:]
+        for id in activeSounds {
+            result[id] = volumes[id] ?? volume(for: AmbientSound(id: id, name: "", iconName: "", youtubeVideoID: ""))
+        }
+        return result
+    }
+
+    /// Replace the current mix with a saved one: stops everything, then plays the saved
+    /// sounds at their saved volumes (respecting the 3-sound limit).
+    func applyMix(_ mix: [String: Double]) {
+        stopAll()
+        // Re-add up to 3 sounds in a stable order.
+        let entries = mix.sorted { $0.key < $1.key }.prefix(3)
+        for (soundID, vol) in entries {
+            guard let sound = availableSounds.first(where: { $0.id == soundID }) else { continue }
+            // setupPlayer reads volumes[soundID] for its fade-in target, so set it before playing.
+            volumes[soundID] = vol
+            playSound(sound)
+        }
+    }
+
     func volume(for sound: AmbientSound) -> Double {
         volumes[sound.id] ?? 0.5
     }
@@ -227,12 +294,16 @@ class AmbientSoundManager: ObservableObject {
     // MARK: - Sleep Mode
 
     func enableSleepMode(duration: TimeInterval) {
+        let wasEnabled = sleepModeEnabled
         sleepModeDuration = duration
         sleepModeEnabled = true
         sleepModeStartTime = Date()
 
-        // Store original volumes for restoration
-        originalVolumes = volumes
+        // Capture the restore baseline only on first entry — re-tapping a duration while
+        // already fading must not overwrite it with already-lowered volumes.
+        if !wasEnabled {
+            originalVolumes = volumes
+        }
 
         // Start a timer that fires every second to manage the fade
         sleepModeTimer?.invalidate()

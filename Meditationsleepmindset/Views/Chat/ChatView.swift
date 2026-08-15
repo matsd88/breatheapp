@@ -10,6 +10,7 @@ struct ChatView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var chatService = ChatService.shared
     @StateObject private var storeManager = StoreManager.shared
+    @StateObject private var voice = VoiceManager.shared
     @State private var messageText: String = ""
     @State private var showingPaywall: Bool = false
     @State private var selectedContent: Content?
@@ -17,6 +18,9 @@ struct ChatView: View {
     @State private var showingClearConfirmation = false
     @State private var showingMoodTrend = false
     @State private var showQuickActions = false
+    /// Tracks the last auto-read reply so appending a suggestion card doesn't
+    /// re-trigger speech for an already-spoken message.
+    @State private var lastAutoSpokenMessageID: UUID?
     @Environment(\.horizontalSizeClass) private var sizeClass
     private var isRegular: Bool { sizeClass == .regular }
     @FocusState private var isInputFocused: Bool
@@ -75,7 +79,8 @@ struct ChatView: View {
                     }
                 }
                 Button("Text Crisis Line") {
-                    if let url = URL(string: "sms:\(Constants.CrisisResources.crisisTextLine)&body=HELLO") {
+                    // Crisis Text Line: text HOME to 741741. Use `?body=` so the keyword prefills correctly.
+                    if let url = URL(string: "sms:\(Constants.CrisisResources.crisisTextLine)?body=HOME") {
                         UIApplication.shared.open(url)
                     }
                 }
@@ -86,6 +91,7 @@ struct ChatView: View {
             .sheet(isPresented: $showingPaywall) {
                 PremiumPaywallView(
                     storeManager: storeManager,
+                    context: .chatLimit,
                     sessionLimitMessage: "You've used all \(Constants.Chat.freeMessageLimit) free messages. Upgrade to continue chatting with Breathe AI.",
                     onSubscribed: { showingPaywall = false }
                 )
@@ -96,6 +102,22 @@ struct ChatView: View {
             .onAppear {
                 chatService.loadSessionHistory(in: modelContext)
                 chatService.cleanupOldSessions(in: modelContext)
+                // When dictation finishes, drop the text in and send it.
+                voice.onFinalTranscript = { transcript in
+                    messageText = transcript
+                    sendMessage()
+                }
+            }
+            .onDisappear {
+                voice.cancelRecording()
+                voice.stopSpeaking()
+            }
+            .onChange(of: voice.partialTranscript) { _, transcript in
+                // Live-preview dictation in the input field.
+                if voice.isRecording { messageText = transcript }
+            }
+            .onChange(of: chatService.messages.count) { _, _ in
+                speakLatestAssistantMessageIfNeeded()
             }
             .onChange(of: chatService.hasReachedFreeLimit) { _, reachedLimit in
                 if reachedLimit {
@@ -145,6 +167,9 @@ struct ChatView: View {
                         .font(isRegular ? .body : .subheadline)
                         .foregroundStyle(Theme.textSecondary)
                 }
+
+                // Coach picker — choose a specialized companion
+                coachPickerStrip
 
                 // Mood check-in card
                 VStack(spacing: isRegular ? 20 : 16) {
@@ -264,6 +289,55 @@ struct ChatView: View {
         .scrollIndicators(.hidden)
     }
 
+    // MARK: - Coach Picker
+
+    private var coachPickerStrip: some View {
+        VStack(spacing: isRegular ? 12 : 10) {
+            Text("Choose your coach")
+                .font(isRegular ? .subheadline.weight(.medium) : .caption.weight(.medium))
+                .foregroundStyle(Theme.textTertiary)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(WellnessCoach.allCases) { coach in
+                        let isSelected = chatService.selectedCoach == coach
+                        Button {
+                            HapticManager.selection()
+                            chatService.setCoach(coach)
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: coach.icon)
+                                    .font(.system(size: 12))
+                                Text(coach.shortName)
+                                    .font(.system(size: 13, weight: .medium))
+                            }
+                            .foregroundStyle(isSelected ? .white : Theme.textSecondary)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 9)
+                            .background(
+                                Capsule()
+                                    .fill(isSelected ? Theme.profileAccent.opacity(0.9) : Color.white.opacity(0.06))
+                                    .overlay(
+                                        Capsule().stroke(isSelected ? Color.clear : Color.white.opacity(0.1), lineWidth: 1)
+                                    )
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal)
+            }
+
+            Text(chatService.selectedCoach.tagline)
+                .font(.caption2)
+                .foregroundStyle(Theme.textTertiary)
+                .lineLimit(1)
+                .frame(height: 16)
+                .animation(.easeInOut(duration: 0.2), value: chatService.selectedCoach)
+        }
+        .padding(.horizontal)
+    }
+
     private func capabilityBadge(icon: String, label: String) -> some View {
         HStack(spacing: isRegular ? 6 : 4) {
             Image(systemName: icon)
@@ -342,9 +416,10 @@ struct ChatView: View {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button { dismiss() } label: {
                             Image(systemName: "xmark")
+                                .accessibilityLabel("Close")
                                 .font(.body.weight(.semibold))
                                 .foregroundStyle(.white.opacity(0.7))
-                                .frame(width: 32, height: 32)
+                                .frame(width: 44, height: 44)
                                 .background(Color.white.opacity(0.15))
                                 .clipShape(Circle())
                         }
@@ -488,7 +563,9 @@ struct ChatView: View {
                     isFocused: $isInputFocused,
                     remainingMessages: storeManager.isSubscribed ? nil : chatService.remainingFreeMessages,
                     isLoading: chatService.isLoading,
-                    onSend: sendMessage
+                    onSend: sendMessage,
+                    isRecording: voice.isRecording,
+                    onMic: { voice.toggleRecording() }
                 )
                 .padding(.bottom, isKeyboardVisible ? 0 : inputBarBottomPadding)
             }
@@ -600,82 +677,102 @@ struct ChatView: View {
 
     private var chatHeader: some View {
         HStack(spacing: 12) {
-            // AI avatar
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Theme.profileAccent, Color(red: 0.4, green: 0.3, blue: 0.9)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 36, height: 36)
+            // Coach switcher — tap the avatar/name to change coach mid-chat
+            Menu {
+                Picker("Coach", selection: Binding(
+                    get: { chatService.selectedCoach },
+                    set: { chatService.switchCoach(to: $0, in: modelContext) }
+                )) {
+                    ForEach(WellnessCoach.allCases) { coach in
+                        Label(coach.shortName, systemImage: coach.icon).tag(coach)
+                    }
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Theme.profileAccent, Color(red: 0.4, green: 0.3, blue: 0.9)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 36, height: 36)
+                        Image(systemName: chatService.selectedCoach.icon)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
 
-                Image(systemName: "sparkles")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Breathe AI")
-                    .font(.headline)
-                    .foregroundStyle(Theme.textPrimary)
-
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(.green)
-                        .frame(width: 6, height: 6)
-                    Text("Online")
-                        .font(.caption2)
-                        .foregroundStyle(Theme.textSecondary)
+                    VStack(alignment: .leading, spacing: 1) {
+                        HStack(spacing: 4) {
+                            Text(chatService.selectedCoach.displayName)
+                                .font(.headline)
+                                .foregroundStyle(Theme.textPrimary)
+                            Image(systemName: "chevron.down")
+                                .font(.caption2)
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(.green)
+                                .frame(width: 6, height: 6)
+                            Text("Online")
+                                .font(.caption2)
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                    }
                 }
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Coach: \(chatService.selectedCoach.displayName). Tap to change.")
 
             Spacer()
 
-            // Mood trend button
+            // Voice output toggle (read replies aloud)
             Button {
                 HapticManager.light()
-                showingMoodTrend = true
+                voice.voiceOutputEnabled.toggle()
+                if !voice.voiceOutputEnabled { voice.stopSpeaking() }
             } label: {
-                Image(systemName: "chart.line.uptrend.xyaxis")
+                Image(systemName: voice.voiceOutputEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill")
                     .font(.system(size: 15))
-                    .foregroundStyle(Theme.textSecondary)
+                    .foregroundStyle(voice.voiceOutputEnabled ? Theme.profileAccent : Theme.textSecondary)
                     .frame(width: 36, height: 36)
                     .background(Color.white.opacity(0.08))
                     .clipShape(Circle())
             }
+            .accessibilityLabel(voice.voiceOutputEnabled ? "Turn off spoken replies" : "Turn on spoken replies")
 
-            // New chat button
-            Button {
-                HapticManager.light()
-                chatService.endSession(in: modelContext)
-            } label: {
-                Image(systemName: "plus.message")
-                    .font(.system(size: 15))
-                    .foregroundStyle(Theme.textSecondary)
-                    .frame(width: 36, height: 36)
-                    .background(Color.white.opacity(0.08))
-                    .clipShape(Circle())
-            }
-
-            if !chatService.chatHistory.isEmpty {
-                Menu {
+            // Overflow menu: new chat, mood trends, clear history
+            Menu {
+                Button {
+                    chatService.endSession(in: modelContext)
+                } label: {
+                    Label("New Chat", systemImage: "plus.message")
+                }
+                Button {
+                    showingMoodTrend = true
+                } label: {
+                    Label("Mood Trends", systemImage: "chart.line.uptrend.xyaxis")
+                }
+                if !chatService.chatHistory.isEmpty {
+                    Divider()
                     Button(role: .destructive) {
                         showingClearConfirmation = true
                     } label: {
                         Label("Clear Chat History", systemImage: "trash")
                     }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 15))
-                        .foregroundStyle(Theme.textSecondary)
-                        .frame(width: 36, height: 36)
-                        .background(Color.white.opacity(0.08))
-                        .clipShape(Circle())
                 }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 15))
+                    .foregroundStyle(Theme.textSecondary)
+                    .frame(width: 40, height: 40)
+                    .background(Color.white.opacity(0.08))
+                    .clipShape(Circle())
             }
+            .accessibilityLabel("More options")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -687,6 +784,31 @@ struct ChatView: View {
     }
 
     // MARK: - Send Message
+
+    /// Read the most recent assistant text reply aloud when voice output is enabled.
+    private func speakLatestAssistantMessageIfNeeded() {
+        guard voice.voiceOutputEnabled, !chatService.isLoading else { return }
+        // The reply text and a .contentSuggestion card can land in the same
+        // update, making the suggestion the LAST message — find the newest
+        // assistant TEXT message instead of requiring it to be last.
+        guard let latestText = chatService.messages.last(where: {
+            $0.role == .assistant && $0.messageType == .text
+        }) else { return }
+        // Don't re-speak an older reply when only a suggestion was appended.
+        guard latestText.id != lastAutoSpokenMessageID else { return }
+        lastAutoSpokenMessageID = latestText.id
+        voice.speak(latestText.content, messageID: latestText.id, coach: chatService.selectedCoach)
+    }
+
+    /// Per-message read-aloud button: tap to hear a reply, tap again to stop.
+    private func toggleReadAloud(for message: ChatMessage) {
+        HapticManager.light()
+        if voice.loadingSpeechMessageID == message.id || (voice.isSpeaking && voice.speakingMessageID == message.id) {
+            voice.stopSpeaking()
+        } else {
+            voice.speak(message.content, messageID: message.id, coach: chatService.selectedCoach)
+        }
+    }
 
     private func sendMessage() {
         let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -710,7 +832,11 @@ struct ChatView: View {
     private func chatBubbleView(for message: ChatMessage) -> some View {
         switch message.messageType {
         case .text:
-            ChatBubble(message: message)
+            if message.role == .assistant {
+                ChatBubble(message: message, onReadAloud: { toggleReadAloud(for: message) })
+            } else {
+                ChatBubble(message: message)
+            }
         case .contentSuggestion:
             SuggestedContentCard(
                 title: message.suggestedContentTitle ?? "Meditation",
@@ -753,10 +879,6 @@ struct ChatView: View {
 
     private func loadContent(id: UUID?) {
         guard let id = id else { return }
-        if !storeManager.isSubscribed && AppStateManager.shared.hasReachedFreeSessionLimit {
-            showingPaywall = true
-            return
-        }
         let descriptor = FetchDescriptor<Content>(
             predicate: #Predicate { $0.id == id }
         )

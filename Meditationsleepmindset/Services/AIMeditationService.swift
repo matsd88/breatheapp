@@ -25,6 +25,9 @@ class AIMeditationService: ObservableObject {
     @Published var generationStatus: String = ""
     @Published var error: String?
     @Published var showError = false
+    /// True when the most recent generate call returned a cached result (no new API work).
+    /// Callers use this to avoid consuming a generation credit on a cache hit.
+    @Published var lastResultWasCached = false
 
     // MARK: - Private Properties
     private let fileManager = FileManager.default
@@ -103,6 +106,7 @@ class AIMeditationService: ObservableObject {
         isGenerating = true
         generationProgress = 0
         error = nil
+        lastResultWasCached = false
 
         defer {
             stopProgressTimer()
@@ -113,6 +117,7 @@ class AIMeditationService: ObservableObject {
         if let cached = getCachedMeditation(for: request.cacheKey, in: context) {
             generationProgress = 1.0
             generationStatus = "Using cached meditation"
+            lastResultWasCached = true
             return cached
         }
 
@@ -163,6 +168,111 @@ class AIMeditationService: ObservableObject {
             self.showError = true
             throw error
         }
+    }
+
+    // MARK: - Kids Bedtime Stories
+
+    /// Generate a personalized bedtime story that weaves the child's name into a calming,
+    /// age-appropriate narrative and ends with the child drifting off to sleep.
+    func generateBedtimeStory(
+        childName: String,
+        theme: KidsStoryTheme,
+        duration: AIMeditationDuration,
+        voice: AIMeditationVoice,
+        context: ModelContext
+    ) async throws -> AIGeneratedMeditation {
+        isGenerating = true
+        generationProgress = 0
+        error = nil
+        lastResultWasCached = false
+
+        defer {
+            stopProgressTimer()
+            isGenerating = false
+        }
+
+        let safeName = childName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cacheKey = "kids_story_\(theme.rawValue)_\(duration.rawValue)_\(voice.rawValue)_\(safeName.lowercased().stableHash)"
+
+        if let cached = getCachedMeditation(for: cacheKey, in: context) {
+            generationProgress = 1.0
+            generationStatus = "Using saved story"
+            lastResultWasCached = true
+            return cached
+        }
+
+        do {
+            generationStatus = "Writing \(safeName.isEmpty ? "a" : "\(safeName)'s") bedtime story..."
+            startSmoothProgress(from: 0.02, to: 0.38, estimatedSeconds: 15)
+
+            let prompt = buildBedtimeStoryPrompt(childName: safeName, theme: theme, duration: duration)
+            let messages: [OpenAIProxyService.MessagePayload] = [
+                .init(role: "system", content: "You are a gentle, warm children's bedtime storyteller. You write soothing stories that help young children fall asleep."),
+                .init(role: "user", content: prompt)
+            ]
+            let maxTokens = min(4000, duration.approximateWordCount * 2)
+            let script = try await OpenAIProxyService.sendMessage(
+                messages: messages,
+                model: Constants.AIMeditation.scriptModel,
+                maxTokens: maxTokens
+            )
+            stopProgressTimer()
+            generationProgress = 0.40
+
+            generationStatus = "Recording with a calming voice..."
+            startSmoothProgress(from: 0.40, to: 0.88, estimatedSeconds: 30)
+            let audioURL = try await generateAudio(script: script, voice: voice, cacheKey: cacheKey)
+            stopProgressTimer()
+            generationProgress = 0.90
+
+            generationStatus = "Finalizing..."
+            let audioDuration = try await getAudioDuration(url: audioURL)
+
+            generationProgress = 0.95
+            let title = safeName.isEmpty ? "\(theme.displayName) Bedtime Story" : "\(safeName)'s \(theme.displayName)"
+            let meditation = AIGeneratedMeditation(
+                title: title,
+                script: script,
+                audioFileURL: audioURL.lastPathComponent,
+                durationSeconds: Int(audioDuration),
+                focus: "kids_story",
+                voice: voice.rawValue,
+                background: theme.rawValue
+            )
+
+            context.insert(meditation)
+            try context.save()
+
+            generationProgress = 1.0
+            generationStatus = "Complete!"
+            return meditation
+
+        } catch {
+            self.error = error.localizedDescription
+            self.showError = true
+            throw error
+        }
+    }
+
+    private func buildBedtimeStoryPrompt(childName: String, theme: KidsStoryTheme, duration: AIMeditationDuration) -> String {
+        let hero = childName.isEmpty ? "a sleepy little child" : childName
+        return """
+        Write a calming bedtime story for a young child (ages 3–8), approximately \(duration.rawValue) minutes long (\(duration.approximateWordCount) words).
+
+        MAIN CHARACTER: \(hero)\(childName.isEmpty ? "" : " (use this name warmly and often throughout the story as the hero)")
+        THEME: \(theme.displayName) — \(theme.promptContext)
+
+        REQUIREMENTS:
+        - Gentle, slow, soothing tone designed to help the child drift off to sleep.
+        - Simple words and short sentences a young child can follow.
+        - Include natural pauses marked with "..." to pace the narration.
+        - A soft, repetitive, lullaby-like rhythm.
+        - No scary moments, no conflict, no excitement — only safety, warmth, and wonder.
+        - Gradually slow down toward the end, with \(hero) getting cozy, eyes growing heavy, and falling peacefully asleep.
+        - End with a quiet, loving goodnight.
+
+        Write only the story narration. Do not include a title, stage directions, or [brackets].
+        """
     }
 
     // MARK: - Smooth Progress Animation

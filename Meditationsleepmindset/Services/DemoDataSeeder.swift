@@ -27,6 +27,10 @@ enum DemoDataSeeder {
         seedFavorites(in: context)
         seedPlaylists(in: context)
         seedMoodHistory(in: context)
+        seedGratitude(in: context)
+        seedIntention(in: context)
+        seedAICreations(in: context)
+        seedSleepSessions(in: context)
         seedBadges()
         seedChallenges()
         seedOnboardingDefaults()
@@ -300,6 +304,113 @@ enum DemoDataSeeder {
             )
             msg.timestamp = today.addingTimeInterval(TimeInterval(msgIndex * 45))
             context.insert(msg)
+        }
+    }
+
+    // MARK: - Gratitude Journal
+
+    private static func seedGratitude(in context: ModelContext) {
+        let calendar = Calendar.current
+        let today = Date()
+        let entries: [(daysAgo: Int, text: String, mood: Mood)] = [
+            (0, "Grateful for a quiet morning and a warm cup of coffee before the day began.", .calm),
+            (1, "My sister called just to check in. Small moments of connection mean everything.", .grateful),
+            (2, "Finished a hard week of work and still made time to breathe. Proud of myself.", .happy),
+            (4, "The walk at sunset cleared my head completely. Nature always resets me.", .calm),
+            (6, "Thankful for my health and the chance to start fresh each day.", .grateful)
+        ]
+        for entry in entries {
+            let date = calendar.date(byAdding: .day, value: -entry.daysAgo, to: today)!
+            let gratitude = GratitudeEntry(text: entry.text, mood: entry.mood)
+            gratitude.createdAt = date
+            context.insert(gratitude)
+        }
+    }
+
+    // MARK: - Daily Intention
+
+    private static func seedIntention(in context: ModelContext) {
+        let calendar = Calendar.current
+        let today = Date()
+
+        // History records
+        let history: [(daysAgo: Int, text: String, focus: String)] = [
+            (0, "Stay present and patient, even when things get busy.", "stress"),
+            (1, "Lead with kindness today — to others and to myself.", "self-love"),
+            (2, "Focus on one thing at a time and finish what I start.", "focus")
+        ]
+        for item in history {
+            let date = calendar.date(byAdding: .day, value: -item.daysAgo, to: today)!
+            let record = DailyIntentionRecord(text: item.text, focusRaw: item.focus)
+            record.createdAt = date
+            context.insert(record)
+        }
+
+        // Today's active intention so the Home ritual shows as set
+        let defaults = UserDefaults.standard
+        defaults.set("Stay present and patient, even when things get busy.", forKey: Constants.UserDefaultsKeys.dailyIntentionText)
+        defaults.set(today.timeIntervalSince1970, forKey: Constants.UserDefaultsKeys.dailyIntentionDate)
+        defaults.set("stress", forKey: Constants.UserDefaultsKeys.dailyIntentionFocus)
+    }
+
+    // MARK: - AI Creations (My Creations)
+
+    private static func seedAICreations(in context: ModelContext) {
+        let calendar = Calendar.current
+        let today = Date()
+        let creations: [(daysAgo: Int, title: String, focus: AIMeditationFocus, voice: AIMeditationVoice, background: AIMeditationBackground, minutes: Int, plays: Int)] = [
+            (0, "Calm Before the Presentation", .anxiety, .calmFemale, .nature, 10, 3),
+            (1, "Deep Sleep Wind-Down", .sleep, .calmMale, .rain, 20, 5),
+            (3, "Morning Focus Reset", .focus, .calmFemale, .singingBowls, 5, 2),
+            (5, "Letting Go of the Day", .stress, .whispered, .silence, 15, 1)
+        ]
+        for c in creations {
+            let meditation = AIGeneratedMeditation(
+                title: c.title,
+                script: "A personalized \(c.focus.displayName.lowercased()) meditation generated just for you.",
+                audioFileURL: "demo-\(c.focus.rawValue).m4a",
+                durationSeconds: c.minutes * 60,
+                focus: c.focus.rawValue,
+                voice: c.voice.rawValue,
+                background: c.background.rawValue
+            )
+            meditation.createdAt = calendar.date(byAdding: .day, value: -c.daysAgo, to: today)!
+            meditation.playCount = c.plays
+            context.insert(meditation)
+        }
+    }
+
+    // MARK: - Sleep Sessions (Sleep Score)
+
+    private static func seedSleepSessions(in context: ModelContext) {
+        let calendar = Calendar.current
+        let today = Date()
+        // A few recent nights with mostly quiet sleep for a strong Sleep Score.
+        let nights: [(daysAgo: Int, hours: Double, events: Int, severity: SnoreSeverity)] = [
+            (0, 7.5, 3, .minimal),
+            (1, 6.8, 8, .light),
+            (2, 7.9, 2, .minimal),
+            (3, 6.2, 14, .moderate)
+        ]
+        for night in nights {
+            // Bedtime ~11pm the night before, wake in the morning.
+            let wake = calendar.date(byAdding: .day, value: -night.daysAgo, to: today)!
+            let morning = calendar.date(bySettingHour: 7, minute: 0, second: 0, of: wake) ?? wake
+            let start = morning.addingTimeInterval(-night.hours * 3600)
+            // Gentle normalized loudness timeline (sample points 0...1).
+            let timeline: [Double] = (0..<40).map { i in
+                let base = 0.12 + 0.08 * sin(Double(i) / 5.0)
+                let spike = (i % 13 == 0) ? Double(night.events) / 60.0 : 0
+                return min(1.0, max(0.0, base + spike))
+            }
+            let session = SleepRecordingSession(
+                startedAt: start,
+                endedAt: morning,
+                eventCount: night.events,
+                severity: night.severity,
+                levelTimeline: timeline
+            )
+            context.insert(session)
         }
     }
 

@@ -33,20 +33,49 @@ final class SyncImageMemoryCache {
     }
 
     func image(for key: String) -> UIImage? {
+        // Memory + disk-key checks under the lock; the disk read + decode
+        // happen OUTSIDE it. Holding the lock across Data(contentsOf:) made
+        // main-thread memoryImage() calls stall behind background disk hits.
         lock.lock()
-        defer { lock.unlock() }
         if let memoryImage = cache.object(forKey: key as NSString) {
+            lock.unlock()
             return memoryImage
         }
         // Fast set check before touching the filesystem
-        guard diskKeySet.contains(key) else { return nil }
+        guard diskKeySet.contains(key) else {
+            lock.unlock()
+            return nil
+        }
+        lock.unlock()
+
         let diskURL = diskCacheDirectory.appendingPathComponent(key)
         if let data = try? Data(contentsOf: diskURL),
            let diskImage = UIImage(data: data) {
+            // Worst case two threads decode the same file once — harmless.
+            lock.lock()
             cache.setObject(diskImage, forKey: key as NSString)
+            lock.unlock()
             return diskImage
         }
         return nil
+    }
+
+    /// Memory-only lookup — never touches the filesystem, so it's safe to call
+    /// synchronously on the main thread (disk hits go through `image(for:)`
+    /// off-main, which back-fills the memory cache).
+    func memoryImage(for key: String) -> UIImage? {
+        lock.lock()
+        defer { lock.unlock() }
+        return cache.object(forKey: key as NSString)
+    }
+
+    /// Cheap "is this cached anywhere?" check — no disk read, no decode.
+    /// Use for preload filtering; `image(for:)` decodes and would thrash the
+    /// memory cache when asked about hundreds of keys.
+    func isCached(_ key: String) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return cache.object(forKey: key as NSString) != nil || diskKeySet.contains(key)
     }
 
     func store(_ image: UIImage, for key: String) {
@@ -141,10 +170,12 @@ actor ImageCache {
     /// Preload thumbnails for content array with throttled concurrency
     func preloadThumbnails(for urls: [URL]) async {
         let session = thumbnailSession
-        // Filter out already-cached URLs before starting any tasks
+        // Filter out already-cached URLs before starting any tasks.
+        // isCached avoids reading + decoding up to ~562 files from disk just
+        // to answer "do we have it?" (which also thrashed the memory cache).
         let uncached = urls.filter { url in
             let key = SyncImageMemoryCache.shared.cacheKey(for: url)
-            return SyncImageMemoryCache.shared.image(for: key) == nil
+            return !SyncImageMemoryCache.shared.isCached(key)
         }
         guard !uncached.isEmpty else { return }
 
@@ -186,11 +217,13 @@ class ImageLoader: ObservableObject {
 
     init(url: URL?) {
         self.url = url
-        // Check sync memory cache immediately on init - this is synchronous
-        // This prevents the flash when switching tabs
+        // Check the in-memory cache immediately on init - this is synchronous
+        // and prevents the flash when switching tabs. Memory-only: a disk hit
+        // here would do a synchronous read + decode on the main thread (scroll
+        // hitch); disk hits are handled async in load() instead.
         if let url = url {
             let key = SyncImageMemoryCache.shared.cacheKey(for: url)
-            if let cached = SyncImageMemoryCache.shared.image(for: key) {
+            if let cached = SyncImageMemoryCache.shared.memoryImage(for: key) {
                 self.image = cached
             }
         }
@@ -200,9 +233,9 @@ class ImageLoader: ObservableObject {
         guard let url = url, image == nil, !isLoading else { return }
         isLoading = true
 
-        // Synchronous disk cache check first (avoids async hop)
+        // Synchronous memory-only check first (no disk I/O on the main thread)
         let key = SyncImageMemoryCache.shared.cacheKey(for: url)
-        if let cached = SyncImageMemoryCache.shared.image(for: key) {
+        if let cached = SyncImageMemoryCache.shared.memoryImage(for: key) {
             self.image = cached
             self.isLoading = false
             return
@@ -210,13 +243,25 @@ class ImageLoader: ObservableObject {
 
         let session = ImageCache.shared.thumbnailSession
         Task {
+            // Disk cache check off the main actor — image(for:) reads + decodes
+            // and back-fills the memory cache, so the next lookup is sync-fast.
+            if let diskCached = await Self.diskImage(for: key) {
+                self.image = diskCached
+                self.isLoading = false
+                return
+            }
+
             // Get fallback URLs and try each one
             let urlsToTry = fallbackURLs(for: url)
 
             for tryURL in urlsToTry {
-                // Check cache for this URL variant (sync — memory + disk)
+                // Check cache for this URL variant (memory sync, disk off-main)
                 let variantKey = SyncImageMemoryCache.shared.cacheKey(for: tryURL)
-                if let cached = SyncImageMemoryCache.shared.image(for: variantKey) {
+                var cached = SyncImageMemoryCache.shared.memoryImage(for: variantKey)
+                if cached == nil {
+                    cached = await Self.diskImage(for: variantKey)
+                }
+                if let cached {
                     self.image = cached
                     self.isLoading = false
                     return
@@ -248,6 +293,17 @@ class ImageLoader: ObservableObject {
             self.isFailed = true
             self.isLoading = false
         }
+    }
+
+    /// Disk-cache lookup performed off the main actor. `image(for:)` does a
+    /// synchronous Data(contentsOf:) + UIImage decode on a disk hit, which
+    /// must not run on the main thread. SyncImageMemoryCache is lock-protected,
+    /// so calling it from a detached task is safe; it also stores the decoded
+    /// image back into the memory cache for future synchronous hits.
+    private nonisolated static func diskImage(for key: String) async -> UIImage? {
+        await Task.detached(priority: .userInitiated) {
+            SyncImageMemoryCache.shared.image(for: key)
+        }.value
     }
 
     /// Generate fallback URLs for thumbnails

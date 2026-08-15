@@ -51,6 +51,7 @@ enum Theme {
     static let textPrimary = Color.white
     static let textSecondary = Color.white.opacity(0.7)
     static let textTertiary = Color.white.opacity(0.5)
+    static let tabBarBackgroundColor = Color(red: 0.1, green: 0.2, blue: 0.35)
 
     // MARK: - Sleep Theme Colors
     static let sleepPrimary = Color(red: 0.3, green: 0.4, blue: 0.9)

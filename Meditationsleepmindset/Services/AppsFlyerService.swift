@@ -43,6 +43,8 @@ class AppsFlyerService: NSObject {
 
     /// Request ATT permission then start the SDK. Call from onAppear after UI is visible.
     func requestTrackingAndStart() {
+        // Respect Anonymous Mode — don't request tracking or start attribution if opted out.
+        guard !FirebaseService.isAnonymousModeEnabled else { return }
         // Delay to ensure the app is fully active and visible (ATT requires active state)
         Task {
             try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
@@ -56,6 +58,12 @@ class AppsFlyerService: NSObject {
             print("[AppsFlyerService] SDK started, analytics collection enabled")
             #endif
         }
+    }
+
+    /// Anonymize / stop attribution when Anonymous Mode is toggled.
+    func setAnonymous(_ enabled: Bool) {
+        AppsFlyerLib.shared().anonymizeUser = enabled
+        AppsFlyerLib.shared().isStopped = enabled
     }
 
     // MARK: - Attribution Events
@@ -156,6 +164,8 @@ class AppsFlyerService {
 
     func configure() {}
     func requestTrackingAndStart() {
+        // Respect Anonymous Mode.
+        guard !FirebaseService.isAnonymousModeEnabled else { return }
         // Still need to handle ATT + Firebase analytics even without AppsFlyer
         Task {
             try? await Task.sleep(nanoseconds: 1_000_000_000)
@@ -165,6 +175,7 @@ class AppsFlyerService {
             FirebaseService.shared.enableAnalyticsCollection()
         }
     }
+    func setAnonymous(_ enabled: Bool) {}
     func logCompleteRegistration() {}
     func logTutorialCompletion() {}
     func logPurchase(price: Decimal, currencyCode: String, productID: String) {}

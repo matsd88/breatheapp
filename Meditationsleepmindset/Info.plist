@@ -2,6 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <!-- Force dark appearance app-wide so system surfaces (menus, alerts,
+         action sheets, pickers, keyboard) match the app's dark design. -->
+    <key>UIUserInterfaceStyle</key>
+    <string>Dark</string>
+
     <!-- Bundle Info -->
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
@@ -35,6 +40,10 @@
     <string>We save your meditation sessions as Mindful Minutes in Apple Health to track your wellness journey.</string>
     <key>NSSiriUsageDescription</key>
     <string>Use Siri to start meditations, play sleep stories, or set a meditation timer hands-free.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Use your microphone to talk to Breathe AI hands-free with voice messages.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>We transcribe your speech on your request so you can chat with Breathe AI by voice.</string>
 
     <!-- Background Modes -->
     <key>UIBackgroundModes</key>

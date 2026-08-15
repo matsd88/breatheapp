@@ -5,6 +5,7 @@
 
 import UIKit
 import SwiftUI
+import UserNotifications
 #if canImport(FirebaseCore)
 import FirebaseCore
 import FirebaseCrashlytics
@@ -13,7 +14,7 @@ import FirebaseCrashlytics
 import AppsFlyerLib
 #endif
 
-class AppDelegate: NSObject, UIApplicationDelegate {
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
 
     /// Controls whether landscape is allowed. Only the player sets this to true.
     static var allowLandscape = false
@@ -89,6 +90,17 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     // Track which quick action was triggered
     static var pendingQuickAction: QuickAction?
 
+    // MARK: - Notification Action Routes
+    /// One-tap actions attached to reminder notifications.
+    enum NotificationActionRoute: String {
+        case startQuickSession = "START_QUICK_SESSION"
+        case playSleepStory = "PLAY_SLEEP_STORY"
+        case openAIChat = "OPEN_AI_CHAT"
+    }
+
+    /// Set when a notification action is tapped from a cold launch; consumed by RootView.
+    static var pendingNotificationAction: NotificationActionRoute?
+
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
@@ -104,6 +116,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
         // Configure Firebase (Crashlytics + Analytics)
         FirebaseService.shared.configure()
+
+        // Notification delegate + actionable categories (e.g. alarm snooze)
+        configureNotifications()
 
         // Update quick actions based on subscription status
         updateQuickActions()
@@ -165,6 +180,94 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         return true
     }
 
+    // MARK: - Notifications
+
+    private func configureNotifications() {
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
+
+        // Alarm category with a working Snooze action (previously the snooze toggle was dead UI).
+        let snooze = UNNotificationAction(identifier: "SNOOZE_ALARM", title: "Snooze", options: [])
+        let stop = UNNotificationAction(identifier: "STOP_ALARM", title: "I'm awake", options: [.foreground])
+        let alarmCategory = UNNotificationCategory(
+            identifier: "ALARM",
+            actions: [snooze, stop],
+            intentIdentifiers: [],
+            options: []
+        )
+
+        // One-tap actions turn passive reminders into action: a daily nudge becomes
+        // "Start a session", a bedtime nudge becomes "Play a sleep story", etc.
+        let startSession = UNNotificationAction(
+            identifier: NotificationActionRoute.startQuickSession.rawValue,
+            title: "Start a session",
+            options: [.foreground]
+        )
+        let playSleep = UNNotificationAction(
+            identifier: NotificationActionRoute.playSleepStory.rawValue,
+            title: "Play a sleep story",
+            options: [.foreground]
+        )
+        let openChat = UNNotificationAction(
+            identifier: NotificationActionRoute.openAIChat.rawValue,
+            title: "Chat now",
+            options: [.foreground]
+        )
+
+        // Trial-conversion + win-back notifications route to the paywall so a
+        // tapped "your trial ends tonight" actually lands on plans, not a cold
+        // home screen. Body taps are handled by identifier in didReceive too.
+        let seePlans = UNNotificationAction(
+            identifier: "OPEN_PREMIUM",
+            title: "See plans",
+            options: [.foreground]
+        )
+
+        let dailyReminder = UNNotificationCategory(identifier: "DAILY_REMINDER", actions: [startSession], intentIdentifiers: [], options: [])
+        let streakAtRisk = UNNotificationCategory(identifier: "STREAK_AT_RISK", actions: [startSession], intentIdentifiers: [], options: [])
+        let reEngagement = UNNotificationCategory(identifier: "RE_ENGAGEMENT", actions: [startSession], intentIdentifiers: [], options: [])
+        let bedtimeReminder = UNNotificationCategory(identifier: "BEDTIME_REMINDER", actions: [playSleep], intentIdentifiers: [], options: [])
+        let aiCheckIn = UNNotificationCategory(identifier: "AI_CHECKIN", actions: [openChat], intentIdentifiers: [], options: [])
+        let trialConversion = UNNotificationCategory(identifier: "TRIAL_CONVERSION", actions: [seePlans], intentIdentifiers: [], options: [])
+
+        center.setNotificationCategories([
+            alarmCategory, dailyReminder, streakAtRisk, reEngagement, bedtimeReminder, aiCheckIn, trialConversion
+        ])
+    }
+
+    /// Handle notification action taps (e.g. "Snooze" on the alarm, "Start a session" on a reminder).
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let notifID = response.notification.request.identifier
+        let isPremiumBound = notifID.hasPrefix("trial-") || notifID.hasPrefix("winback-")
+
+        if response.actionIdentifier == "SNOOZE_ALARM" {
+            Task { @MainActor in
+                AlarmService.shared.snooze()
+            }
+        } else if response.actionIdentifier == "OPEN_PREMIUM"
+                    || (response.actionIdentifier == UNNotificationDefaultActionIdentifier && isPremiumBound) {
+            // Tapping a trial/win-back notification (button OR body) opens the
+            // paywall. navigate() is consumed by RootView (onChange when warm,
+            // onAppear when cold-launched).
+            Task { @MainActor in
+                AppStateManager.shared.navigate(to: .premium)
+            }
+        } else if let route = NotificationActionRoute(rawValue: response.actionIdentifier) {
+            // Cache for cold launch, then post for a running app to handle.
+            AppDelegate.pendingNotificationAction = route
+            NotificationCenter.default.post(
+                name: .notificationActionTriggered,
+                object: nil,
+                userInfo: ["route": route]
+            )
+        }
+        completionHandler()
+    }
+
     // MARK: - Handle Quick Action
     func handleQuickAction(_ shortcutItem: UIApplicationShortcutItem) {
         guard let action = QuickAction(rawValue: shortcutItem.type) else { return }
@@ -198,5 +301,6 @@ class SceneDelegate: NSObject, UIWindowSceneDelegate {
 // MARK: - Notification Name
 extension Notification.Name {
     static let quickActionTriggered = Notification.Name("quickActionTriggered")
+    static let notificationActionTriggered = Notification.Name("notificationActionTriggered")
     static let dismissAllSheetsAndPlay = Notification.Name("dismissAllSheetsAndPlay")
 }

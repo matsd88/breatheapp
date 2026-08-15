@@ -49,7 +49,10 @@ struct SleepPreparationView: View {
                             Image(systemName: "chevron.left")
                                 .font(.body.weight(.semibold))
                                 .foregroundStyle(.white.opacity(0.7))
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
                         }
+                        .accessibilityLabel("Back")
                     }
                 }
 
@@ -60,10 +63,11 @@ struct SleepPreparationView: View {
                         Image(systemName: "xmark")
                             .font(.body.weight(.semibold))
                             .foregroundStyle(.white.opacity(0.7))
-                            .frame(width: 32, height: 32)
+                            .frame(width: 40, height: 40)
                             .background(Color.white.opacity(0.15))
                             .clipShape(Circle())
                     }
+                    .accessibilityLabel("Close")
                 }
             }
             .sheet(isPresented: $showBreathing) {

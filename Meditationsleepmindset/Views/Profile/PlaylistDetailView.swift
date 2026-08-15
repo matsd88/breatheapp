@@ -17,7 +17,6 @@ struct PlaylistDetailView: View {
     @State private var showRenameAlert = false
     @State private var editedName = ""
     @State private var showDeleteConfirmation = false
-    @State private var showSessionLimitPaywall = false
 
     private var isRegular: Bool { sizeClass == .regular }
 
@@ -150,7 +149,7 @@ struct PlaylistDetailView: View {
 
                         Spacer(minLength: 100)
                     }
-                    .frame(maxWidth: 600)
+                    .frame(maxWidth: sizeClass == .regular ? 900 : 600)
                     .frame(maxWidth: .infinity)
                 }
             }
@@ -220,23 +219,12 @@ struct PlaylistDetailView: View {
             .fullScreenCover(item: $selectedContent) { content in
                 MeditationPlayerView(content: content)
             }
-            .sheet(isPresented: $showSessionLimitPaywall) {
-                PremiumPaywallView(
-                    storeManager: StoreManager.shared,
-                    sessionLimitMessage: "This is a premium meditation. Subscribe to unlock the full library.",
-                    onSubscribed: { showSessionLimitPaywall = false }
-                )
-            }
         }
         .presentationBackground(Theme.profileGradient)
     }
 
     /// Build queue from ordered playlist items and play
     private func playFromPlaylist(_ content: Content) {
-        if !StoreManager.shared.isSubscribed && AppStateManager.shared.hasReachedFreeSessionLimit {
-            showSessionLimitPaywall = true
-            return
-        }
         let orderedContent = itemsForPlaylist.compactMap { contentFor(item: $0) }
         guard !orderedContent.isEmpty else { return }
         let startIndex = orderedContent.firstIndex(where: { $0.id == content.id }) ?? 0

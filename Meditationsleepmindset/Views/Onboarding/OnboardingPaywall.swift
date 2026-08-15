@@ -47,7 +47,7 @@ enum OnboardingSubscriptionPlan: String, CaseIterable, Identifiable {
 
     var discount: String? {
         switch self {
-        case .annual: return "-60%"
+        case .annual: return "Save 54%"
         case .monthly: return nil
         case .weekly: return nil
         }
@@ -71,6 +71,7 @@ struct OnboardingPaywall: View {
     @State private var animateFeatures = false
     @State private var countdownSeconds: Int = 86400 // 24 hours
     @State private var countdownTimer: Timer?
+    @State private var showCountdown = true
     @State private var previewIndex = 0
 
     // Personalized headline based on goals
@@ -90,14 +91,14 @@ struct OnboardingPaywall: View {
         }
     }
 
-    // Feature preview cards
+    // Feature preview cards — lead with the AI studio (our differentiated wedge), then AI companion.
     private let previewCards: [(image: String, title: String, description: String)] = [
+        ("wand.and.stars", "Your Personal AI Meditation Studio", "Generate a meditation made just for you — your words, your mood, any length"),
+        ("bubble.left.and.text.bubble.right.fill", "AI Wellness Companion", "Chat 24/7 for personalized support, plus AI bedtime stories for your kids"),
         ("moon.stars.fill", "100+ Sleep Stories & Soundscapes", "Drift off with narrated stories, ASMR, rain, ocean waves & more"),
-        ("sparkles", "AI-Personalized Meditations", "Custom meditations generated just for you — any mood, any length"),
         ("bolt.heart.fill", "Micro-Moments & Breathing", "Quick 1-3 minute resets, body scans & guided breathing exercises"),
         ("arrow.down.circle.fill", "Offline Packs & Watch App", "Download content for offline use and meditate from your wrist"),
-        ("brain.head.profile", "Mindset Coaching & Programs", "Multi-day guided programs and daily mindset coaching"),
-        ("bubble.left.and.text.bubble.right.fill", "AI Wellness Companion", "Chat with Breathe AI for personalized emotional support 24/7")
+        ("brain.head.profile", "Mindset Coaching & Programs", "Multi-day guided programs and daily mindset coaching")
     ]
 
     // Before/after metrics
@@ -117,8 +118,10 @@ struct OnboardingPaywall: View {
 
                 ScrollView {
                     VStack(spacing: 18) {
-                        // Urgency countdown banner
-                        urgencyBanner
+                        // Urgency countdown banner (only while the first-run offer is genuinely live)
+                        if showCountdown {
+                            urgencyBanner
+                        }
 
                         // Feature preview cards (swipeable)
                         featurePreviewSection
@@ -140,18 +143,24 @@ struct OnboardingPaywall: View {
                         // Before / After comparison
                         beforeAfterSection
 
-                        // Star rating
-                        HStack(spacing: 4) {
-                            ForEach(0..<5, id: \.self) { _ in
-                                Image(systemName: "star.fill")
-                                    .foregroundStyle(.yellow)
-                                    .font(.system(size: 14))
+                        // Star rating + social proof
+                        VStack(spacing: 8) {
+                            HStack(spacing: 4) {
+                                ForEach(0..<5, id: \.self) { _ in
+                                    Image(systemName: "star.fill")
+                                        .foregroundStyle(.yellow)
+                                        .font(.system(size: 14))
+                                }
                             }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(Color.white.opacity(0.1))
+                            .clipShape(Capsule())
+
+                            Text("Loved by over 100,000 people finding calm")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.6))
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(Color.white.opacity(0.1))
-                        .clipShape(Capsule())
 
                         // Plan options
                         VStack(spacing: 14) {
@@ -159,6 +168,7 @@ struct OnboardingPaywall: View {
                                 OnboardingPlanOptionView(
                                     plan: plan,
                                     product: storeKitProduct(for: plan),
+                                    monthlyProduct: storeKitProduct(for: .monthly),
                                     isSelected: selectedPlan == plan
                                 ) {
                                     withAnimation(.spring(response: 0.2)) {
@@ -196,7 +206,7 @@ struct OnboardingPaywall: View {
                                         .tint(.white)
                                 } else {
                                     VStack(spacing: 2) {
-                                        Text("Start My 7-Day Free Trial")
+                                        Text("Start My \(Constants.Subscriptions.freeTrialDays)-Day Free Trial")
                                             .fontWeight(.semibold)
                                         Text(selectedPlanPriceDescription)
                                             .font(.caption)
@@ -262,6 +272,7 @@ struct OnboardingPaywall: View {
                         animateFeatures = true
                     }
                     startCountdown()
+                    AppStateManager.shared.recordPaywallShown()
 
                     // Track paywall viewed
                     FirebaseService.shared.logPaywallViewed(source: "onboarding")
@@ -286,6 +297,7 @@ struct OnboardingPaywall: View {
                         onDismiss()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
+                            .accessibilityLabel("Close")
                             .font(.title2)
                             .foregroundStyle(.white.opacity(0.6))
                     }
@@ -365,11 +377,19 @@ struct OnboardingPaywall: View {
         countdownTimer?.invalidate()
         countdownTimer = nil
 
-        // Use a stored expiry so it persists across views
+        // Real, persisted expiry tied to first view — NOT reset each time the
+        // paywall opens. Once it genuinely ends, hide the banner instead of
+        // rolling over a fresh 24h (honest urgency; avoids fake-countdown rejections).
         let key = "paywallCountdownExpiry"
         let now = Date()
-        if let stored = UserDefaults.standard.object(forKey: key) as? Date, stored > now {
-            countdownSeconds = Int(stored.timeIntervalSince(now))
+        if let stored = UserDefaults.standard.object(forKey: key) as? Date {
+            if stored > now {
+                countdownSeconds = Int(stored.timeIntervalSince(now))
+            } else {
+                // Offer window has passed — don't renew it.
+                showCountdown = false
+                return
+            }
         } else {
             let expiry = now.addingTimeInterval(86400)
             UserDefaults.standard.set(expiry, forKey: key)
@@ -380,6 +400,7 @@ struct OnboardingPaywall: View {
             Task { @MainActor in
                 if countdownSeconds > 0 {
                     countdownSeconds -= 1
+                    if countdownSeconds == 0 { showCountdown = false }
                 }
             }
         }
@@ -422,7 +443,7 @@ struct OnboardingPaywall: View {
             case .week: period = "week"
             default: period = "period"
             }
-            return "After the 7-day free trial, you will be charged \(product.displayPrice)/\(period). Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account."
+            return "After the \(Constants.Subscriptions.freeTrialDays)-day free trial, you will be charged \(product.displayPrice)/\(period). Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account."
         }
         return "Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account."
     }
@@ -559,8 +580,22 @@ struct OnboardingPaywall: View {
 struct OnboardingPlanOptionView: View {
     let plan: OnboardingSubscriptionPlan
     var product: Product? = nil
+    var monthlyProduct: Product? = nil
     let isSelected: Bool
     let action: () -> Void
+
+    /// Real savings vs paying monthly for a year, computed from live StoreKit prices.
+    /// Falls back to the static label only if prices aren't loaded yet.
+    private var savingsLabel: String? {
+        if plan == .annual, let product, let monthlyProduct {
+            let annualizedMonthly = monthlyProduct.price * 12
+            guard annualizedMonthly > 0, product.price < annualizedMonthly else { return plan.discount }
+            let fraction = (annualizedMonthly - product.price) / annualizedMonthly
+            let percent = (fraction * 100 as NSDecimalNumber).intValue
+            return percent > 0 ? "Save \(percent)%" : plan.discount
+        }
+        return plan.discount
+    }
 
     private var displayPrice: String {
         guard let product else { return plan.price }
@@ -628,7 +663,7 @@ struct OnboardingPlanOptionView: View {
                         .fontWeight(.medium)
                         .foregroundStyle(.white)
 
-                    if let discount = plan.discount {
+                    if let discount = savingsLabel {
                         Text(discount)
                             .font(.caption)
                             .fontWeight(.bold)

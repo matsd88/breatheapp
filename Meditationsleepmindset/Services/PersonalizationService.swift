@@ -9,6 +9,44 @@
 import Foundation
 import SwiftData
 
+/// Immutable, Sendable snapshot of the personalization inputs used to boost
+/// recommendation scores, so scoring can run off the main actor.
+/// The math mirrors `PersonalizationService.personalizedScoreBoost(for:currentHour:currentMood:)`
+/// exactly — keep the two in sync.
+nonisolated struct PersonalizationBoostSnapshot: Sendable {
+    /// Pre-resolved per-category boost: `Int(engagementScore / 12.5)` (0–8 points).
+    let categoryBoost: [ContentType: Int]
+    /// Preferred content types for the current time-of-day bucket (top 3); empty when none.
+    let timePreferredTypes: [ContentType]
+    /// Content types correlated with the current mood (top 2); empty when no mood/data.
+    let moodCorrelatedTypes: [ContentType]
+    /// Top 5 narrators by play count.
+    let topNarrators: [String]
+
+    /// Same result as `personalizedScoreBoost` for the hour/mood this snapshot was taken with.
+    func boost(contentType: ContentType, narrator: String?) -> Int {
+        var boost = categoryBoost[contentType] ?? 0
+
+        // Time-of-day preference boost (max +4)
+        if let index = timePreferredTypes.firstIndex(of: contentType) {
+            boost += (3 - index) + 1 // 4, 3, or 2 points for top 3
+        }
+
+        // Mood correlation boost (max +3)
+        if let index = moodCorrelatedTypes.firstIndex(of: contentType) {
+            boost += (2 - index) + 1 // 3 or 2 points for top 2
+        }
+
+        // Favorite narrator boost (max +3)
+        if let narrator, topNarrators.contains(narrator),
+           let index = topNarrators.firstIndex(of: narrator) {
+            boost += max(1, 3 - index) // 3, 2, 1, 1, 1 for top 5
+        }
+
+        return boost
+    }
+}
+
 @MainActor
 class PersonalizationService: ObservableObject {
     static let shared = PersonalizationService()
@@ -178,6 +216,18 @@ class PersonalizationService: ObservableObject {
         }
 
         return boost
+    }
+
+    /// Capture the current personalization state as a Sendable snapshot so
+    /// recommendation scoring can run on a background task. Must be called on
+    /// the main actor; the returned value is safe to send anywhere.
+    func boostSnapshot(currentHour: Int, currentMood: String?) -> PersonalizationBoostSnapshot {
+        PersonalizationBoostSnapshot(
+            categoryBoost: categoryEngagement.mapValues { Int($0.engagementScore / 12.5) },
+            timePreferredTypes: timeOfDayPreferences[TimeOfDayBucket.from(hour: currentHour)] ?? [],
+            moodCorrelatedTypes: currentMood.flatMap { moodContentCorrelations[$0] } ?? [],
+            topNarrators: topNarrators
+        )
     }
 
     /// Get content types the user engages with most

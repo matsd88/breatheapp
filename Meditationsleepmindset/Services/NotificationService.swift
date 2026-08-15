@@ -6,6 +6,7 @@
 import Foundation
 import UserNotifications
 import SwiftUI
+import UIKit
 
 @MainActor
 class NotificationService: ObservableObject {
@@ -16,6 +17,8 @@ class NotificationService: ObservableObject {
     @Published var bedtimeReminderEnabled = false
     @Published var streakNotificationsEnabled = false
     @Published var newContentNotificationsEnabled = false
+    /// Proactive daily AI coach check-in (Bevel-style agentic nudge).
+    @Published var aiCheckInEnabled = false
 
     // User-chosen reminder times
     @AppStorage("dailyReminderTime") private var dailyReminderTimeInterval: Double = 72000 // 8:00 PM default
@@ -24,6 +27,7 @@ class NotificationService: ObservableObject {
     @AppStorage("bedtimeReminderEnabledStorage") private var storedBedtimeReminderEnabled = false
     @AppStorage("streakNotificationsEnabledStorage") private var storedStreakNotificationsEnabled = false
     @AppStorage("newContentNotificationsEnabledStorage") private var storedNewContentNotificationsEnabled = false
+    @AppStorage("aiCheckInEnabledStorage") private var storedAICheckInEnabled = false
 
     var dailyReminderTime: Date {
         get {
@@ -56,10 +60,37 @@ class NotificationService: ObservableObject {
         bedtimeReminderEnabled = storedBedtimeReminderEnabled
         streakNotificationsEnabled = storedStreakNotificationsEnabled
         newContentNotificationsEnabled = storedNewContentNotificationsEnabled
+        aiCheckInEnabled = storedAICheckInEnabled
 
         Task {
             await checkAuthorizationStatus()
         }
+
+        startObservingTimeChanges()
+    }
+
+    // MARK: - Time Zone / Clock Changes
+
+    /// Repeating reminders are scheduled against wall-clock hour/minute. When the user
+    /// crosses time zones (or the system clock changes), re-anchor the reminders so an
+    /// "8:00 PM" nudge keeps firing at 8:00 PM local instead of the old zone's time.
+    private func startObservingTimeChanges() {
+        let reschedule: (Notification) -> Void = { [weak self] _ in
+            MainActor.assumeIsolated { self?.rescheduleActiveReminders() }
+        }
+        NotificationCenter.default.addObserver(
+            forName: .NSSystemTimeZoneDidChange, object: nil, queue: .main, using: reschedule
+        )
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.significantTimeChangeNotification, object: nil, queue: .main, using: reschedule
+        )
+    }
+
+    /// Re-schedule every currently-enabled repeating reminder (used after a time-zone change).
+    func rescheduleActiveReminders() {
+        if dailyReminderEnabled { scheduleDailyReminder() }
+        if bedtimeReminderEnabled { scheduleBedtimeReminder() }
+        if aiCheckInEnabled { scheduleAICheckIn() }
     }
 
     // MARK: - Authorization
@@ -104,6 +135,55 @@ class NotificationService: ObservableObject {
         storedStreakNotificationsEnabled = false
         newContentNotificationsEnabled = false
         storedNewContentNotificationsEnabled = false
+    }
+
+    /// Persisting setter for the streak-milestone toggle (updates both published + stored value).
+    func setStreakNotifications(enabled: Bool) {
+        streakNotificationsEnabled = enabled
+        storedStreakNotificationsEnabled = enabled
+    }
+
+    /// Persisting setter for the new-content toggle (updates both published + stored value).
+    func setNewContentNotifications(enabled: Bool) {
+        newContentNotificationsEnabled = enabled
+        storedNewContentNotificationsEnabled = enabled
+    }
+
+    /// Proactive daily AI coach check-in — a scheduled, agentic nudge to chat (Bevel-style).
+    func setAICheckIn(enabled: Bool) {
+        aiCheckInEnabled = enabled
+        storedAICheckInEnabled = enabled
+        if enabled {
+            scheduleAICheckIn()
+        } else {
+            cancelNotifications(withIdentifier: "ai-checkin")
+        }
+    }
+
+    private func scheduleAICheckIn() {
+        cancelNotifications(withIdentifier: "ai-checkin")
+
+        let messages = [
+            String(localized: "Your coach has a check-in for you. How are you feeling tonight?"),
+            String(localized: "Quick check-in: what's on your mind? I'm here to help you wind down."),
+            String(localized: "Let's reflect on your day together. Tap to chat with your coach."),
+            String(localized: "Time to decompress. Your AI coach is ready when you are."),
+        ]
+
+        var dateComponents = DateComponents()
+        dateComponents.hour = 19
+        dateComponents.minute = 30
+
+        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "Your daily check-in")
+        content.body = messages.randomElement() ?? String(localized: "Your coach has a check-in for you.")
+        content.sound = .default
+        content.categoryIdentifier = "AI_CHECKIN"
+
+        let request = UNNotificationRequest(identifier: "ai-checkin", content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request)
     }
 
     // MARK: - Daily Practice Reminder
@@ -261,8 +341,8 @@ class NotificationService: ObservableObject {
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
 
         let content = UNMutableNotificationContent()
-        content.title = String(localized: "Don't lose your streak!")
-        content.body = String(localized: "Just 3 minutes to keep your streak alive. You've got this!")
+        content.title = String(localized: "A moment for you?")
+        content.body = String(localized: "Even 3 mindful minutes counts today. And if today slips by, that's okay — your progress is safe.")
         content.sound = .default
         content.categoryIdentifier = "STREAK_AT_RISK"
 
@@ -288,11 +368,45 @@ class NotificationService: ObservableObject {
         // Day 4: Mid-trial engagement
         scheduleTrialDay4Notification(trialEndDate: trialEndDate)
 
+        // 24 hours before charge: transparency reminder (reduces refund disputes / chargebacks)
+        scheduleTrialChargeReminderNotification(trialEndDate: trialEndDate)
+
         // Day 7 Morning: Urgency (last day)
         scheduleTrialDay7MorningNotification(trialEndDate: trialEndDate)
 
         // Day 7 Evening: Final push
         scheduleTrialDay7EveningNotification(trialEndDate: trialEndDate)
+    }
+
+    /// Fires ~24 hours before the trial converts to a paid subscription.
+    /// Apple-friendly transparency notice; research shows a pre-charge reminder cuts
+    /// dispute/refund rates by 30–40% without materially hurting conversion.
+    private func scheduleTrialChargeReminderNotification(trialEndDate: Date) {
+        guard let reminderDate = Calendar.current.date(byAdding: .hour, value: -24, to: trialEndDate),
+              reminderDate > Date() else { return }
+
+        var dateComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: reminderDate)
+        // Normalize to a civil hour if the computed time lands overnight.
+        if let hour = dateComponents.hour, hour < 8 || hour > 21 {
+            dateComponents.hour = 18
+            dateComponents.minute = 0
+        }
+
+        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
+
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "Your free trial ends in 24 hours")
+        content.body = String(localized: "Tomorrow your subscription begins so you keep unlimited access. Manage or cancel anytime in Settings.")
+        content.sound = .default
+        content.categoryIdentifier = "TRIAL_CONVERSION"
+
+        let request = UNNotificationRequest(
+            identifier: "trial-charge-reminder",
+            content: content,
+            trigger: trigger
+        )
+
+        UNUserNotificationCenter.current().add(request)
     }
 
     func scheduleTrialDay1Notification() {
@@ -301,7 +415,7 @@ class NotificationService: ObservableObject {
         content.title = String(localized: "Great first session!")
         content.body = String(localized: "You have 7 days to explore everything free. Try a Sleep Story tonight!")
         content.sound = .default
-        content.categoryIdentifier = "TRIAL_DAY_1"
+        content.categoryIdentifier = "TRIAL_CONVERSION"
 
         // Send 2 hours after first session
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 7200, repeats: false)
@@ -328,7 +442,7 @@ class NotificationService: ObservableObject {
         content.title = String(localized: "Pro tip")
         content.body = String(localized: "The best time to meditate is right before bed. Try tonight's Sleep Story!")
         content.sound = .default
-        content.categoryIdentifier = "TRIAL_DAY_2"
+        content.categoryIdentifier = "TRIAL_CONVERSION"
 
         let request = UNNotificationRequest(
             identifier: "trial-day-2",
@@ -352,7 +466,7 @@ class NotificationService: ObservableObject {
         content.title = String(localized: "Halfway through your trial!")
         content.body = String(localized: "Have you tried the AI meditation generator? Create a session just for you.")
         content.sound = .default
-        content.categoryIdentifier = "TRIAL_DAY_4"
+        content.categoryIdentifier = "TRIAL_CONVERSION"
 
         let request = UNNotificationRequest(
             identifier: "trial-day-4",
@@ -368,13 +482,16 @@ class NotificationService: ObservableObject {
         dateComponents.hour = 9
         dateComponents.minute = 0
 
+        // Don't schedule a non-repeating notification in the past — it would silently never fire.
+        guard let fireDate = Calendar.current.date(from: dateComponents), fireDate > Date() else { return }
+
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
 
         let content = UNMutableNotificationContent()
         content.title = String(localized: "Last day of your free trial")
         content.body = String(localized: "Lock in annual today—that's just $0.96/week.")
         content.sound = .default
-        content.categoryIdentifier = "TRIAL_DAY_7_AM"
+        content.categoryIdentifier = "TRIAL_CONVERSION"
 
         let request = UNNotificationRequest(
             identifier: "trial-day-7-am",
@@ -390,13 +507,16 @@ class NotificationService: ObservableObject {
         dateComponents.hour = 20
         dateComponents.minute = 0
 
+        // Don't schedule a non-repeating notification in the past — it would silently never fire.
+        guard let fireDate = Calendar.current.date(from: dateComponents), fireDate > Date() else { return }
+
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
 
         let content = UNMutableNotificationContent()
         content.title = String(localized: "Your trial ends tonight")
         content.body = String(localized: "Don't lose access to 500+ meditations. Continue for just $0.96/week.")
         content.sound = .default
-        content.categoryIdentifier = "TRIAL_DAY_7_PM"
+        content.categoryIdentifier = "TRIAL_CONVERSION"
 
         let request = UNNotificationRequest(
             identifier: "trial-day-7-pm",
@@ -408,8 +528,41 @@ class NotificationService: ObservableObject {
     }
 
     func cancelTrialNotifications() {
-        let identifiers = ["trial-day-1", "trial-day-2", "trial-day-4", "trial-day-7-am", "trial-day-7-pm"]
+        let identifiers = ["trial-day-1", "trial-day-2", "trial-day-4", "trial-charge-reminder", "trial-day-7-am", "trial-day-7-pm"]
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
+    }
+
+    // MARK: - Win-Back (lapsed trial)
+
+    /// A single gentle win-back a few days after a trial lapses without
+    /// converting. The "winback-" identifier prefix + TRIAL_CONVERSION
+    /// category route the tap to the discounted plans (AppDelegate).
+    func scheduleWinBackOffer() {
+        // Don't stack duplicates if this somehow runs twice.
+        cancelWinBackOffer()
+
+        let trigger = UNTimeIntervalNotificationTrigger(
+            timeInterval: TimeInterval(3 * 24 * 60 * 60), // 3 days after lapse
+            repeats: false
+        )
+
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "Your calm space is still here")
+        content.body = String(localized: "Come back and unlock everything — at a special price, just for you.")
+        content.sound = .default
+        content.categoryIdentifier = "TRIAL_CONVERSION"
+
+        let request = UNNotificationRequest(
+            identifier: "winback-offer",
+            content: content,
+            trigger: trigger
+        )
+
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    func cancelWinBackOffer() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["winback-offer"])
     }
 
     // MARK: - Re-engagement Notifications

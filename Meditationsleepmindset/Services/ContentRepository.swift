@@ -12,8 +12,8 @@ class ContentRepository {
 
     // Real YouTube meditation/relaxation videos with verified thumbnails
     // All video IDs verified to have working thumbnails as of 2024
-    // NOTE: The `duration` field is a legacy placeholder and is IGNORED during seeding.
-    // Real durations are fetched from the YouTube Data API v3 by YouTubeDurationService.
+    // NOTE: The `duration` field is the curated baseline seeded into each Content;
+    // YouTubeDurationService refines it from the YouTube Data API v3 when available.
     private let sampleContent: [(title: String, subtitle: String?, videoID: String, type: ContentType, duration: Int, narrator: String?, tags: [String], isPremium: Bool, description: String?)] = [
         // Meditation - Popular verified channels
         ("5-Minute Meditation", "For beginners", "qJPyuTQOkfk", .meditation, 316, "Goodful", ["Reduce Stress", "Build Self Esteem"], false, "A simple 5-minute guided meditation perfect for beginners."),
@@ -1189,25 +1189,27 @@ class ContentRepository {
     ]
 
     // Content version - increment this when video IDs change to force re-seed
-    private static let contentVersion = 34
+    private static let contentVersion = 35
     private static let contentVersionKey = "ContentRepositoryVersion"
 
     func seedContentIfNeeded(in context: ModelContext) {
         let currentVersion = UserDefaults.standard.integer(forKey: Self.contentVersionKey)
 
-        // Check if we need to update content (version changed or first launch)
+        // Fast path (runs every launch): a count is enough to know we're
+        // seeded — don't hydrate ~562 Content objects on the main thread
+        // just to check emptiness.
         let descriptor = FetchDescriptor<Content>()
-        let existingContent = try? context.fetch(descriptor)
+        let existingCount = (try? context.fetchCount(descriptor)) ?? 0
 
-        if let existing = existingContent, !existing.isEmpty, currentVersion >= Self.contentVersion {
+        if existingCount > 0, currentVersion >= Self.contentVersion {
             #if DEBUG
-            print("Content already exists (\(existing.count) items) at version \(currentVersion), skipping seed")
+            print("Content already exists (\(existingCount) items) at version \(currentVersion), skipping seed")
             #endif
             return
         }
 
         // Delete old seeded content if version changed (preserve user-added content)
-        if let existing = existingContent, !existing.isEmpty {
+        if existingCount > 0, let existing = try? context.fetch(descriptor) {
             #if DEBUG
             print("Updating content from version \(currentVersion) to \(Self.contentVersion)")
             #endif
@@ -1217,15 +1219,17 @@ class ContentRepository {
             try? context.save()
         }
 
-        // Add sample content (unique constraint on youtubeVideoID prevents duplicates)
-        // Duration is set to 0 — YouTubeDurationService will fetch real durations after seeding.
+        // Add sample content (unique constraint on youtubeVideoID prevents duplicates).
+        // Seed the curated duration as a correct baseline so durations/filters work even
+        // when the app is R2-served and the YouTube duration fetch is unavailable.
+        // YouTubeDurationService later refines these from the YouTube API when it can.
         for item in sampleContent {
             let content = Content(
                 title: item.title,
                 subtitle: item.subtitle,
                 youtubeVideoID: item.videoID,
                 contentType: item.type,
-                durationSeconds: 0,
+                durationSeconds: item.duration,
                 narrator: item.narrator,
                 tags: item.tags,
                 isPremium: item.isPremium,

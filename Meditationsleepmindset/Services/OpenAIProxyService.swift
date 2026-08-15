@@ -166,7 +166,13 @@ struct OpenAIProxyService {
 
     // MARK: - System Prompt Builder
 
-    static func buildSystemPrompt(moodLevel: MoodLevel?, userName: String? = nil) -> String {
+    static func buildSystemPrompt(
+        moodLevel: MoodLevel?,
+        userName: String? = nil,
+        coach: WellnessCoach = .general,
+        memory: String? = nil,
+        healthContext: String? = nil
+    ) -> String {
         var prompt = """
         You are Breathe AI, a warm wellness assistant in the Breathe meditation app.
 
@@ -177,6 +183,9 @@ struct OpenAIProxyService {
         STYLE: Warm, calm, conversational. Short paragraphs (2-3 sentences). Validate feelings first. Under 100 words typically.
         """
 
+        // Coach specialization
+        prompt += "\n\n\(coach.promptContext)"
+
         if let mood = moodLevel {
             prompt += "\n\n\(mood.systemPromptContext)"
         }
@@ -185,6 +194,41 @@ struct OpenAIProxyService {
             prompt += "\n\nThe user's name is \(name)."
         }
 
+        // Long-term memory: durable facts about the user gathered from past conversations.
+        if let memory, !memory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            prompt += "\n\nWHAT YOU REMEMBER ABOUT THIS USER (from past conversations — use naturally, don't recite verbatim):\n\(memory)"
+        }
+
+        // Live wellness data so the coach can ground advice in the user's own numbers.
+        if let healthContext, !healthContext.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            prompt += "\n\nTHIS USER'S RECENT WELLNESS DATA (reference naturally when relevant, e.g. tie a suggestion to their sleep or streak; never invent numbers beyond these):\n\(healthContext)"
+        }
+
         return prompt
+    }
+
+    /// Asks the model to fold a conversation into a concise, durable memory summary.
+    static func summarizeMemory(existingMemory: String, conversation: [MessagePayload]) async throws -> String {
+        let transcript = conversation
+            .filter { $0.role == "user" || $0.role == "assistant" }
+            .map { "\($0.role): \($0.content)" }
+            .joined(separator: "\n")
+
+        let instruction = """
+        You maintain a long-term memory of a wellness-app user as a short bulleted list of durable, useful facts (recurring stressors, goals, preferences, name, sleep issues, relationships, what helps them). Update the EXISTING MEMORY with anything important from the NEW CONVERSATION. Keep it under 120 words, factual, no fluff, no transient details. Return ONLY the updated bullet list.
+
+        EXISTING MEMORY:
+        \(existingMemory.isEmpty ? "(none yet)" : existingMemory)
+
+        NEW CONVERSATION:
+        \(transcript)
+        """
+
+        let messages: [MessagePayload] = [
+            .init(role: "system", content: "You compress conversations into a concise long-term memory."),
+            .init(role: "user", content: instruction)
+        ]
+
+        return try await sendMessage(messages: messages, maxTokens: 250)
     }
 }

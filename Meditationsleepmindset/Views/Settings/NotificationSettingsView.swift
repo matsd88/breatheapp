@@ -157,7 +157,10 @@ struct NotificationSettingsView: View {
 
                                 Spacer()
 
-                                Toggle("", isOn: $notificationService.streakNotificationsEnabled)
+                                Toggle("", isOn: Binding(
+                                    get: { notificationService.streakNotificationsEnabled },
+                                    set: { notificationService.setStreakNotifications(enabled: $0) }
+                                ))
                                     .labelsHidden()
                                     .tint(Theme.profileAccent)
                             }
@@ -178,7 +181,35 @@ struct NotificationSettingsView: View {
 
                                 Spacer()
 
-                                Toggle("", isOn: $notificationService.newContentNotificationsEnabled)
+                                Toggle("", isOn: Binding(
+                                    get: { notificationService.newContentNotificationsEnabled },
+                                    set: { notificationService.setNewContentNotifications(enabled: $0) }
+                                ))
+                                    .labelsHidden()
+                                    .tint(Theme.profileAccent)
+                            }
+                            .padding()
+
+                            Divider().background(Color.white.opacity(0.1))
+
+                            // AI Coach Check-In (proactive daily nudge)
+                            HStack(spacing: 12) {
+                                Image(systemName: "bubble.left.and.text.bubble.right.fill")
+                                    .font(.system(size: 18))
+                                    .foregroundStyle(Theme.profileAccent)
+                                    .frame(width: 28)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("AI Coach Check-In")
+                                        .foregroundStyle(Theme.textPrimary)
+                                    Text("A daily nudge to chat with your coach")
+                                        .font(.caption)
+                                        .foregroundStyle(Theme.textSecondary)
+                                }
+                                Spacer()
+                                Toggle("", isOn: Binding(
+                                    get: { notificationService.aiCheckInEnabled },
+                                    set: { notificationService.setAICheckIn(enabled: $0) }
+                                ))
                                     .labelsHidden()
                                     .tint(Theme.profileAccent)
                             }

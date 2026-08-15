@@ -95,7 +95,10 @@ struct CustomTabItem: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            HapticManager.selection()
+            action()
+        } label: {
             VStack(spacing: 4) {
                 Image(systemName: isSelected ? tab.selectedIconName : tab.iconName)
                     .font(.system(size: 20))
@@ -116,6 +119,8 @@ struct CustomTabItem: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(tab.displayName)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -192,8 +197,8 @@ struct MainTabView: View {
                 LinearGradient(
                     colors: [
                         Color.clear,
-                        Color(red: 0.1, green: 0.2, blue: 0.35).opacity(0.8),
-                        Color(red: 0.1, green: 0.2, blue: 0.35)
+                        Theme.tabBarBackgroundColor.opacity(0.8),
+                        Theme.tabBarBackgroundColor
                     ],
                     startPoint: .top,
                     endPoint: .bottom
@@ -207,7 +212,7 @@ struct MainTabView: View {
             VStack {
                 Spacer()
                 Rectangle()
-                    .fill(Color(red: 0.1, green: 0.2, blue: 0.35))
+                    .fill(Theme.tabBarBackgroundColor)
                     .frame(height: 50)
             }
             .ignoresSafeArea(.all, edges: .bottom)

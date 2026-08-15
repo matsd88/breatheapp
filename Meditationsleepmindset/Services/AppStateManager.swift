@@ -8,6 +8,21 @@ import SwiftUI
 import UserNotifications
 import AppTrackingTransparency
 
+/// App-wide navigation destinations reachable from the support bot and from
+/// `meditation://go/<route>` deep links (route = the raw value).
+enum AppRoute: String {
+    // Tabs
+    case home, sleep, discover, chat, profile
+    // Sheets / tools
+    case focusTimer     // unguided timer (Home)
+    case premium        // paywall
+    case aiStudio       // AI Meditation Studio (Home hero)
+    case kidsStories    // Kids bedtime stories (Home rituals)
+    // Settings sub-screens
+    case notificationSettings
+    case offlineDownloads
+}
+
 @MainActor
 class AppStateManager: ObservableObject {
     static let shared = AppStateManager()
@@ -25,11 +40,54 @@ class AppStateManager: ObservableObject {
     @Published var freeSessionsUsed: Int
     @Published var hasPlayedVideo: Bool
 
+    /// Drives a one-time contextual paywall shown right after the user's first completed
+    /// session — their moment of peak intent/satisfaction.
+    @Published var shouldShowFirstSessionPaywall: Bool = false
+
     // MARK: - Reinstall Detection
     @Published var isReinstall: Bool = false
 
     // MARK: - Deep Linking
     @Published var pendingDeepLinkVideoID: String?
+
+    // MARK: - In-App Navigation
+    /// A pending in-app destination (from the support bot, a deep link, etc.).
+    /// The tab shell consumes tab-level routes; SettingsView consumes its own
+    /// sub-screens; DailyToolsSection consumes the Home tool sheets.
+    @Published var pendingAppRoute: AppRoute?
+    private(set) var pendingAppRouteSetAt: Date?
+
+    func navigate(to route: AppRoute) {
+        pendingAppRouteSetAt = Date()
+        pendingAppRoute = route
+    }
+
+    // MARK: - Paywall Cooldown
+    /// Lightweight guard so an AUTO-presented paywall (the first-session one)
+    /// doesn't stack on top of a paywall the user just saw. User-initiated
+    /// paywalls — tapping premium content, hitting a hard limit, tapping an
+    /// upsell banner — are intentional moments of intent and don't check this;
+    /// they only record, so the auto-present respects them.
+    private static let paywallCooldownKey = "lastPaywallShownAt"
+    private static let paywallCooldown: TimeInterval = 120 // 2 minutes
+
+    func recordPaywallShown() {
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.paywallCooldownKey)
+    }
+
+    var canAutoPresentPaywall: Bool {
+        let last = UserDefaults.standard.double(forKey: Self.paywallCooldownKey)
+        guard last > 0 else { return true }
+        return Date().timeIntervalSince1970 - last > Self.paywallCooldown
+    }
+
+    /// A pending route older than a few seconds was never consumed (its
+    /// consumer wasn't on screen) — replaying it out of context would open
+    /// screens the user no longer expects.
+    var pendingAppRouteIsFresh: Bool {
+        guard let setAt = pendingAppRouteSetAt else { return false }
+        return Date().timeIntervalSince(setAt) < 10
+    }
 
     var reminderTimeFormatted: String {
         guard let time = dailyReminderTime else { return "Not set" }
@@ -45,7 +103,9 @@ class AppStateManager: ObservableObject {
         static let appOpenCount = "appOpenCount"
         static let hasShownSharePrompt = "hasShownSharePrompt"
         static let isFirstLaunch = "isFirstLaunch"
-        static let dailyReminderTime = "dailyReminderTime"
+        // NOTE: distinct key from NotificationService's "dailyReminderTime" (a Double).
+        // This stores a Date; sharing the key caused a type collision.
+        static let dailyReminderTime = "appState_dailyReminderTime"
         static let skippedNotificationsDuringOnboarding = "skippedNotificationsDuringOnboarding"
         static let freeSessionsUsed = "freeSessionsUsed"
         static let hasPlayedVideo = "hasPlayedVideo"
@@ -233,6 +293,27 @@ class AppStateManager: ObservableObject {
             }
         }
 
+        // Contextual paywall after the FIRST completed session — peak intent/satisfaction.
+        // Shown once, only to non-subscribers who've finished onboarding, and
+        // never stacked on top of a paywall they just saw (e.g. the onboarding
+        // paywall moments earlier). If the cooldown blocks it on the very first
+        // session, we DON'T burn the one-shot — the window is the first few
+        // completed sessions, so it defers to the next one (by which point the
+        // onboarding-paywall cooldown has long expired) rather than being lost.
+        let shownKey = "hasShownFirstSessionPaywall"
+        if count <= 3,
+           hasCompletedOnboarding,
+           !StoreManager.shared.isSubscribed,
+           !UserDefaults.standard.bool(forKey: shownKey),
+           canAutoPresentPaywall {
+            UserDefaults.standard.set(true, forKey: shownKey)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+                guard let self, !StoreManager.shared.isSubscribed else { return }
+                self.shouldShowFirstSessionPaywall = true
+                self.recordPaywallShown()
+            }
+        }
+
         // Check if we should prompt for account sign-in
         AccountService.shared.checkSessionMilestone(sessions: count)
     }
@@ -271,14 +352,35 @@ class AppStateManager: ObservableObject {
     }
 
     // MARK: - Deep Link Handling
-    /// Handle incoming deep link URL
-    /// - Parameter url: The deep link URL (e.g., meditation://content/VIDEO_ID)
+    /// Handle incoming deep link URL (custom scheme or Universal Link)
+    /// - Parameter url: The deep link URL
+    ///   - Custom scheme: `meditation://content/VIDEO_ID`
+    ///   - Universal Link: `https://www.meditationandsleepapp.com/content/?v=VIDEO_ID`
     /// - Returns: true if the URL was handled successfully
     @discardableResult
     func handleDeepLink(_ url: URL) -> Bool {
+        // Universal Link: https://www.meditationandsleepapp.com/content/?v=VIDEO_ID
+        if url.scheme == "https" || url.scheme == "http" {
+            guard let host = url.host, host.contains("meditationandsleepapp.com") else { return false }
+
+            if url.path.hasPrefix("/content") {
+                // Extract video ID from ?v= query parameter
+                if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                   let videoID = components.queryItems?.first(where: { $0.name == "v" })?.value,
+                   !videoID.isEmpty {
+                    #if DEBUG
+                    print("[DeepLink] Universal Link content with video ID: \(videoID)")
+                    #endif
+                    pendingDeepLinkVideoID = videoID
+                    return true
+                }
+            }
+            return false
+        }
+
+        // Custom scheme: meditation://content/VIDEO_ID
         guard url.scheme == "meditation" else { return false }
 
-        // Parse the URL path: meditation://content/VIDEO_ID
         if url.host == "content" {
             let videoID = url.lastPathComponent
             if !videoID.isEmpty && videoID != "content" {
@@ -288,6 +390,19 @@ class AppStateManager: ObservableObject {
                 pendingDeepLinkVideoID = videoID
                 return true
             }
+        }
+
+        // In-app navigation: meditation://go/<route> (see AppRoute raw values)
+        if url.host == "go" {
+            let routeName = url.lastPathComponent
+            if let route = AppRoute(rawValue: routeName) {
+                #if DEBUG
+                print("[DeepLink] Navigating to route: \(routeName)")
+                #endif
+                navigate(to: route)
+                return true
+            }
+            return false
         }
 
         // Handle player control deep links from Live Activity

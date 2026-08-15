@@ -39,6 +39,11 @@ enum Constants {
         static let monthlyID = "MonthlySubscription"
         static let annualID = "AnnualSubscription"
         static let annualDiscountedID = "AnnualSubscription"
+
+        /// Free-trial length shown in paywall copy. Keep this in sync with the
+        /// introductory offer configured on the products in App Store Connect.
+        /// (Habit-forming apps often convert better with a longer 14–30 day trial.)
+        static let freeTrialDays = 7
     }
 
     // MARK: - User Defaults Keys
@@ -54,6 +59,18 @@ enum Constants {
         static let downloadOverCellular = "downloadOverCellular"
         static let showMoodCheckIn = "showMoodCheckIn"
         static let chatMessagesSentCount = "chatMessagesSentCount"
+        // Daily Intention ritual
+        static let dailyIntentionText = "dailyIntentionText"
+        static let dailyIntentionDate = "dailyIntentionDate"
+        static let dailyIntentionFocus = "dailyIntentionFocus"
+        // Monthly intention check-in / reset
+        static let monthlyCheckInDate = "monthlyCheckInDate"
+        static let monthlyTheme = "monthlyTheme"
+        static let monthlyReflection = "monthlyReflection"
+        // Kids / family content
+        static let childName = "kidsChildName"
+        // Trial lifecycle
+        static let trialEndDate = "trialEndDate"
     }
 
     // MARK: - Analytics Keys (Trial Tracking)

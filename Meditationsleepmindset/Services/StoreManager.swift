@@ -40,7 +40,15 @@ class StoreManager: ObservableObject {
     init() {
         updateListenerTask = listenForTransactions()
         Task {
+            // Entitlements first: it's a fast local read and it's what flips
+            // `isSubscribed`. Running the (network) product fetch first left
+            // subscribers looking like free users for seconds after launch —
+            // long enough for upsell banners to flash and for Today's Plan to
+            // persist a free-only plan for the day.
+            await updatePurchasedProducts()
             await loadProducts()
+            // Second pass now that products are loaded, so
+            // `purchasedSubscriptions` maps entitlements to Product objects.
             await updatePurchasedProducts()
         }
     }
@@ -130,12 +138,18 @@ class StoreManager: ObservableObject {
         if isVIP { return true }
         for await result in Transaction.currentEntitlements {
             if case .verified(let transaction) = result {
+                // Any auto-renewable entitlement (individual or family) grants premium.
                 if transaction.productType == .autoRenewable {
                     return true
                 }
             }
         }
         return false
+    }
+
+    /// All loaded subscription products.
+    private var allProducts: [Product] {
+        subscriptions
     }
 
     func getSubscriptionExpiryDate() async -> Date? {
@@ -185,7 +199,7 @@ class StoreManager: ObservableObject {
         reportedTransactionIDs.insert(transaction.id)
 
         // Find the matching product to get price and currency
-        guard let product = subscriptions.first(where: { $0.id == transaction.productID }) else { return }
+        guard let product = allProducts.first(where: { $0.id == transaction.productID }) else { return }
 
         let price = product.price
         let currencyCode = product.priceFormatStyle.currencyCode
@@ -203,6 +217,16 @@ class StoreManager: ObservableObject {
                 defaults.set(product.id, forKey: Constants.AnalyticsKeys.trialProductID)
                 defaults.set(transaction.originalID, forKey: Constants.AnalyticsKeys.trialOriginalTransactionID)
                 defaults.set(false, forKey: Constants.AnalyticsKeys.trialConvertedLogged)
+
+                // Schedule the trial-conversion reminder sequence (day 2/4 feature nudges,
+                // a 24h-before-charge transparency notice, and day-7 AM/PM urgency).
+                // Re-runs idempotently on relaunch via the updates listener; past-dated
+                // entries are skipped. This sequence was previously never scheduled.
+                if let trialEnd = transaction.expirationDate {
+                    Task { @MainActor in
+                        NotificationService.shared.scheduleTrialNotifications(trialEndDate: trialEnd)
+                    }
+                }
             } else {
                 // Paid initial purchase — fire revenue events to both platforms
                 AppsFlyerService.shared.logPurchase(price: price, currencyCode: currencyCode, productID: product.id)
@@ -220,6 +244,10 @@ class StoreManager: ObservableObject {
                let trialProductID = defaults.string(forKey: Constants.AnalyticsKeys.trialProductID) {
                 FirebaseService.shared.logTrialConverted(productID: trialProductID, price: price, currencyCode: currencyCode)
                 defaults.set(true, forKey: Constants.AnalyticsKeys.trialConvertedLogged)
+                // Converted — no need to keep nudging about the trial ending.
+                Task { @MainActor in
+                    NotificationService.shared.cancelTrialNotifications()
+                }
             }
         }
     }
@@ -237,6 +265,8 @@ class StoreManager: ObservableObject {
         let hasActiveSubscription = await isPremiumSubscriber()
         if !hasActiveSubscription {
             FirebaseService.shared.logTrialCancelled(productID: trialProductID)
+            // One gentle win-back a few days out, deep-linking to the discount.
+            NotificationService.shared.scheduleWinBackOffer()
             // Clean up trial metadata so we don't fire this again
             defaults.removeObject(forKey: Constants.AnalyticsKeys.trialStartDate)
             defaults.removeObject(forKey: Constants.AnalyticsKeys.trialProductID)
@@ -264,7 +294,7 @@ class StoreManager: ObservableObject {
                         isOnTrial = true
                     }
                 }
-                if let product = subscriptions.first(where: { $0.id == transaction.productID }) {
+                if let product = allProducts.first(where: { $0.id == transaction.productID }) {
                     purchased.append(product)
                 }
             }
@@ -272,6 +302,12 @@ class StoreManager: ObservableObject {
 
         purchasedSubscriptions = purchased
         isSubscribed = hasSubscription
+
+        // If the user is subscribed, drop any pending win-back — a lapsed user
+        // who re-subscribes before the 3-day offer fires shouldn't get it.
+        if hasSubscription {
+            NotificationService.shared.cancelWinBackOffer()
+        }
 
         // Update subscription_status user property for Firebase segmentation
         let status: String
