@@ -244,6 +244,26 @@ struct SleepView: View {
         return allSleep[safe: index]
     }
 
+    /// Fades the category scroller's trailing edge. Skipped on iPad, where the
+    /// row is wide enough that nothing is clipped and a fade would just dim the
+    /// last pill.
+    @ViewBuilder
+    private var categoryScrollerMask: some View {
+        if sizeClass == .regular {
+            Rectangle()
+        } else {
+            LinearGradient(
+                stops: [
+                    .init(color: .black, location: 0),
+                    .init(color: .black, location: 0.86),
+                    .init(color: .clear, location: 1)
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        }
+    }
+
     // MARK: - Sleep Pills
     private var sleepPillsRow: some View {
         HStack(spacing: sizeClass == .regular ? 12 : 8) {
@@ -323,7 +343,7 @@ struct SleepView: View {
                             // banner — put four bands of chrome above any content.
                             // Category is the primary axis and stays visible;
                             // duration is a refinement and now costs no vertical space.
-                            HStack(spacing: 8) {
+                            HStack(spacing: 10) {
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(spacing: 12) {
                                         ForEach(SleepCategory.allCases, id: \.self) { category in
@@ -336,6 +356,12 @@ struct SleepView: View {
                                     .padding(.leading)
                                     .padding(.trailing, 4)
                                 }
+                                // Pills scroll underneath the length filter, so the
+                                // one at the boundary was being sliced clean through
+                                // mid-word and left flush against it. Dissolve the
+                                // trailing edge instead, which also reads as "there
+                                // is more to scroll".
+                                .mask(categoryScrollerMask)
 
                                 Menu {
                                     ForEach(DurationFilter.allCases, id: \.rawValue) { filter in
@@ -354,8 +380,12 @@ struct SleepView: View {
                                     HStack(spacing: 5) {
                                         Image(systemName: "clock")
                                             .font(.caption2)
+                                        // "Any length" is the resting state and was
+                                        // the widest label in the row, squeezing the
+                                        // category scroller down to about a pill and
+                                        // a half. The short form says the same thing.
                                         Text(durationFilter == .all
-                                             ? String(localized: "Any length")
+                                             ? String(localized: "Length")
                                              : durationFilter.displayName)
                                             .font(.caption)
                                             .fontWeight(.medium)
