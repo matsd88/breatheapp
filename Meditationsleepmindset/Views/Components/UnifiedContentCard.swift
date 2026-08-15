@@ -29,6 +29,30 @@ struct UnifiedContentCard: View {
     var onShare: (() -> Void)? = nil
 
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @ObservedObject private var storeManager = StoreManager.shared
+
+    /// Discover already badged premium items, but this shared card — used across
+    /// Home, Sleep, playlists and favourites — did not, so the same session
+    /// looked free in one place and locked in another. Marking it consistently
+    /// also advertises Premium continuously without interrupting anyone.
+    private var showsPremiumLock: Bool {
+        content.isPremium && !storeManager.isSubscribed
+    }
+
+    /// The badge itself, matched to the treatment already used in Discover.
+    @ViewBuilder
+    private var premiumLockBadge: some View {
+        if showsPremiumLock {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.yellow)
+                .padding(5)
+                .background(.black.opacity(0.55))
+                .clipShape(Circle())
+                .padding(4)
+                .accessibilityLabel(String(localized: "Premium"))
+        }
+    }
 
     // Adaptive sizes for iPad
     private var listThumbWidth: CGFloat { sizeClass == .regular ? 140 : 100 }
@@ -242,6 +266,7 @@ struct UnifiedContentCard: View {
             }
             .frame(height: 120)
             .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(alignment: .topTrailing) { premiumLockBadge }
             .overlay(alignment: .bottom) {
                 LinearGradient(
                     colors: [.clear, .black.opacity(0.6)],
@@ -297,6 +322,9 @@ struct UnifiedContentCard: View {
         .frame(width: width, height: height)
         .clipped()
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+        // Covers the list, compact and thumbnail styles, which all route
+        // through here. The sleep style draws its own image and badges itself.
+        .overlay(alignment: .topTrailing) { premiumLockBadge }
     }
 }
 

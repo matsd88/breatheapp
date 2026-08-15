@@ -65,6 +65,7 @@ enum PaywallContext: String {
     case sleepStories
     case settings
     case homeBanner
+    case postSession
 
     var headline: String {
         switch self {
@@ -74,6 +75,7 @@ enum PaywallContext: String {
         case .offlinePacks:   return String(localized: "Take it with you, offline")
         case .premiumSession: return String(localized: "Unlock the full library")
         case .sleepStories:   return String(localized: "Fall asleep to a story")
+        case .postSession:    return String(localized: "Keep this going")
         case .general, .settings, .homeBanner:
             return String(localized: "Unlock Your Full Potential")
         }
@@ -88,6 +90,7 @@ enum PaywallContext: String {
         case .offlinePacks:   return String(localized: "Download packs and play them on a plane, a commute, or anywhere without signal.")
         case .premiumSession: return String(localized: "This session is part of Premium — along with the rest of the library.")
         case .sleepStories:   return String(localized: "100+ narrated stories designed to get you to sleep, not keep you listening.")
+        case .postSession:    return String(localized: "You just finished a session. Premium opens the full library, so there's always a next one waiting.")
         case .general, .settings, .homeBanner: return nil
         }
     }
@@ -101,7 +104,7 @@ enum PaywallContext: String {
         case .kidsStories:    return "bubble.left.and.text.bubble.right.fill"
         case .sleepStories:   return "moon.stars.fill"
         case .offlinePacks:   return "music.note.list"
-        case .premiumSession, .general, .settings, .homeBanner: return nil
+        case .premiumSession, .postSession, .general, .settings, .homeBanner: return nil
         }
     }
 
