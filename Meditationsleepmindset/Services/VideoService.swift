@@ -145,11 +145,25 @@ actor VideoService {
 actor MediaStreamService {
     static let shared = MediaStreamService()
 
-    /// Get stream URL using the configured backend (R2 or YouTube)
+    /// Get stream URL using the configured backend (R2 or YouTube).
+    ///
+    /// R2 is not a complete mirror of the catalog — as of this writing 71 of the
+    /// 1003 catalogued sessions have no media object, while their thumbnails are
+    /// present, so the cards look healthy right up until playback. This used to
+    /// be strictly either/or, and every retry in AudioPlayerManager re-entered
+    /// the same R2-only path, so those sessions could never play at all. Fall
+    /// back to extraction when R2 doesn't have the file.
     func getStreamURL(for videoID: String, audioOnly: Bool = true) async throws -> URL {
-        if VideoService.useR2 {
+        guard VideoService.useR2 else {
+            return try await YouTubeService.shared.getStreamURL(for: videoID, audioOnly: audioOnly)
+        }
+
+        do {
             return try await VideoService.shared.getStreamURL(for: videoID, audioOnly: audioOnly)
-        } else {
+        } catch VideoServiceError.videoNotFound {
+            #if DEBUG
+            print("[MediaStreamService] \(videoID) missing from R2 — falling back to extraction")
+            #endif
             return try await YouTubeService.shared.getStreamURL(for: videoID, audioOnly: audioOnly)
         }
     }

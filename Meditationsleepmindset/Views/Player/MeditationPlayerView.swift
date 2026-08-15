@@ -157,8 +157,9 @@ struct MeditationPlayerView: View {
                             .padding(.top, 8)
                         }
 
-                        // Content info
-                        contentInfoSection
+                        // Content info. The description only fits on taller
+                        // devices — an SE has no slack left after the artwork.
+                        contentInfoSection(showsDescription: geometry.size.height > 780)
                             .padding(.horizontal, 24)
                             .padding(.top, 28)
 
@@ -209,6 +210,30 @@ struct MeditationPlayerView: View {
                                                 ? "Ambient sounds"
                                                 : "\(ambientManager.activeSounds.count) ambient sounds playing")
                             .accessibilityHint("Opens the soundscape mixer")
+
+                            // Breathe With Me is a headline feature that was
+                            // reachable only from the overflow menu, three taps
+                            // in. It belongs beside the other session modes.
+                            Button {
+                                impactLight.impactOccurred()
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    showBreathGuide = true
+                                }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "circle.circle")
+                                        .font(isRegular ? .caption : .caption2)
+                                    Text("Breathe")
+                                }
+                                .font(isRegular ? .subheadline : .caption)
+                                .foregroundStyle(.white.opacity(0.55))
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(Color.white.opacity(0.08))
+                                .clipShape(Capsule())
+                            }
+                            .accessibilityLabel("Breathe with me")
+                            .accessibilityHint("Starts a guided breathing overlay while audio keeps playing")
 
                             // Up Next indicator — opens the browsable queue
                             if playerManager.queue.count > 1 {
@@ -841,7 +866,7 @@ struct MeditationPlayerView: View {
     }
 
     // MARK: - Content Info Section
-    private var contentInfoSection: some View {
+    private func contentInfoSection(showsDescription: Bool) -> some View {
         VStack(spacing: isRegular ? 10 : 6) {
             // Title
             Text(displayedContent.title)
@@ -851,16 +876,24 @@ struct MeditationPlayerView: View {
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
 
-            // Narrator and duration
+            // Credits and duration. The narrator used to be an unlabelled name
+            // sitting next to a duration, so it read as metadata rather than as
+            // the person guiding the session.
             HStack(spacing: 6) {
-                if let narrator = displayedContent.narrator {
+                if let narrator = displayedContent.narrator, !narrator.isEmpty {
+                    Text("Voice")
+                        .font(.caption2.weight(.semibold))
+                        .textCase(.uppercase)
+                        .tracking(0.6)
+                        .foregroundStyle(.white.opacity(0.4))
+
                     Text(narrator)
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(.white.opacity(0.75))
                 }
 
                 let durationText = playerManager.duration > 0 ? formatDuration(playerManager.duration) : displayedContent.durationFormatted
                 if !durationText.isEmpty {
-                    if displayedContent.narrator != nil {
+                    if let narrator = displayedContent.narrator, !narrator.isEmpty {
                         Text("·")
                             .foregroundStyle(.white.opacity(0.4))
                     }
@@ -869,7 +902,22 @@ struct MeditationPlayerView: View {
                 }
             }
             .font(isRegular ? .body : .subheadline)
+            .lineLimit(1)
 
+            // Every catalogued session carries an authored description that this
+            // screen never showed, leaving the artwork floating above empty
+            // space. Hidden on short devices, where there is no room to spare.
+            if showsDescription,
+               let description = displayedContent.contentDescription?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !description.isEmpty {
+                Text(description)
+                    .font(isRegular ? .subheadline : .footnote)
+                    .foregroundStyle(.white.opacity(0.6))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, isRegular ? 4 : 2)
+            }
         }
     }
 
@@ -1052,10 +1100,13 @@ struct MeditationPlayerView: View {
                 }
 
                 // Time labels — tap the right label to flip total ⇄ remaining
+                // Sized up from .subheadline: this is read mid-session, often
+                // at arm's length with eyes half closed, and it was the smallest
+                // text on a screen that is mostly empty space.
                 HStack {
                     Text(formatTime(scrubTime ?? playerManager.currentTime))
-                        .font(isRegular ? .body : .subheadline)
-                        .foregroundStyle(scrubTime != nil ? .white : .white.opacity(0.6))
+                        .font((isRegular ? Font.title3 : Font.callout).weight(.medium))
+                        .foregroundStyle(scrubTime != nil ? .white : .white.opacity(0.7))
                         .monospacedDigit()
 
                     Spacer()
@@ -1067,8 +1118,8 @@ struct MeditationPlayerView: View {
                         Text(showsRemainingTime
                              ? "-\(formatTime(max(0, playerManager.duration - (scrubTime ?? playerManager.currentTime))))"
                              : formatTime(playerManager.duration))
-                            .font(isRegular ? .body : .subheadline)
-                            .foregroundStyle(.white.opacity(0.6))
+                            .font((isRegular ? Font.title3 : Font.callout).weight(.medium))
+                            .foregroundStyle(.white.opacity(0.7))
                             .monospacedDigit()
                     }
                     .buttonStyle(.plain)
