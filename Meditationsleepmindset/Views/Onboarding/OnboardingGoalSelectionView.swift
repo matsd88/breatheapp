@@ -81,7 +81,7 @@ struct OnboardingGoalSelectionView: View {
                 .padding(.horizontal, 16)
 
                 // Progress indicator
-                OnboardingProgressDotsView(current: 1, total: 7)
+                OnboardingProgressDotsView(step: .goals)
 
                 // Header
                 Text("Let's personalize your journey")
@@ -181,9 +181,36 @@ struct OnboardingGoalOptionButton: View {
     }
 }
 
+/// The onboarding flow, in order. Single source of truth for both the switch in
+/// `OnboardingView` and the progress bar.
+///
+/// Previously each screen hardcoded its own `current:` and `total: 7` while the
+/// flow actually had 8 steps, so the bar overstated progress everywhere and two
+/// screens both claimed step 5. Deriving position from this enum means adding or
+/// reordering a step can't silently desynchronise the indicator again.
+enum OnboardingStep: Int, CaseIterable {
+    case welcome = 0
+    case goals
+    case breathing
+    case testimonials
+    case notifications
+    case tracking
+    case sleepAssessment
+    case paywall
+
+    static var total: Int { allCases.count }
+
+    /// 0-based position within the flow.
+    var index: Int { rawValue }
+
+    /// Fraction complete once this step is on screen.
+    var fractionComplete: Double {
+        Double(index + 1) / Double(Self.total)
+    }
+}
+
 struct OnboardingProgressDotsView: View {
-    let current: Int
-    let total: Int
+    let step: OnboardingStep
 
     var body: some View {
         GeometryReader { geo in
@@ -195,13 +222,17 @@ struct OnboardingProgressDotsView: View {
 
                 Capsule()
                     .fill(Color.white)
-                    .frame(width: width * CGFloat(current + 1) / CGFloat(total), height: 4)
-                    .animation(.easeInOut(duration: 0.4), value: current)
+                    .frame(width: width * CGFloat(step.fractionComplete), height: 4)
+                    .animation(.easeInOut(duration: 0.4), value: step)
             }
             .frame(width: width)
             .position(x: geo.size.width / 2, y: geo.size.height / 2)
         }
         .frame(height: 12)
+        // Screen readers get the position spoken rather than an unlabelled bar.
+        .accessibilityElement()
+        .accessibilityLabel(String(localized: "Onboarding progress"))
+        .accessibilityValue(String(localized: "Step \(step.index + 1) of \(OnboardingStep.total)"))
     }
 }
 

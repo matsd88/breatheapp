@@ -49,7 +49,7 @@ struct NotificationPermissionView: View {
                 .padding(.horizontal, 16)
 
                 // Progress indicator
-                OnboardingProgressDotsView(current: 4, total: 7)
+                OnboardingProgressDotsView(step: .notifications)
 
                 Spacer()
 

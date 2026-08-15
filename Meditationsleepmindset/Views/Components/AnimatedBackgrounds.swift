@@ -11,20 +11,54 @@ struct AnimatedBackgroundView: View {
     let backgroundID: AnimatedBackgroundID
     let accentColor: Color
 
+    /// The system-level setting, which nothing in the app was reading.
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    /// The app's own toggle in Settings › Accessibility.
+    @AppStorage("accessibilityReduceMotion") private var appReduceMotion = false
+
+    /// These backgrounds are driven by `TimelineView(.animation)`, which redraws
+    /// continuously and is *not* affected by `transaction.disablesAnimations` —
+    /// the mechanism the app's Reduce Motion toggle uses. So the largest source
+    /// of motion in the app ignored both that toggle and the system setting.
+    /// Honouring either one also stops a 30fps redraw running for the length of
+    /// a session, which is a meaningful battery saving on a screen-on screen.
+    private var shouldReduceMotion: Bool { systemReduceMotion || appReduceMotion }
+
     var body: some View {
-        switch backgroundID {
-        case .none:
+        if shouldReduceMotion {
+            // A still wash keeps the visual identity without any movement.
+            staticFallback
+        } else {
+            switch backgroundID {
+            case .none:
+                EmptyView()
+            case .rain:
+                RainBackgroundView()
+            case .water:
+                WaterBackgroundView(accentColor: accentColor)
+            case .aurora:
+                AuroraBackgroundView(accentColor: accentColor)
+            case .stars:
+                StarsBackgroundView()
+            case .pulse:
+                PulseBackgroundView(accentColor: accentColor)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var staticFallback: some View {
+        if backgroundID == .none {
             EmptyView()
-        case .rain:
-            RainBackgroundView()
-        case .water:
-            WaterBackgroundView(accentColor: accentColor)
-        case .aurora:
-            AuroraBackgroundView(accentColor: accentColor)
-        case .stars:
-            StarsBackgroundView()
-        case .pulse:
-            PulseBackgroundView(accentColor: accentColor)
+        } else {
+            RadialGradient(
+                colors: [accentColor.opacity(0.18), .clear],
+                center: .center,
+                startRadius: 0,
+                endRadius: 420
+            )
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
         }
     }
 }
@@ -80,7 +114,8 @@ struct WaterBackgroundView: View {
     @State private var phase: CGFloat = 0
 
     var body: some View {
-        TimelineView(.animation) { timeline in
+        // 30fps cap — imperceptible on a slow wave, halves sustained GPU load
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
             Canvas { context, size in
                 let waveHeight: CGFloat = 20
                 let baseY = size.height * 0.7
@@ -111,7 +146,8 @@ struct AuroraBackgroundView: View {
 
     var body: some View {
         GeometryReader { _ in
-            TimelineView(.animation) { timeline in
+            // 30fps cap — imperceptible on slow-drifting blobs, halves GPU load
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
                 let t = timeline.date.timeIntervalSinceReferenceDate
 
                 Canvas { context, size in
@@ -122,19 +158,23 @@ struct AuroraBackgroundView: View {
                         (1.0, 4.5, 0.12, 0.08, 0.3, 0.25),
                     ]
 
-                    for blob in blobs {
-                        let cx = size.width * 0.5 + CGFloat(sin(t * blob.xSpeed + blob.xPhase)) * size.width * 0.35
-                        let cy = size.height * 0.4 + CGFloat(cos(t * blob.ySpeed + blob.yPhase)) * size.height * 0.25
-                        let r = size.width * blob.radiusFraction
+                    // One shared blur layer for all blobs: Gaussian blur is linear,
+                    // so blurring the composite looks the same as blurring each blob
+                    // individually — but costs 1 blur pass per frame instead of 4.
+                    context.drawLayer { ctx in
+                        ctx.addFilter(.blur(radius: 25))
 
-                        let gradient = Gradient(colors: [
-                            accentColor.opacity(blob.opacity),
-                            accentColor.opacity(blob.opacity * 0.3),
-                            accentColor.opacity(0)
-                        ])
+                        for blob in blobs {
+                            let cx = size.width * 0.5 + CGFloat(sin(t * blob.xSpeed + blob.xPhase)) * size.width * 0.35
+                            let cy = size.height * 0.4 + CGFloat(cos(t * blob.ySpeed + blob.yPhase)) * size.height * 0.25
+                            let r = size.width * blob.radiusFraction
 
-                        context.drawLayer { ctx in
-                            ctx.addFilter(.blur(radius: 25))
+                            let gradient = Gradient(colors: [
+                                accentColor.opacity(blob.opacity),
+                                accentColor.opacity(blob.opacity * 0.3),
+                                accentColor.opacity(0)
+                            ])
+
                             let rect = CGRect(x: cx - r, y: cy - r, width: r * 2, height: r * 2)
                             ctx.fill(
                                 Ellipse().path(in: rect),
@@ -202,7 +242,8 @@ struct PulseBackgroundView: View {
 
     var body: some View {
         GeometryReader { geo in
-            TimelineView(.animation) { timeline in
+            // 30fps cap — imperceptible on a 4-second breathing cycle, halves GPU load
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
                 let phase = timeline.date.timeIntervalSinceReferenceDate
                 let scale = 0.8 + 0.4 * sin(phase * 0.4) // 4 second cycle
 

@@ -81,7 +81,7 @@ struct OnboardingTestimonialsView: View {
                 }
                 .padding(.horizontal, 16)
 
-                OnboardingProgressDotsView(current: 3, total: 7)
+                OnboardingProgressDotsView(step: .testimonials)
 
                 Spacer()
 

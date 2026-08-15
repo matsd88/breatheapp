@@ -41,7 +41,7 @@ struct OnboardingTrackingPermissionView: View {
                 .padding(.horizontal, 16)
 
                 // Progress indicator
-                OnboardingProgressDotsView(current: 5, total: 7)
+                OnboardingProgressDotsView(step: .tracking)
 
                 Spacer()
 

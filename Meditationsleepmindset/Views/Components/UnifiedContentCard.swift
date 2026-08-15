@@ -64,9 +64,9 @@ struct UnifiedContentCard: View {
             }
 
             ShareLink(
-                item: content.deepLinkURL,
+                item: content.shareURL,
                 subject: Text(content.title),
-                message: Text("Check out '\(content.title)' on Meditation Sleep Mindset!")
+                message: Text("Check out '\(content.title)' on Breathe!")
             ) {
                 Label("Share", systemImage: "square.and.arrow.up")
             }
@@ -112,7 +112,7 @@ struct UnifiedContentCard: View {
                 Text(content.title)
                     .font(.headline)
                     .foregroundStyle(Theme.textPrimary)
-                    .lineLimit(1)
+                    .lineLimit(2)
 
                 if let narrator = content.narrator {
                     Text(narrator)
@@ -148,7 +148,7 @@ struct UnifiedContentCard: View {
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .foregroundStyle(Theme.textPrimary)
-                    .lineLimit(1)
+                    .lineLimit(2)
 
                 HStack(spacing: 6) {
                     Text(content.contentType.displayName)
@@ -202,7 +202,7 @@ struct UnifiedContentCard: View {
                     .font(sizeClass == .regular ? .body : .subheadline)
                     .fontWeight(.medium)
                     .foregroundStyle(Theme.textPrimary)
-                    .lineLimit(1)
+                    .lineLimit(2, reservesSpace: true)
 
                 Text(content.durationFormatted)
                     .font(sizeClass == .regular ? .subheadline : .caption)
@@ -261,7 +261,9 @@ struct UnifiedContentCard: View {
                 .font(.subheadline)
                 .fontWeight(.medium)
                 .foregroundStyle(.white)
-                .lineLimit(2)
+                // Sleep cards sit in a grid, so titles of differing length must
+                // still produce equal-height cells.
+                .lineLimit(2, reservesSpace: true)
 
             Text(content.narrator ?? " ")
                 .font(.caption)

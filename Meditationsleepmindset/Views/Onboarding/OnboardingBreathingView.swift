@@ -217,7 +217,7 @@ struct OnboardingBreathingView: View {
                     .padding(.horizontal, 16)
 
                     // Progress indicator
-                    OnboardingProgressDotsView(current: 2, total: 7)
+                    OnboardingProgressDotsView(step: .breathing)
                 }
 
                 Spacer()
