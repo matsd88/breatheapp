@@ -47,15 +47,33 @@ actor VideoService {
             throw VideoServiceError.invalidVideoID
         }
 
-        let filename = audioOnly ? "audio.m4a" : "video.mp4"
-        let urlString = "\(Self.r2BaseURL)/videos/\(videoID)/\(filename)"
+        if let url = try await existingObjectURL(videoID: videoID, filename: audioOnly ? "audio.m4a" : "video.mp4") {
+            return url
+        }
 
+        // The bucket is not uniformly stocked — some sessions have audio but no
+        // video object. The player asks for video first, so without this a
+        // perfectly playable session would fall out to extraction, or fail.
+        // Sound is what matters for a meditation; take the audio.
+        if !audioOnly,
+           let audioURL = try await existingObjectURL(videoID: videoID, filename: "audio.m4a") {
+            #if DEBUG
+            print("[VideoService] No video object for \(videoID) — using audio")
+            #endif
+            return audioURL
+        }
+
+        throw VideoServiceError.videoNotFound
+    }
+
+    /// Returns the URL if R2 has the object, nil on a 404. A HEAD costs ~100ms
+    /// and saves handing AVPlayer a URL it will spend ten seconds failing on.
+    private func existingObjectURL(videoID: String, filename: String) async throws -> URL? {
+        let urlString = "\(Self.r2BaseURL)/videos/\(videoID)/\(filename)"
         guard let url = URL(string: urlString) else {
             throw VideoServiceError.invalidURL
         }
 
-        // HEAD request to verify file exists on R2 before handing to AVPlayer
-        // Adds ~100ms but saves 10s of user wait on 404s
         var headRequest = URLRequest(url: url)
         headRequest.httpMethod = "HEAD"
         headRequest.timeoutInterval = 3
@@ -63,12 +81,10 @@ actor VideoService {
         do {
             let (_, response) = try await URLSession.shared.data(for: headRequest)
             if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 404 {
-                throw VideoServiceError.videoNotFound
+                return nil
             }
-        } catch let error as VideoServiceError {
-            throw error
         } catch {
-            // Network error on HEAD check — let AVPlayer try anyway
+            // Network error on the HEAD check — let AVPlayer try anyway
             #if DEBUG
             print("[VideoService] HEAD check failed, proceeding: \(error.localizedDescription)")
             #endif
