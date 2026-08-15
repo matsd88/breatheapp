@@ -8,10 +8,12 @@ import SwiftData
 
 enum DiscoverSheetType: Identifiable {
     case programs
+    case premium
     case addToPlaylist(Content)
     var id: String {
         switch self {
         case .programs: return "programs"
+        case .premium: return "premium"
         case .addToPlaylist(let c): return "playlist-\(c.youtubeVideoID)"
         }
     }
@@ -35,6 +37,7 @@ struct DiscoverView: View {
     @State private var showYouTubeSearch = false
     @State private var showAIMeditation = false
     @State private var showMicroMoments = false
+    @StateObject private var storeManager = StoreManager.shared
 
     init(initialCategory: Binding<ContentType?> = .constant(nil)) {
         self._initialCategory = initialCategory
@@ -53,6 +56,20 @@ struct DiscoverView: View {
 
     private var contentByType: [ContentType: [Content]] {
         Dictionary(grouping: filteredContent, by: { $0.contentType })
+    }
+
+    /// Names what the user is actually looking at — the count of locked
+    /// sessions in the category they've filtered to — instead of a generic
+    /// pitch they've already scrolled past on Home.
+    private var discoverPremiumHook: String? {
+        if let category = selectedCategory,
+           let contents = contentByType[category] {
+            let locked = contents.filter(\.isPremium).count
+            if locked > 0 {
+                return String(localized: "\(locked) more \(category.displayName.lowercased()) sessions with Premium")
+            }
+        }
+        return String(localized: "Unlock every session, program and AI meditation")
     }
 
     var body: some View {
@@ -125,6 +142,20 @@ struct DiscoverView: View {
                                     selectedCategory: $selectedCategory,
                                     contentByType: contentByType
                                 )
+
+                                // Discover is where free users meet locked
+                                // sessions, but it had no upsell of its own —
+                                // only per-card locks with nowhere to go.
+                                if !storeManager.isSubscribed {
+                                    Button {
+                                        HapticManager.light()
+                                        activeDiscoverSheet = .premium
+                                    } label: {
+                                        PremiumUpsellBanner(hook: discoverPremiumHook)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .padding(.horizontal)
+                                }
 
                                 // Browse by Category
                                 if let category = selectedCategory {
@@ -207,6 +238,12 @@ struct DiscoverView: View {
                 switch sheet {
                 case .programs:
                     ProgramsListView()
+                case .premium:
+                    PremiumPaywallView(
+                        storeManager: storeManager,
+                        context: .discoverBanner,
+                        onSubscribed: { activeDiscoverSheet = nil }
+                    )
                 case .addToPlaylist(let content):
                     AddToPlaylistSheet(content: content)
                 }
@@ -1064,6 +1101,12 @@ struct DiscoverContentListView: View {
             switch sheet {
             case .programs:
                 ProgramsListView()
+            case .premium:
+                PremiumPaywallView(
+                    storeManager: StoreManager.shared,
+                    context: .discoverBanner,
+                    onSubscribed: { activeListSheet = nil }
+                )
             case .addToPlaylist(let content):
                 AddToPlaylistSheet(content: content)
             }

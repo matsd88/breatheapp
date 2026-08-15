@@ -66,6 +66,8 @@ enum PaywallContext: String {
     case settings
     case homeBanner
     case postSession
+    case sleepBanner
+    case discoverBanner
 
     var headline: String {
         switch self {
@@ -76,6 +78,8 @@ enum PaywallContext: String {
         case .premiumSession: return String(localized: "Unlock the full library")
         case .sleepStories:   return String(localized: "Fall asleep to a story")
         case .postSession:    return String(localized: "Keep this going")
+        case .sleepBanner:    return String(localized: "Sleep through the night")
+        case .discoverBanner: return String(localized: "The whole library, unlocked")
         case .general, .settings, .homeBanner:
             return String(localized: "Unlock Your Full Potential")
         }
@@ -91,6 +95,8 @@ enum PaywallContext: String {
         case .premiumSession: return String(localized: "This session is part of Premium — along with the rest of the library.")
         case .sleepStories:   return String(localized: "100+ narrated stories designed to get you to sleep, not keep you listening.")
         case .postSession:    return String(localized: "You just finished a session. Premium opens the full library, so there's always a next one waiting.")
+        case .sleepBanner:    return String(localized: "Every sleep story, soundscape and sleep tool — plus offline downloads for nights without signal.")
+        case .discoverBanner: return String(localized: "960+ sessions, every multi-day program, and the AI Studio to make your own.")
         case .general, .settings, .homeBanner: return nil
         }
     }
@@ -104,6 +110,8 @@ enum PaywallContext: String {
         case .kidsStories:    return "bubble.left.and.text.bubble.right.fill"
         case .sleepStories:   return "moon.stars.fill"
         case .offlinePacks:   return "music.note.list"
+        case .sleepBanner:    return "moon.stars.fill"
+        case .discoverBanner: return "wand.and.stars"
         case .premiumSession, .postSession, .general, .settings, .homeBanner: return nil
         }
     }

@@ -55,7 +55,7 @@ struct SleepView: View {
     }
 
     enum SleepSheetType: Identifiable {
-        case sleepTimer, alarm, analytics, soundMixer
+        case sleepTimer, alarm, analytics, soundMixer, premium
         case addToPlaylist(Content)
         var id: String {
             switch self {
@@ -63,6 +63,7 @@ struct SleepView: View {
             case .alarm: return "alarm"
             case .analytics: return "analytics"
             case .soundMixer: return "soundMixer"
+            case .premium: return "premium"
             case .addToPlaylist(let c): return "playlist-\(c.youtubeVideoID)"
             }
         }
@@ -72,6 +73,7 @@ struct SleepView: View {
     /// state moved off AudioPlayerManager's published properties). Ticks at
     /// most 1 Hz, and only while a sleep timer is active.
     @ObservedObject private var sleepTimerClock = AudioPlayerManager.shared.sleepTimerClock
+    @StateObject private var storeManager = StoreManager.shared
     @StateObject private var notificationService = NotificationService.shared
     @StateObject private var circadian = CircadianService.shared
     @StateObject private var health = HealthKitService.shared
@@ -81,6 +83,32 @@ struct SleepView: View {
     private let sleepTimeFormatter: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "h:mm a"; return f
     }()
+
+    /// Whether the user is inside tonight's wind-down window, using the same
+    /// circadian schedule the wind-down banner above already renders from.
+    private var isInWindDownWindow: Bool {
+        guard let windDown = circadian.schedule().windows.first(where: {
+            if case .windDown = $0.type { return true } else { return false }
+        }) else { return false }
+        let now = Date()
+        return now >= windDown.start && now <= windDown.end
+    }
+
+    /// Leads with the moment the user is actually in — inside their wind-down
+    /// window the pitch is tonight, otherwise it's the tool they're browsing.
+    private var sleepPremiumHook: String? {
+        if isInWindDownWindow {
+            return String(localized: "Drift off tonight to any of 100+ sleep stories")
+        }
+        switch selectedCategory {
+        case .soundscapes:
+            return String(localized: "Every soundscape, layered your way")
+        case .asmr:
+            return String(localized: "The full ASMR collection, unlocked")
+        default:
+            return String(localized: "100+ sleep stories, and downloads for offline nights")
+        }
+    }
 
     // MARK: - Wind-down window banner (circadian)
     @ViewBuilder
@@ -416,6 +444,20 @@ struct SleepView: View {
                             // Sleep Lab tools (moved below the content shelves)
                             SleepToolsSection()
 
+                            // The Sleep tab had no upsell at all, even though
+                            // most of what it shows — stories, soundscapes,
+                            // offline downloads — is the premium pitch.
+                            if !storeManager.isSubscribed {
+                                Button {
+                                    HapticManager.light()
+                                    activeSleepSheet = .premium
+                                } label: {
+                                    PremiumUpsellBanner(hook: sleepPremiumHook)
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.horizontal)
+                            }
+
                             // Sleep Preparation + bedtime nudge (secondary, near the bottom)
                             SleepPreparationCard {
                                 showSleepPreparation = true
@@ -478,6 +520,12 @@ struct SleepView: View {
                 SleepAnalyticsDashboard()
             case .soundMixer:
                 SoundMixerView()
+            case .premium:
+                PremiumPaywallView(
+                    storeManager: storeManager,
+                    context: .sleepBanner,
+                    onSubscribed: { activeSleepSheet = nil }
+                )
             case .addToPlaylist(let content):
                 AddToPlaylistSheet(content: content)
             }
