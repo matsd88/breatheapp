@@ -57,6 +57,13 @@ class ChatService: ObservableObject {
     private var memoryGeneration = 0
     /// Stores the last failed message text for retry
     @Published var lastFailedMessage: String?
+    /// The user message that failed to get a reply. Retry resends this row
+    /// instead of inserting a duplicate.
+    private var failedUserMessage: ChatMessage?
+    /// The transient "trouble connecting" bubble; removed on the next send.
+    private var connectionErrorMessage: ChatMessage?
+    static let connectionErrorText = "I'm having trouble connecting right now. Tap retry or type again."
+
 
     private let cloudStore = NSUbiquitousKeyValueStore.default
 
@@ -150,6 +157,8 @@ class ChatService: ObservableObject {
     }
 
     func endSession(in context: ModelContext) {
+        failedUserMessage = nil
+        connectionErrorMessage = nil
         currentAPITask?.cancel()
         currentAPITask = nil
         revealTimer?.invalidate()
@@ -186,6 +195,8 @@ class ChatService: ObservableObject {
 
     func clearAllHistory(in context: ModelContext) {
         // End current session
+        failedUserMessage = nil
+        connectionErrorMessage = nil
         currentSession?.endSession()
         currentSession = nil
         messages = []
@@ -213,25 +224,43 @@ class ChatService: ObservableObject {
     // MARK: - Send Message
 
     func sendMessage(_ text: String, in context: ModelContext) async {
+        await sendMessage(text, reusing: nil, in: context)
+    }
+
+    private func sendMessage(_ text: String, reusing existingMessage: ChatMessage?, in context: ModelContext) async {
         guard let session = currentSession else { return }
         guard !hasReachedFreeLimit else { return }
+        // Voice dictation can call in while a reply is pending; two requests
+        // in flight overwrote currentAPITask and cleared isLoading early.
+        guard !isLoading else { return }
 
         lastFailedMessage = nil
+        failedUserMessage = nil
+        if let stale = connectionErrorMessage {
+            messages.removeAll { $0.id == stale.id }
+            context.delete(stale)
+            connectionErrorMessage = nil
+        }
 
         // Check crisis keywords (show alert but still process message)
         if CrisisKeywords.containsCrisisKeyword(text) {
             showCrisisAlert = true
         }
 
-        // Create and persist user message
-        let userMessage = ChatMessage(
-            sessionID: session.id,
-            role: .user,
-            type: .text,
-            content: text
-        )
-        context.insert(userMessage)
-        messages.append(userMessage)
+        // Create and persist user message (a retry reuses the original row)
+        let userMessage: ChatMessage
+        if let existingMessage {
+            userMessage = existingMessage
+        } else {
+            userMessage = ChatMessage(
+                sessionID: session.id,
+                role: .user,
+                type: .text,
+                content: text
+            )
+            context.insert(userMessage)
+            messages.append(userMessage)
+        }
 
         // Add to conversation history
         conversationHistory.append(.init(role: "user", content: text))
@@ -241,6 +270,8 @@ class ChatService: ObservableObject {
 
         // Show typing indicator
         isLoading = true
+        // Show the user's message now, not when the reply lands (up to 30s).
+        buildChatHistory(in: context)
 
         // Call API (cancellable)
         let task = Task {
@@ -288,6 +319,7 @@ class ChatService: ObservableObject {
                 self.error = error.localizedDescription
                 self.showError = true
                 self.lastFailedMessage = text
+                self.failedUserMessage = userMessage
 
                 // Remove the failed user message from conversation history so retry works
                 if conversationHistory.last?.content == text {
@@ -299,10 +331,11 @@ class ChatService: ObservableObject {
                     sessionID: session.id,
                     role: .assistant,
                     type: .text,
-                    content: "I'm having trouble connecting right now. Tap retry or type again."
+                    content: Self.connectionErrorText
                 )
                 context.insert(errorMessage)
                 messages.append(errorMessage)
+                connectionErrorMessage = errorMessage
             }
 
             isLoading = false
@@ -339,8 +372,9 @@ class ChatService: ObservableObject {
     /// Retry the last failed message
     func retryLastMessage(in context: ModelContext) async {
         guard let failedText = lastFailedMessage else { return }
+        let original = failedUserMessage
         lastFailedMessage = nil
-        await sendMessage(failedText, in: context)
+        await sendMessage(failedText, reusing: original, in: context)
     }
 
     // MARK: - Content Suggestion Detection
@@ -578,7 +612,8 @@ class ChatService: ObservableObject {
         )
         conversationHistory = [.init(role: "system", content: systemPrompt)]
 
-        for message in messages where message.messageType == .text {
+        // The connection-error bubble is UI only — never feed it to the model.
+        for message in messages where message.messageType == .text && message.content != Self.connectionErrorText {
             conversationHistory.append(.init(
                 role: message.role.rawValue,
                 content: message.content

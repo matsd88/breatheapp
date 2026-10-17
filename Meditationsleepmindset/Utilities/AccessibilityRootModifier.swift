@@ -35,13 +35,12 @@ private struct AccessibilityWrapper<Wrapped: View>: View {
 
     /// Bumps Dynamic Type to an accessibility size when Larger Text is on, and leaves
     /// the system size untouched when off (so users who set a larger size aren't shrunk).
-    @ViewBuilder
+    /// One branch on purpose: an if/else here gave the whole app a new view
+    /// identity on toggle, which dismissed Settings and reset every tab.
+    /// Off = the full range, i.e. the system size untouched.
     private func largerText<V: View>(_ view: V) -> some View {
-        if largeText {
-            view.dynamicTypeSize(.accessibility1)
-        } else {
-            view
-        }
+        view.dynamicTypeSize(largeText ? DynamicTypeSize.accessibility1...DynamicTypeSize.accessibility5
+                                       : DynamicTypeSize.xSmall...DynamicTypeSize.accessibility5)
     }
 }
 

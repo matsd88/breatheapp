@@ -1298,8 +1298,10 @@ struct ShareStatsView: View {
 
     @State private var renderedImage: UIImage?
 
+    /// Same source as the Profile card. Summing `durationSeconds` (the
+    /// content's full length) turned 2 minutes of a 60-minute story into 60.
     private var totalMinutes: Int {
-        sessions.reduce(0) { $0 + $1.durationSeconds / 60 }
+        streakService.totalMinutes
     }
 
     private var formattedTime: String {
@@ -1350,7 +1352,7 @@ struct ShareStatsView: View {
                 // Stats Card (the shareable part)
                 ShareableStatsCard(
                     mindfulDays: streakService.currentStreak,
-                    totalSessions: sessions.count,
+                    totalSessions: streakService.totalSessions,
                     mindfulMinutes: formattedTime,
                     longestStreak: streakService.longestStreak
                 )
@@ -1390,7 +1392,7 @@ struct ShareStatsView: View {
     private func renderStatsCard() {
         let cardView = ShareableStatsCard(
             mindfulDays: streakService.currentStreak,
-            totalSessions: sessions.count,
+            totalSessions: streakService.totalSessions,
             mindfulMinutes: formattedTime,
             longestStreak: streakService.longestStreak
         )

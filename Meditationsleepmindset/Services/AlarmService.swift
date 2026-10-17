@@ -111,6 +111,8 @@ class AlarmService: ObservableObject {
         content.title = "Alarm"
         content.body = "Snooze is over — time to rise."
         content.sound = notificationSound(for: selectedSoundName)
+        // Same category as the alarm, so the snoozed alarm can be snoozed again.
+        content.categoryIdentifier = "ALARM"
 
         let trigger = UNTimeIntervalNotificationTrigger(
             timeInterval: TimeInterval(snoozeMinutes * 60),

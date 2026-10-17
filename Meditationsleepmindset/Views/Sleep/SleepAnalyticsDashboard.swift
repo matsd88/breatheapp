@@ -463,11 +463,12 @@ struct SleepAnalyticsDashboard: View {
             displayHour -= 24
         }
 
-        let period = displayHour >= 12 ? "AM" : "PM"
-        var hour12 = displayHour % 12
-        if hour12 == 0 { hour12 = 12 }
-
-        return "\(hour12) \(period)"
+        // AM/PM were swapped (20:00 read "8 AM"); format with the user's
+        // locale so 24-hour regions get "20" instead.
+        guard let date = Calendar.current.date(bySettingHour: displayHour, minute: 0, second: 0, of: Date()) else {
+            return "\(displayHour)"
+        }
+        return date.formatted(.dateTime.hour())
     }
 
     private func calculateAverageBedtimeFromTrends() -> Date? {

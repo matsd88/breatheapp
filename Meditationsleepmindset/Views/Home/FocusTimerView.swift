@@ -353,10 +353,14 @@ struct FocusTimerView: View {
 
     private func startTimer() {
         timer?.invalidate()
+        // Count down against a wall-clock end time: a bare `-= 1` per tick
+        // froze while the phone was locked (the app is suspended without audio).
+        let endDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             Task { @MainActor in
+                timeRemaining = max(0, Int(endDate.timeIntervalSinceNow.rounded(.up)))
                 if timeRemaining > 0 {
-                    timeRemaining -= 1
+                    return
                 } else {
                     timer?.invalidate()
                     timer = nil
@@ -369,7 +373,7 @@ struct FocusTimerView: View {
     private func phaseComplete() {
         if !isBreak {
             sessionsCompleted += 1
-            saveSession()
+            saveSession(elapsedSeconds: workMinutes * 60, completed: true)
             startBreak()
         } else {
             startWork()
@@ -380,8 +384,12 @@ struct FocusTimerView: View {
         timer?.invalidate()
         timer = nil
         if !isBreak {
-            sessionsCompleted += 1
-            saveSession()
+            // Skipping ends the work block early — log what was actually done.
+            let elapsed = workMinutes * 60 - timeRemaining
+            if elapsed > 60 {
+                sessionsCompleted += 1
+                saveSession(elapsedSeconds: elapsed, completed: false)
+            }
         }
         if isBreak {
             startWork()
@@ -409,31 +417,33 @@ struct FocusTimerView: View {
         // playing in the mixer is untouched)
         AmbientSoundService.shared.stop()
 
-        if isRunning, !isBreak, let start = sessionStartTime {
-            let elapsed = Int(Date().timeIntervalSince(start))
+        if isRunning, !isBreak {
+            // Stopping 2 minutes into a 60-minute block logged 60 completed minutes.
+            let elapsed = workMinutes * 60 - timeRemaining
             if elapsed > 60 {
-                saveSession()
+                saveSession(elapsedSeconds: elapsed, completed: false)
             }
         }
 
         isRunning = false
     }
 
-    private func saveSession() {
-        let duration = workMinutes * 60
+    private func saveSession(elapsedSeconds: Int, completed: Bool) {
         let session = MeditationSession(
             contentTitle: "Focus Session",
-            durationSeconds: duration,
-            listenedSeconds: duration,
-            wasCompleted: true,
+            durationSeconds: workMinutes * 60,
+            listenedSeconds: elapsedSeconds,
+            wasCompleted: completed,
             sessionType: "focus",
             completedAt: Date()
         )
         modelContext.insert(session)
         try? modelContext.save()
-        StreakService.shared.recordSession(durationMinutes: workMinutes, context: modelContext)
+        StreakService.shared.recordSession(durationMinutes: max(1, elapsedSeconds / 60), context: nil) // session already inserted above
 
-        // Update challenge progress for focus timer
-        ChallengeService.shared.recordFocusTimerSession()
+        // Only a finished block counts toward the focus challenge
+        if completed {
+            ChallengeService.shared.recordFocusTimerSession()
+        }
     }
 }

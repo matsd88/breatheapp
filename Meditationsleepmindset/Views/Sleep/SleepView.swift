@@ -820,9 +820,28 @@ struct SleepContentCard: View {
                 .clipped()
             }
             .frame(height: cardImageHeight)
+            .overlay(alignment: .bottomLeading) {
+                // Calm-style play + length chip on the artwork, so length is
+                // scannable at bedtime without reading the caption.
+                if !content.durationFormatted.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 8, weight: .bold))
+                        Text(content.durationFormatted)
+                            .font(.caption2.weight(.semibold))
+                            .monospacedDigit()
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(.black.opacity(0.55), in: Capsule())
+                    .padding(8)
+                    .accessibilityHidden(true)
+                }
+            }
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .onTapGesture { onTap() }
-            .accessibilityLabel(content.title)
+            .accessibilityLabel(content.durationFormatted.isEmpty ? content.title : "\(content.title), \(content.durationFormatted)")
             .accessibilityHint("Plays this content")
             .accessibilityAddTraits(.isButton)
 
@@ -834,13 +853,7 @@ struct SleepContentCard: View {
                         .foregroundStyle(.white)
                         .lineLimit(2)
 
-                    HStack(spacing: 4) {
-                        Text(content.durationFormatted)
-                        if let narrator = content.narrator {
-                            Text("·")
-                            Text(narrator)
-                        }
-                    }
+                    Text(content.narrator ?? content.contentType.displayName)
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.7))
                     .lineLimit(1)

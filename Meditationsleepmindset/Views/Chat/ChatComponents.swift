@@ -287,15 +287,15 @@ struct ChatInputBar: View {
                     Image(systemName: "bubble.left")
                         .font(.system(size: 9))
                     Text(remaining == 1
-                         ? String(localized: "1 message left today")
-                         : String(localized: "\(remaining) messages left today"))
+                         ? String(localized: "1 free message left")
+                         : String(localized: "\(remaining) free messages left"))
                         .font(.system(size: 11, weight: .medium))
                 }
                 .foregroundStyle(Theme.textTertiary)
                 .padding(.top, 4)
                 .accessibilityLabel(remaining == 1
-                                    ? String(localized: "1 message left today")
-                                    : String(localized: "\(remaining) messages left today"))
+                                    ? String(localized: "1 free message left")
+                                    : String(localized: "\(remaining) free messages left"))
             }
 
             HStack(spacing: 10) {

@@ -151,8 +151,8 @@ class PhoneWatchConnectivityService: NSObject, ObservableObject {
         let minutes = max(1, durationSeconds / 60)
 
         // Record session
+        // recordSession now records today's minutes itself
         StreakService.shared.recordSession(durationMinutes: minutes, context: modelContext)
-        StreakService.shared.recordMinutesForToday(minutes)
 
         // Write to HealthKit
         let endTime = Date()

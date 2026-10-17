@@ -9,6 +9,8 @@ struct AlarmSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var sizeClass
     @StateObject private var alarmService = AlarmService.shared
+    @Environment(\.openURL) private var openURL
+    @State private var showNotificationsDenied = false
 
     private let sheetBackground = Color(red: 0.04, green: 0.06, blue: 0.14)
     private var isRegular: Bool { sizeClass == .regular }
@@ -42,8 +44,22 @@ struct AlarmSettingsView: View {
                         .padding(isRegular ? 20 : 16)
                         .background(Color.white.opacity(0.06))
                         .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .onChange(of: alarmService.isEnabled) { _, _ in
-                            alarmService.scheduleAlarm()
+                        .onChange(of: alarmService.isEnabled) { _, enabled in
+                            guard enabled else {
+                                alarmService.scheduleAlarm() // clears the pending alarm
+                                return
+                            }
+                            // The alarm is a local notification: without permission it
+                            // silently never rings. Ask first, schedule once allowed.
+                            Task {
+                                let granted = await NotificationService.shared.requestAuthorization()
+                                if granted {
+                                    alarmService.scheduleAlarm()
+                                } else {
+                                    alarmService.isEnabled = false
+                                    showNotificationsDenied = true
+                                }
+                            }
                         }
 
                         if alarmService.isEnabled {
@@ -250,6 +266,16 @@ struct AlarmSettingsView: View {
                     SheetCloseButton { dismiss() }
                 }
             }
+        }
+        .alert("Notifications Are Off", isPresented: $showNotificationsDenied) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    openURL(url)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The wake-up alarm needs notifications to ring. Turn them on for Breathe in Settings.")
         }
         .presentationDetents(isRegular ? [.medium, .large] : (alarmService.isEnabled ? [.medium, .large] : [.height(180)]))
         .presentationBackground(sheetBackground)

@@ -160,9 +160,7 @@ class MorningCheckInManager: ObservableObject {
         let sleepSession = sessions.first { session in
             let date = session.startedAt
             let isNightTime = date >= yesterdayEvening || (date >= calendar.startOfDay(for: now) && date <= thisEarlyMorning)
-            let isSleepContent = session.sessionType == "sleepStory" ||
-                                 session.sessionType == "asmr" ||
-                                 session.sessionType == "soundscape"
+            let isSleepContent = SleepAnalyticsService.sleepContentTypes.contains(session.sessionType)
             return isNightTime && isSleepContent
         }
 

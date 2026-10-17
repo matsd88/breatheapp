@@ -320,7 +320,12 @@ struct HomeView: View {
 
         // Continue listening
         let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        // Only the newest session per item counts — a story stopped at 30% on
+        // Monday and finished on Tuesday must not be offered to "continue".
+        var seenContentKeys = Set<String>()
         if let unfinished = sessions.first(where: { session in
+            let key = session.youtubeVideoID ?? session.contentID?.uuidString ?? session.id.uuidString
+            guard seenContentKeys.insert(key).inserted else { return false }
             guard !session.wasCompleted, session.startedAt >= cutoff else { return false }
             guard session.listenedSeconds >= 15 else { return false }
             guard session.durationSeconds > 0 else { return false }
@@ -573,6 +578,18 @@ struct HomeView: View {
                         }
                         .padding(.horizontal)
                         .padding(.top, 8)
+
+                        // This week at a glance (Calm / Breathwrk pattern)
+                        WeekProgressStrip()
+                            .padding(16)
+                            .background(Theme.cardBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 18))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18)
+                                    .strokeBorder(Color.white.opacity(0.06), lineWidth: 1)
+                            )
+                            .padding(.horizontal)
+                            .padding(.top, -8)
 
                         // Continue Listening (resume — the #1 returning-user action)
                         if let data = cachedContinueListening {
@@ -962,6 +979,10 @@ struct HomeView: View {
                             onTap: { activeHomeSheet = .playlist(playlist) },
                             onDelete: {
                                 withAnimation {
+                                    // Cascade, like Profile and PlaylistDetail do
+                                    for item in playlistItems where item.playlistID == playlist.id {
+                                        modelContext.delete(item)
+                                    }
                                     modelContext.delete(playlist)
                                     try? modelContext.save()
                                 }

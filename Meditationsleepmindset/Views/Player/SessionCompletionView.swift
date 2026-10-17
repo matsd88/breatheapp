@@ -105,7 +105,7 @@ struct SessionCompletionView: View {
             ScrollView {
                 VStack(spacing: 28) {
                     checkmarkSeal
-                        .padding(.top, 36)
+                        .padding(.top, 28)
 
                     VStack(spacing: 6) {
                         Text("Session complete")
@@ -120,7 +120,12 @@ struct SessionCompletionView: View {
                             .padding(.horizontal, 32)
                     }
 
+                    minutesHero
+
                     statRow
+
+                    WeekProgressStrip(compact: true)
+                        .padding(.horizontal, 28)
 
                     moodSection
 
@@ -205,30 +210,40 @@ struct SessionCompletionView: View {
             // Soft glow behind the seal
             Circle()
                 .fill(Theme.profileAccent.opacity(0.45))
-                .frame(width: 110, height: 110)
-                .blur(radius: 28)
+                .frame(width: 80, height: 80)
+                .blur(radius: 24)
                 .opacity(sealVisible ? 1 : 0)
 
             Image(systemName: "checkmark.seal.fill")
-                .font(.system(size: 72))
+                .font(.system(size: 52))
                 .foregroundStyle(Theme.profileAccent)
                 .scaleEffect(sealVisible ? 1 : 0.3)
                 .opacity(sealVisible ? 1 : 0)
         }
-        .frame(height: 110)
+        .frame(height: 80)
         .accessibilityHidden(true)
     }
 
     // MARK: - Stats
 
+    /// The session's payoff as the screen's loudest element — Headspace and
+    /// Breathwrk lead their completion screens with one big number.
+    private var minutesHero: some View {
+        VStack(spacing: 2) {
+            Text("\(max(minutesListened, 1))")
+                .font(.system(size: 64, weight: .bold, design: .rounded))
+                .foregroundStyle(Theme.textPrimary)
+                .contentTransition(.numericText())
+            Text(minutesListened <= 1 ? "minute of calm" : "minutes of calm")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(Theme.textSecondary)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(max(minutesListened, 1)) \(minutesListened <= 1 ? "minute" : "minutes") this session")
+    }
+
     private var statRow: some View {
         HStack(spacing: 12) {
-            statTile(
-                value: "\(minutesListened) min",
-                label: "This session",
-                systemImage: "clock.fill",
-                iconColor: Theme.profileAccent
-            )
             statTile(
                 value: "\(streakService.currentStreak) \(streakService.currentStreak == 1 ? "day" : "days")",
                 label: "Streak",

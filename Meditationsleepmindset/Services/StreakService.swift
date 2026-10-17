@@ -247,11 +247,13 @@ class StreakService: ObservableObject {
         // Save to UserDefaults
         saveStreakData()
 
-        // Sync to shared UserDefaults for widgets
-        syncWidgetData()
+        // Per-day minutes feed the week strip (Home + session summary). This was
+        // only ever written by the Watch, so phone sessions never showed up.
+        // A sub-minute session still counts as an active day.
+        recordMinutesForToday(max(durationMinutes, 1))
 
-        // Update weekly activity
-        updateWeeklyActivity()
+        // Sync to shared UserDefaults for widgets (after the weekly data above)
+        syncWidgetData()
 
         // Also save to SwiftData if context provided
         if let context = context {
@@ -275,8 +277,23 @@ class StreakService: ObservableObject {
         // Handle first session
         if isFirstSession {
             isFirstSession = false
-            NotificationService.shared.scheduleTrialDay1Notification()
+            // "You have 7 days to explore everything free" is only true for
+            // someone actually in a trial — free users and payers got it too.
+            if UserDefaults.standard.object(forKey: Constants.AnalyticsKeys.trialStartDate) != nil {
+                NotificationService.shared.scheduleTrialDay1Notification()
+            }
         }
+    }
+
+    /// Extra listening on a session that was already counted (e.g. a track
+    /// that kept playing after the phone locked). Minutes only — no new
+    /// session, no streak change.
+    func addMinutes(_ minutes: Int) {
+        guard minutes > 0 else { return }
+        totalMinutes += minutes
+        saveStreakData()
+        recordMinutesForToday(minutes)
+        syncWidgetData()
     }
 
     // MARK: - Check Today Status
@@ -328,13 +345,16 @@ class StreakService: ObservableObject {
         // Streak Shield when the user meditates today — recordSession handles
         // that path. Resetting here would wipe the streak the shield promises
         // to protect (and consumption must stay in recordSession only).
-        if daysDifference > 2 {
-            currentStreak = 0
-            saveStreakData()
-        } else if daysDifference == 2 && !isStreakFreezeAvailable(on: today) {
-            currentStreak = 0
-            saveStreakData()
+        if daysDifference > 2 || (daysDifference == 2 && !isStreakFreezeAvailable(on: today)) {
+            if currentStreak != 0 {
+                currentStreak = 0
+                saveStreakData()
+                syncWidgetData()
+                NotificationService.shared.cancelStreakAtRisk()
+            }
         }
+        // Day rollover: "meditated today" must flip back after midnight.
+        checkTodayStatus()
     }
 
     // MARK: - Weekly Activity
@@ -381,6 +401,21 @@ class StreakService: ObservableObject {
         }
 
         return merged
+    }
+
+    /// Minutes recorded on each day of the current calendar week (locale's
+    /// first weekday), oldest first. Future days report 0.
+    func currentWeekActivity() -> [DayActivity] {
+        let calendar = Calendar.current
+        guard let week = calendar.dateInterval(of: .weekOfYear, for: Date()) else { return [] }
+        let weeklyMinutes = getWeeklyMinutesFromDefaults()
+        let dayFormatter = DateFormatter()
+        dayFormatter.dateFormat = "EEEEE"
+        return (0..<7).compactMap { offset in
+            guard let date = calendar.date(byAdding: .day, value: offset, to: week.start) else { return nil }
+            let minutes = weeklyMinutes[formatDateKey(date)] ?? 0
+            return DayActivity(date: date, dayName: dayFormatter.string(from: date), minutes: minutes, hasActivity: minutes > 0)
+        }
     }
 
     private func formatDateKey(_ date: Date) -> String {

@@ -256,7 +256,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             Task { @MainActor in
                 AppStateManager.shared.navigate(to: .premium)
             }
-        } else if let route = NotificationActionRoute(rawValue: response.actionIdentifier) {
+        } else if let route = NotificationActionRoute(rawValue: response.actionIdentifier)
+                    ?? AppDelegate.bodyTapRoute(for: response) {
             // Cache for cold launch, then post for a running app to handle.
             AppDelegate.pendingNotificationAction = route
             NotificationCenter.default.post(
@@ -266,6 +267,28 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             )
         }
         completionHandler()
+    }
+
+    /// A body tap on the AI check-in ("Tap to chat with your coach") should
+    /// open the chat it promises; before, only the action button did.
+    /// Other reminders keep the plain open-the-app behaviour on a body tap,
+    /// so a tap never starts audio unasked.
+    private static func bodyTapRoute(for response: UNNotificationResponse) -> NotificationActionRoute? {
+        guard response.actionIdentifier == UNNotificationDefaultActionIdentifier else { return nil }
+        switch response.notification.request.content.categoryIdentifier {
+        case "AI_CHECKIN": return .openAIChat
+        default: return nil
+        }
+    }
+
+    /// Without this, iOS drops every notification that fires while the app is
+    /// open — e.g. the streak-milestone one scheduled 1s after a session ends.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .list, .sound])
     }
 
     // MARK: - Handle Quick Action

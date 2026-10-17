@@ -323,6 +323,6 @@ struct BreathingExerciseView: View {
         )
         modelContext.insert(session)
         try? modelContext.save()
-        StreakService.shared.recordSession(durationMinutes: max(1, duration / 60), context: modelContext)
+        StreakService.shared.recordSession(durationMinutes: max(1, duration / 60), context: nil) // session already inserted above
     }
 }

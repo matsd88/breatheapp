@@ -156,6 +156,41 @@ class AudioPlayerManager: ObservableObject {
     private var cachedArtworkVideoID: String?
     /// Last time (in seconds, truncated) we pushed to MPNowPlayingInfoCenter — throttle to 1 update/sec
     private var lastNowPlayingSecond: Int = -1
+
+    // MARK: Premium preview
+    // The 2-minute preview used to be a Task in MeditationPlayerView, cancelled
+    // in onDisappear — minimizing the player (or closing the paywall, or
+    // reopening from the mini player) let free users hear premium tracks in
+    // full. The gate now lives with the audio: the first 2 minutes of a
+    // premium track are playable without a subscription, nothing past that.
+    static let previewSeconds: TimeInterval = 120
+    /// Set when a preview hits its limit while the full player is showing;
+    /// the player presents the paywall and clears it.
+    @Published var previewEnded = false
+    /// Maintained by MeditationPlayerView (onAppear/onDisappear).
+    var isFullPlayerVisible = false
+
+    var isPreviewRestricted: Bool {
+        currentContent?.isPremium == true && !StoreManager.shared.isSubscribed && !StoreManager.shared.isVIP
+    }
+
+    private func enforcePreviewLimit() {
+        // Read the live player position, not the cached `currentTime` a late
+        // observer callback from the previous track may have just written.
+        let position = player?.currentTime().seconds ?? 0
+        guard isPlaying, isPreviewRestricted, position.isFinite, position >= Self.previewSeconds else { return }
+        if isFullPlayerVisible {
+            pause()
+            previewEnded = true
+        } else {
+            // Minimized: there's no paywall to show over the mini player, so
+            // end the session and say why.
+            stop()
+            ToastManager.shared.show(String(localized: "Preview ended — Premium unlocks the full session"), icon: "lock.fill")
+        }
+    }
+    /// Track whose artwork fetch has been started (success or not).
+    private var artworkFetchVideoID: String?
     /// Pre-built AVPlayerItem for the next track in queue (instant advance)
     private var prefetchedPlayerItem: AVPlayerItem?
     private var prefetchedVideoID: String?
@@ -331,6 +366,8 @@ class AudioPlayerManager: ObservableObject {
         }
     }
 
+    private var wasPlayingBeforeInterruption = false
+
     private func handleInterruption(_ notification: Notification) {
         guard let userInfo = notification.userInfo,
               let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
@@ -340,12 +377,17 @@ class AudioPlayerManager: ObservableObject {
 
         switch type {
         case .began:
+            wasPlayingBeforeInterruption = isPlaying
             pause()
         case .ended:
             reactivateAudioSession()
+            // Resume only what the interruption paused: a user who had paused
+            // before taking a call heard the audio restart on hang-up.
+            let shouldResumeOurs = wasPlayingBeforeInterruption && player != nil
+            wasPlayingBeforeInterruption = false
             guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else { return }
             let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-            if options.contains(.shouldResume) {
+            if options.contains(.shouldResume) && shouldResumeOurs {
                 play()
             }
         @unknown default:
@@ -896,12 +938,15 @@ class AudioPlayerManager: ObservableObject {
             AVURLAssetPreferPreciseDurationAndTimingKey: false
         ])
 
-        // Asynchronously load the playable key so AVPlayer doesn't block on it
+        // Asynchronously load the playable key so AVPlayer doesn't block on it.
+        // Capture which track this load is for: a slow load of track A used
+        // to install itself while track B was loading.
+        let requestedVideoID = loadedVideoID
         Task { [weak self] in
             do {
                 let isPlayable = try await asset.load(.isPlayable)
                 guard let self else { return }
-                guard self.isLoading else { return }
+                guard self.isLoading, self.loadedVideoID == requestedVideoID else { return }
                 guard isPlayable else {
                     self.error = "Content is not playable"
                     self.isLoading = false
@@ -916,8 +961,23 @@ class AudioPlayerManager: ObservableObject {
         }
     }
 
+    /// Drop the previous player's observers before a new player replaces it,
+    /// so the old track's time/end-of-playback callbacks can't fire into the
+    /// new one.
+    private func removePlaybackObservers() {
+        if let observer = timeObserver {
+            player?.removeTimeObserver(observer)
+            timeObserver = nil
+        }
+        if let observer = endOfPlaybackObserver {
+            NotificationCenter.default.removeObserver(observer)
+            endOfPlaybackObserver = nil
+        }
+    }
+
     /// Complete player setup once asset keys are loaded
     private func finishPlayerSetup(with asset: AVURLAsset) {
+        removePlaybackObservers()
         playerItem = AVPlayerItem(asset: asset)
 
         // Minimal initial buffer — start playback ASAP, buffer more as we play
@@ -989,11 +1049,15 @@ class AudioPlayerManager: ObservableObject {
 
         // Time observer
         let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        let observedPlayer = player
         timeObserver = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
             Task { @MainActor [weak self] in
-                guard let self else { return }
+                // A callback queued by the previous player must not write its
+                // end time over the next track's 0:00.
+                guard let self, self.player === observedPlayer else { return }
                 self.currentTime = time.seconds
                 self.updateNowPlayingInfo()
+                self.enforcePreviewLimit()
             }
         }
 
@@ -1105,6 +1169,7 @@ class AudioPlayerManager: ObservableObject {
 
     /// Use a pre-built AVPlayerItem for instant playback (from prefetch)
     private func setupPlayerWithItem(_ item: AVPlayerItem) {
+        removePlaybackObservers()
         playerItem = item
 
         player = AVPlayer(playerItem: item)
@@ -1167,11 +1232,15 @@ class AudioPlayerManager: ObservableObject {
 
         // Time observer
         let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        let observedPlayer = player
         timeObserver = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
             Task { @MainActor [weak self] in
-                guard let self else { return }
+                // A callback queued by the previous player must not write its
+                // end time over the next track's 0:00.
+                guard let self, self.player === observedPlayer else { return }
                 self.currentTime = time.seconds
                 self.updateNowPlayingInfo()
+                self.enforcePreviewLimit()
             }
         }
 
@@ -1191,6 +1260,11 @@ class AudioPlayerManager: ObservableObject {
 
     // MARK: - Playback Controls
     func play() {
+        if isPreviewRestricted, let position = player?.currentTime().seconds,
+           position.isFinite, position >= Self.previewSeconds {
+            previewEnded = true
+            return
+        }
         player?.play()
         player?.rate = playbackRate
         isPlaying = true
@@ -1314,8 +1388,11 @@ class AudioPlayerManager: ObservableObject {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
 
         // Load artwork asynchronously if not yet cached for this content
-        if cachedArtworkVideoID != content.youtubeVideoID {
+        // One attempt per track: a failed thumbnail used to re-fetch on every
+        // 1 Hz now-playing update, all night.
+        if cachedArtworkVideoID != content.youtubeVideoID, artworkFetchVideoID != content.youtubeVideoID {
             let videoID = content.youtubeVideoID
+            artworkFetchVideoID = videoID
             let thumbnailURLString = content.thumbnailURLComputed
             Task {
                 guard let artworkURL = URL(string: thumbnailURLString) else { return }
@@ -1379,6 +1456,10 @@ class AudioPlayerManager: ObservableObject {
         cancelSleepTimer()
         pause()
         player?.volume = 1.0
+        // The sleep timer is "stop the sound so I can sleep" — mixer rain and
+        // the timer's ambient bed kept playing all night.
+        AmbientSoundManager.shared.stopAll()
+        AmbientSoundService.shared.fadeOut()
     }
 
     // MARK: - Cleanup
@@ -1454,6 +1535,11 @@ class AudioPlayerManager: ObservableObject {
         crossfadePlayer = oldPlayer
         player = nil
         playerItem = nil
+        // Reset progress like cleanupPlayer does — otherwise the next title
+        // showed the previous track's position until its URL resolved.
+        currentTime = 0
+        duration = 0
+        lastNowPlayingSecond = -1
 
         // Fade out over 3 seconds (30 steps at 0.1s intervals)
         let initialVolume = max(oldPlayer.volume, 0.01) // Prevent zero division

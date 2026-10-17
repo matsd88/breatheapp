@@ -40,13 +40,16 @@ struct MeditationPlayerView: View {
     /// audio-artwork branch below unreachable.
     private var isVideoMode: Bool { playerManager.isVideoMode }
     @State private var hasRecordedSession = false
+    /// Row saved by recordSessionIfEligible (e.g. when the phone locked), so a
+    /// queued track that then plays to the end updates it instead of being
+    /// dropped or double-counted.
+    @State private var earlyRecordedSession: MeditationSession?
     @State private var showPaywall = false
     @State private var hasCheckedSubscription = false
     @State private var showPostSessionReflection = false
     @State private var showBiometricSummary = false
     @State private var biometricData: BiometricSessionData?
     @State private var isPreviewMode = false
-    @State private var previewTimer: Task<Void, Never>?
     @State private var showUpNextQueue = false
 
     // Session-complete moment (natural end of playback)
@@ -365,12 +368,20 @@ struct MeditationPlayerView: View {
         }
         .fullScreenCover(isPresented: $showPaywall) {
             SessionPaywallView {
-                // User dismissed paywall without subscribing - dismiss player
+                // User dismissed paywall without subscribing — end the preview
+                // session too, or the mini player could keep it going.
+                playerManager.stop()
                 dismiss()
             } onSubscribed: {
-                // User subscribed - continue with session
+                // User subscribed - continue with session. The preview may have
+                // ended on a later queue track, so resume what's loaded rather
+                // than reloading the track the player was opened with.
                 showPaywall = false
-                loadContent()
+                if playerManager.player != nil {
+                    playerManager.play()
+                } else {
+                    loadContent()
+                }
             }
         }
         .onChange(of: showPaywall) { _, showing in
@@ -378,6 +389,15 @@ struct MeditationPlayerView: View {
         }
         .onAppear {
             AppDelegate.allowLandscape = true
+            playerManager.isFullPlayerVisible = true
+            // Reopened (e.g. from the mini player) on a preview that's used up.
+            if playerManager.currentContent?.id == content.id,
+               playerManager.previewEnded || (playerManager.isPreviewRestricted
+                && playerManager.currentTime >= AudioPlayerManager.previewSeconds) {
+                playerManager.previewEnded = false
+                isPreviewMode = false
+                showPaywall = true
+            }
             checkSubscriptionAndLoad()
 
             // Natural end of playback → record + show the completion moment
@@ -410,12 +430,38 @@ struct MeditationPlayerView: View {
             // Set up callback for auto-advance session recording
             playerManager.onTrackCompleted = { [weak modelContext] completedContent, completedDuration in
                 guard let modelContext = modelContext else { return }
-                // Mark recorded so recordSessionIfEligible() won't duplicate on dismiss
+                // Mark recorded so recordSessionIfEligible() won't duplicate on dismiss.
+                // If backgrounding already recorded this track, don't save it twice.
+                let alreadyRecorded = hasRecordedSession
                 hasRecordedSession = true
                 // Record session for the track that just finished
                 let actualDuration = Int(min(completedDuration, Double(completedContent.durationSeconds > 0 ? completedContent.durationSeconds : Int(completedDuration))))
                 guard actualDuration >= Int(Constants.Session.minimumListenTimeForRecord) else { return }
                 let isCompleted = completedContent.durationSeconds > 0 && Double(actualDuration) >= Double(completedContent.durationSeconds) * Constants.Session.completionThreshold
+                if alreadyRecorded {
+                    // Already saved a partial row for this track (phone locked
+                    // mid-track): extend it rather than add a second session.
+                    if let early = earlyRecordedSession,
+                       early.youtubeVideoID == completedContent.youtubeVideoID,
+                       actualDuration > early.listenedSeconds {
+                        let extraMinutes = (actualDuration - early.listenedSeconds) / 60
+                        early.listenedSeconds = actualDuration
+                        early.wasCompleted = isCompleted
+                        early.completedAt = isCompleted ? Date() : nil
+                        try? modelContext.save()
+                        if extraMinutes > 0 {
+                            StreakService.shared.addMinutes(extraMinutes)
+                        }
+                        ChallengeService.shared.recordSession(
+                            contentType: completedContent.contentType,
+                            durationMinutes: extraMinutes,
+                            context: modelContext,
+                            streakService: StreakService.shared
+                        )
+                    }
+                    earlyRecordedSession = nil
+                    return
+                }
                 let session = MeditationSession(
                     contentID: completedContent.id,
                     youtubeVideoID: completedContent.youtubeVideoID,
@@ -423,7 +469,7 @@ struct MeditationPlayerView: View {
                     durationSeconds: completedContent.durationSeconds,
                     listenedSeconds: actualDuration,
                     wasCompleted: isCompleted,
-                    sessionType: "guided",
+                    sessionType: completedContent.recordedSessionType,
                     completedAt: isCompleted ? Date() : nil
                 )
                 modelContext.insert(session)
@@ -431,10 +477,24 @@ struct MeditationPlayerView: View {
                 // Streak credit for auto-advance completions too (context: nil —
                 // the session was already inserted above).
                 StreakService.shared.recordSession(durationMinutes: max(1, actualDuration / 60), context: nil)
+                // Same badge/challenge hooks as the dismiss path — "Play All"
+                // tracks after the first never counted toward challenges.
+                BadgeService.shared.recordSessionTime()
+                BadgeService.shared.checkBadges(
+                    context: modelContext,
+                    streakService: StreakService.shared,
+                    currentContentType: completedContent.contentType
+                )
+                ChallengeService.shared.recordSession(
+                    contentType: completedContent.contentType,
+                    durationMinutes: actualDuration / 60,
+                    context: modelContext,
+                    streakService: StreakService.shared
+                )
             }
         }
         .onDisappear {
-            previewTimer?.cancel()
+            playerManager.isFullPlayerVisible = false
             controlsHideTask?.cancel()
             AppDelegate.allowLandscape = false
             // Force back to portrait when leaving player (iPhone only — iPad supports all orientations)
@@ -455,6 +515,12 @@ struct MeditationPlayerView: View {
                 recordSessionIfEligible()
             }
         }
+        .onChange(of: playerManager.previewEnded) { _, ended in
+            guard ended else { return }
+            playerManager.previewEnded = false
+            isPreviewMode = false
+            showPaywall = true
+        }
         .onChange(of: playerManager.isPlaying) { _, isPlaying in
             // Track when playback starts/stops to accumulate listen time
             if isPlaying {
@@ -470,6 +536,7 @@ struct MeditationPlayerView: View {
             accumulatedListenTime = 0
             sessionStartTime = Date()
             hasRecordedSession = false
+            earlyRecordedSession = nil
         }
     }
 
@@ -484,9 +551,9 @@ struct MeditationPlayerView: View {
                 loadContent()
             } else if content.isPremium {
                 // Free user tapped premium content — allow 2-minute preview
+                // (the limit itself is enforced by AudioPlayerManager)
                 isPreviewMode = true
                 loadContent()
-                startPreviewTimer()
             } else {
                 // Non-premium content is free for all users
                 loadContent()
@@ -509,6 +576,9 @@ struct MeditationPlayerView: View {
                     .frame(width: btnSize, height: btnSize)
                     .background(Color.white.opacity(0.1))
                     .clipShape(Circle())
+                    // 36pt visual, 44pt hit target
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel("Minimize player")
 
@@ -553,6 +623,8 @@ struct MeditationPlayerView: View {
                     .frame(width: btnSize, height: btnSize)
                     .background(Color.white.opacity(0.1))
                     .clipShape(Circle())
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel("More options")
         }
@@ -788,6 +860,8 @@ struct MeditationPlayerView: View {
                                     Image(systemName: "gobackward.\(skipInterval)")
                                         .font(.title2)
                                         .foregroundStyle(.white)
+                                        .frame(width: 48, height: 48)
+                                        .contentShape(Rectangle())
                                 }
                                 .contextMenu { skipIntervalMenu }
                                 .accessibilityLabel("Skip back \(skipInterval) seconds")
@@ -796,10 +870,17 @@ struct MeditationPlayerView: View {
                                     playerManager.togglePlayPause()
                                     scheduleControlsHide()
                                 } label: {
+                                    // Frosted disc (Oura / Breathwrk landscape pattern)
+                                    // so the main control reads over bright video frames.
                                     Image(systemName: playerManager.isPlaying ? "pause.fill" : "play.fill")
-                                        .font(.largeTitle)
+                                        .font(.title)
                                         .foregroundStyle(.white)
+                                        .offset(x: playerManager.isPlaying ? 0 : 2)
+                                        .frame(width: 64, height: 64)
+                                        .background(.ultraThinMaterial, in: Circle())
+                                        .environment(\.colorScheme, .dark)
                                 }
+                                .accessibilityLabel(playerManager.isPlaying ? "Pause" : "Play")
 
                                 Button {
                                     playerManager.skipForward(seconds: TimeInterval(skipInterval))
@@ -808,6 +889,8 @@ struct MeditationPlayerView: View {
                                     Image(systemName: "goforward.\(skipInterval)")
                                         .font(.title2)
                                         .foregroundStyle(.white)
+                                        .frame(width: 48, height: 48)
+                                        .contentShape(Rectangle())
                                 }
                                 .contextMenu { skipIntervalMenu }
                                 .accessibilityLabel("Skip forward \(skipInterval) seconds")
@@ -978,6 +1061,8 @@ struct MeditationPlayerView: View {
                     }
                 }
                 .accessibilityLabel("Repeat mode")
+                .accessibilityValue(playerManager.repeatMode == .off ? "Off"
+                                    : playerManager.repeatMode == .one ? "Repeat one" : "Repeat all")
             }
         }
         .padding(.horizontal, 24)
@@ -1336,6 +1421,7 @@ struct MeditationPlayerView: View {
         accumulatedListenTime = 0
         sessionStartTime = nil
         hasRecordedSession = false
+        earlyRecordedSession = nil
 
         // Track that user has played a video (for share prompt gating)
         appStateManager.recordVideoPlayed()
@@ -1427,10 +1513,11 @@ struct MeditationPlayerView: View {
                 durationSeconds: currentlyDisplayed.durationSeconds,
                 listenedSeconds: actualListenedSeconds,
                 wasCompleted: isCompleted,
-                sessionType: "guided",
+                sessionType: currentlyDisplayed.recordedSessionType,
                 completedAt: isCompleted ? Date() : nil
             )
             modelContext.insert(session)
+            earlyRecordedSession = session
             do {
                 try modelContext.save()
             } catch {
@@ -1539,20 +1626,6 @@ struct MeditationPlayerView: View {
             #if DEBUG
             print("Failed to save favorite: \(error)")
             #endif
-        }
-    }
-
-    private func startPreviewTimer() {
-        previewTimer?.cancel()
-        previewTimer = Task {
-            try? await Task.sleep(nanoseconds: 120_000_000_000) // 2 minutes
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                // Fade out and show paywall
-                playerManager.pause()
-                showPaywall = true
-                isPreviewMode = false
-            }
         }
     }
 
@@ -2000,4 +2073,13 @@ struct BiometricSummaryCard: View {
             description: "A gentle morning meditation to help you start your day with clarity and calm."
         )
     )
+}
+
+extension Content {
+    /// Sleep content records its ContentType raw value ("Sleep Story", …) so
+    /// SleepAnalyticsService and the morning check-in can recognise it; every
+    /// player session used to be "guided", which hid all sleep listening.
+    var recordedSessionType: String {
+        SleepAnalyticsService.sleepContentTypes.contains(contentType.rawValue) ? contentType.rawValue : "guided"
+    }
 }

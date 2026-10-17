@@ -202,16 +202,21 @@ struct ProgramDetailView: View {
     }
 
     private func startDay(_ day: ProgramDay) {
-        // Ensure progress exists
-        if progress == nil {
-            let newProgress = ProgramProgress(programID: program.id)
-            modelContext.insert(newProgress)
+        // Ensure progress exists. Keep the reference: the @Query behind
+        // `progress` hasn't refreshed within this tap, so a fresh row was
+        // invisible to markDayComplete and Day 1 never got ticked.
+        let programProgress: ProgramProgress
+        if let existing = progress {
+            programProgress = existing
+        } else {
+            programProgress = ProgramProgress(programID: program.id)
+            modelContext.insert(programProgress)
             try? modelContext.save()
         }
 
         // Find matching content or create temporary content for playback
         if let content = allContent.first(where: { $0.youtubeVideoID == day.youtubeVideoID }) {
-            markDayComplete(day.dayNumber)
+            markDayComplete(day.dayNumber, in: programProgress)
             playContent(content)
         } else {
             // Content not found in library — create ephemeral content
@@ -224,7 +229,7 @@ struct ProgramDetailView: View {
             )
             modelContext.insert(content)
             try? modelContext.save()
-            markDayComplete(day.dayNumber)
+            markDayComplete(day.dayNumber, in: programProgress)
             playContent(content)
         }
     }
@@ -244,13 +249,11 @@ struct ProgramDetailView: View {
         }
     }
 
-    private func markDayComplete(_ dayNumber: Int) {
-        if let p = allProgress.first(where: { $0.programID == program.id }) {
-            p.completeDay(dayNumber)
-            if p.completedDays.count >= program.totalDays {
-                p.isCompleted = true
-            }
-            try? modelContext.save()
+    private func markDayComplete(_ dayNumber: Int, in p: ProgramProgress) {
+        p.completeDay(dayNumber)
+        if p.completedDays.count >= program.totalDays {
+            p.isCompleted = true
         }
+        try? modelContext.save()
     }
 }

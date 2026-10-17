@@ -178,6 +178,9 @@ struct Meditation_Sleep_MindsetApp: App {
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 appState.handleAppOpen()
+                // A broken streak only ever reset on Profile pull-to-refresh,
+                // so Home kept saying "keep your 12-day streak" after 10 days away.
+                StreakService.shared.checkAndUpdateStreak()
                 // Update quick actions when app becomes active
                 appDelegate.updateQuickActions()
                 // Re-check subscription status (Apple reviewers test lapsed subscriptions)
@@ -255,11 +258,16 @@ struct RootView: View {
     @State private var showingAIStudio = false
     @State private var showingKidsStories = false
     @State private var initialDiscoverCategory: ContentType?
+    /// Latched for the session once a shared link skips onboarding. Keying the
+    /// switch on `pendingDeepLinkVideoID` alone flipped back to onboarding the
+    /// moment the tab shell consumed (cleared) the link — tearing down the
+    /// player it had just opened.
+    @State private var deepLinkSkippedOnboarding = false
 
     var body: some View {
         Group {
             // Skip onboarding if there's a pending deep link - let user see shared content immediately
-            if !appState.hasCompletedOnboarding && appState.pendingDeepLinkVideoID == nil {
+            if !appState.hasCompletedOnboarding && appState.pendingDeepLinkVideoID == nil && !deepLinkSkippedOnboarding {
                 OnboardingView()
             } else {
                 MainTabViewWithQuickActions(
@@ -283,7 +291,15 @@ struct RootView: View {
         .onChange(of: appState.pendingAppRoute) { _, route in
             handleAppRoute(route)
         }
+        .onChange(of: appState.pendingDeepLinkVideoID) { _, videoID in
+            if videoID != nil && !appState.hasCompletedOnboarding {
+                deepLinkSkippedOnboarding = true
+            }
+        }
         .onAppear {
+            if appState.pendingDeepLinkVideoID != nil && !appState.hasCompletedOnboarding {
+                deepLinkSkippedOnboarding = true
+            }
             // For users who already completed onboarding, request ATT here.
             // New users get the ATT prompt during onboarding (step 5).
             if appState.hasCompletedOnboarding {
@@ -358,9 +374,14 @@ struct RootView: View {
                 showingTimer = true
             }
         case .premium:
+            // Trial-reminder notifications route here too; a subscriber (incl.
+            // someone mid-trial) must not be pitched a trial they already have.
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
                 guard appState.pendingAppRoute == .premium else { return }
                 appState.pendingAppRoute = nil
+                guard !StoreManager.shared.isSubscribed else { return }
+                // Onboarding ends on its own paywall; don't stack a second one.
+                guard appState.hasCompletedOnboarding else { return }
                 showingPaywall = true
             }
 
@@ -693,33 +714,23 @@ struct DiscountedPaywallView: View {
 
                 ScrollView {
                     VStack(spacing: 24) {
-                        // Free Trial Badge
-                        HStack {
-                            Image(systemName: "star.fill")
-                            Text("Exclusive Offer")
-                        }
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.black)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(.yellow)
-                        .clipShape(Capsule())
-
                         Text("Try Premium Free")
                             .font(.largeTitle)
                             .fontWeight(.bold)
                             .foregroundStyle(.white)
 
                         // Free Trial Details
+                        // Trial and billed price share one size and weight —
+                        // the price was 70%-opacity title3 under a 48pt
+                        // "7 Days Free" (guideline 3.1.2(c)).
                         VStack(spacing: 8) {
-                            Text("7 Days Free")
-                                .font(.system(size: 48, weight: .bold))
+                            Text("7 days free")
+                                .font(.title.weight(.bold))
                                 .foregroundStyle(.white)
 
                             Text(priceText)
-                                .font(.title3)
-                                .foregroundStyle(.white.opacity(0.7))
+                                .font(.title.weight(.bold))
+                                .foregroundStyle(.white)
 
                             Text("Cancel anytime during trial")
                                 .font(.subheadline)

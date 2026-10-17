@@ -18,8 +18,11 @@ struct PremiumView: View {
         userProfiles.first
     }
 
+    /// StoreKit is the source of truth — `UserProfile.isPremiumSubscriber` is
+    /// only ever set by the demo seeder, so a fresh purchase or restore left
+    /// this screen stuck on the paywall.
     private var isPremium: Bool {
-        userProfile?.isPremiumSubscriber ?? false
+        storeManager.isSubscribed
     }
 
     var body: some View {
@@ -88,7 +91,7 @@ enum PaywallContext: String {
     /// Nil falls back to the generic line, or to an explicit override.
     var subtitle: String? {
         switch self {
-        case .chatLimit:      return String(localized: "You've reached today's free messages. Premium keeps Breathe AI available whenever you need it.")
+        case .chatLimit:      return String(localized: "You've used your free messages. Premium keeps Breathe AI available whenever you need it.")
         case .aiStudio:       return String(localized: "Generate a meditation for any mood, any length, in your chosen voice.")
         case .kidsStories:    return String(localized: "Unlimited personalized bedtime stories, so bedtime never runs out of material.")
         case .offlinePacks:   return String(localized: "Download packs and play them on a plane, a commute, or anywhere without signal.")
@@ -244,10 +247,6 @@ struct PremiumPaywallView: View {
                 // Feature preview cards (swipeable)
                 featurePreviewSection
 
-                // Urgency countdown banner (only while the first-run offer is genuinely live)
-                if showCountdown {
-                    urgencyBanner
-                }
 
                 // Header text — headline and supporting line both follow the
                 // context the paywall was opened from.
@@ -295,7 +294,9 @@ struct PremiumPaywallView: View {
                     ForEach(PremiumSubscriptionPlan.allCases) { plan in
                         PremiumPlanOptionView(
                             plan: plan,
-                            isSelected: selectedPlan == plan
+                            isSelected: selectedPlan == plan,
+                            product: storeKitProduct(for: plan),
+                            monthlyProduct: storeKitProduct(for: .monthly)
                         ) {
                             withAnimation(.spring(response: 0.2)) {
                                 selectedPlan = plan
@@ -326,7 +327,7 @@ struct PremiumPaywallView: View {
                             selectedProduct = products.first { $0.subscription?.subscriptionPeriod.unit == .week }
                         }
 
-                        if let product = selectedProduct ?? products.first {
+                        if let product = selectedProduct {
                             await storeManager.purchase(product)
                             if storeManager.isSubscribed {
                                 onSubscribed?()
@@ -345,9 +346,12 @@ struct PremiumPaywallView: View {
                                 .tint(.white)
                         } else {
                             VStack(spacing: 2) {
-                                Text("Start My \(Constants.Subscriptions.freeTrialDays)-Day Free Trial")
+                                // Billed price on the main line, as loud as the
+                                // trial (guideline 3.1.2(c)), in the store's currency.
+                                Text("Try \(Constants.Subscriptions.freeTrialDays) days free, then \(PremiumPlanOptionView.billedPrice(plan: selectedPlan, product: storeKitProduct(for: selectedPlan)))")
                                     .fontWeight(.semibold)
-                                Text("then \(selectedPlan.price), auto-renews")
+                                    .multilineTextAlignment(.center)
+                                Text("Auto-renews · cancel anytime")
                                     .font(.caption)
                                     .opacity(0.8)
                             }
@@ -424,7 +428,7 @@ struct PremiumPaywallView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 animateFeatures = true
             }
-            startCountdown()
+            // No countdown: nothing actually expires when it hits zero (fake urgency).
             AppStateManager.shared.recordPaywallShown()
             FirebaseService.shared.logPaywallViewed(source: context.analyticsSource)
         }
@@ -775,7 +779,47 @@ enum PremiumSubscriptionPlan: String, CaseIterable, Identifiable {
 struct PremiumPlanOptionView: View {
     let plan: PremiumSubscriptionPlan
     let isSelected: Bool
+    /// Live StoreKit product. The hard-coded USD strings on the plan enum are
+    /// only a fallback while products load — a UK user saw "$49.99" on the
+    /// card and "£49.99" in the small print.
+    var product: Product? = nil
+    var monthlyProduct: Product? = nil
     let action: () -> Void
+
+    static func billedPrice(plan: PremiumSubscriptionPlan, product: Product?) -> String {
+        guard let product else { return plan.price }
+        let period: String
+        switch product.subscription?.subscriptionPeriod.unit {
+        case .year: period = String(localized: "year")
+        case .month: period = String(localized: "month")
+        case .week: period = String(localized: "week")
+        default: return product.displayPrice
+        }
+        return "\(product.displayPrice)/\(period)"
+    }
+
+    private var perMonthLine: String? {
+        guard let product, let unit = product.subscription?.subscriptionPeriod.unit else { return plan.subtitle }
+        let monthly: Decimal
+        let billed: String
+        switch unit {
+        case .year: monthly = product.price / 12; billed = String(localized: "billed yearly")
+        case .month: monthly = product.price; billed = String(localized: "billed monthly")
+        case .week: monthly = product.price * 52 / 12; billed = String(localized: "billed weekly")
+        default: return plan.subtitle
+        }
+        let formatted = monthly.formatted(product.priceFormatStyle)
+        return "\(formatted)/\(String(localized: "month")) · \(billed)"
+    }
+
+    private var savingsLabel: String? {
+        guard plan == .annual else { return nil }
+        guard let product, let monthlyProduct else { return plan.discount }
+        let yearOfMonthly = monthlyProduct.price * 12
+        guard yearOfMonthly > 0, product.price < yearOfMonthly else { return nil }
+        let percent = NSDecimalNumber(decimal: (yearOfMonthly - product.price) / yearOfMonthly * 100).intValue
+        return percent > 0 ? String(localized: "Save \(percent)%") : nil
+    }
 
     var body: some View {
         Button(action: action) {
@@ -812,7 +856,7 @@ struct PremiumPlanOptionView: View {
                         }
                     }
 
-                    if let subtitle = plan.subtitle {
+                    if let subtitle = perMonthLine {
                         Text(subtitle)
                             .font(.caption)
                             .foregroundStyle(.white.opacity(0.6))
@@ -822,11 +866,11 @@ struct PremiumPlanOptionView: View {
                 Spacer()
 
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(plan.price)
-                        .fontWeight(.medium)
+                    Text(Self.billedPrice(plan: plan, product: product))
+                        .fontWeight(.semibold)
                         .foregroundStyle(.white)
 
-                    if let discount = plan.discount {
+                    if let discount = savingsLabel {
                         Text(discount)
                             .font(.caption)
                             .fontWeight(.bold)

@@ -51,7 +51,7 @@ class StoreManager: ObservableObject {
             // long enough for upsell banners to flash and for Today's Plan to
             // persist a free-only plan for the day.
             await updatePurchasedProducts()
-            await loadProducts()
+            await loadProducts(silent: true)
             // Second pass now that products are loaded, so
             // `purchasedSubscriptions` maps entitlements to Product objects.
             await updatePurchasedProducts()
@@ -107,18 +107,25 @@ class StoreManager: ObservableObject {
     }
 
     // MARK: - Load Products
-    func loadProducts() async {
+    /// - Parameter silent: the launch-time load passes true. Its alert used to
+    ///   sit armed in `showAlert` and pop on whichever paywall opened next,
+    ///   even after that paywall's own reload had succeeded.
+    func loadProducts(silent: Bool = false) async {
         do {
             let products = try await Product.products(for: productIDs)
             subscriptions = products.sorted { a, b in
-                // Sort by subscription period (weekly, monthly, yearly)
-                guard let periodA = a.subscription?.subscriptionPeriod,
-                      let periodB = b.subscription?.subscriptionPeriod else {
-                    return false
-                }
-                return periodA.value < periodB.value
+                // Sort by subscription period (weekly, monthly, yearly).
+                // `.value` is 1 for every plan, so compare the unit's length.
+                Self.periodRank(a) < Self.periodRank(b)
+            }
+            if !products.isEmpty, alertTitle == String(localized: "Can't Load Plans") {
+                dismissAlert()
             }
         } catch {
+            guard !silent else {
+                FirebaseService.shared.logProductsLoadFailed(error: error.localizedDescription)
+                return
+            }
             #if DEBUG
             print("Failed to load products: \(error)")
             #endif
@@ -128,6 +135,19 @@ class StoreManager: ObservableObject {
                 message: friendlyMessage(for: error)
             )
         }
+    }
+
+    private static func periodRank(_ product: Product) -> Int {
+        guard let period = product.subscription?.subscriptionPeriod else { return Int.max }
+        let days: Int
+        switch period.unit {
+        case .day: days = 1
+        case .week: days = 7
+        case .month: days = 30
+        case .year: days = 365
+        @unknown default: days = 0
+        }
+        return days * period.value
     }
 
     // MARK: - Purchase

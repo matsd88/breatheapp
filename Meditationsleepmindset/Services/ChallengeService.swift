@@ -493,12 +493,14 @@ final class ChallengeService: ObservableObject {
     // MARK: - Statistics
 
     var completedThisWeek: Int {
-        let weekStart = Challenge.currentWeekStart()
-        return activeChallenges.filter { $0.isCompleted }.count
+        activeChallenges.filter { $0.isCompleted }.count
     }
 
+    /// `awardReward` already appends each finished challenge to
+    /// `completedChallenges`; adding this week's completed ones again
+    /// showed "2 Challenges" after the first.
     var totalCompletedAllTime: Int {
-        completedChallenges.count + activeChallenges.filter { $0.isCompleted }.count
+        completedChallenges.count
     }
 
     var activeCount: Int {

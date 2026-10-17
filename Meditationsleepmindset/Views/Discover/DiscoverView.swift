@@ -1421,11 +1421,17 @@ struct UnguidedTimerView: View {
         }
 
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+        timer = makeCountdownTimer()
+    }
+
+    /// Counts down against a wall-clock end time; `-= 1` per tick froze
+    /// while the phone was locked with no ambient sound keeping the app alive.
+    private func makeCountdownTimer() -> Timer {
+        let endDate = Date().addingTimeInterval(TimeInterval(timeRemaining))
+        return Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             Task { @MainActor in
-                if timeRemaining > 0 {
-                    timeRemaining -= 1
-                } else {
+                timeRemaining = max(0, Int(endDate.timeIntervalSinceNow.rounded(.up)))
+                if timeRemaining == 0 {
                     completeSession()
                 }
             }
@@ -1441,15 +1447,7 @@ struct UnguidedTimerView: View {
         } else {
             // Resume: restart the countdown AND the ambient sound.
             ambientSoundService.resume()
-            timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-                Task { @MainActor in
-                    if timeRemaining > 0 {
-                        timeRemaining -= 1
-                    } else {
-                        completeSession()
-                    }
-                }
-            }
+            timer = makeCountdownTimer()
         }
     }
 
@@ -1499,7 +1497,7 @@ struct UnguidedTimerView: View {
         modelContext.insert(session)
 
         // Update streak
-        streakService.recordSession(durationMinutes: durationSeconds / 60, context: modelContext)
+        streakService.recordSession(durationMinutes: durationSeconds / 60, context: nil) // session already inserted above
     }
 }
 

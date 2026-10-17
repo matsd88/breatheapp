@@ -118,10 +118,6 @@ struct OnboardingPaywall: View {
 
                 ScrollView {
                     VStack(spacing: 18) {
-                        // Urgency countdown banner (only while the first-run offer is genuinely live)
-                        if showCountdown {
-                            urgencyBanner
-                        }
 
                         // Feature preview cards (swipeable)
                         featurePreviewSection
@@ -189,7 +185,7 @@ struct OnboardingPaywall: View {
                                     await storeManager.loadProducts()
                                 }
 
-                                if let product = storeKitProduct(for: selectedPlan) ?? storeManager.subscriptions.first {
+                                if let product = storeKitProduct(for: selectedPlan) {
                                     await storeManager.purchase(product)
                                     if storeManager.isSubscribed {
                                         onSubscribe()
@@ -208,9 +204,12 @@ struct OnboardingPaywall: View {
                                         .tint(.white)
                                 } else {
                                     VStack(spacing: 2) {
-                                        Text("Start My \(Constants.Subscriptions.freeTrialDays)-Day Free Trial")
+                                        // Billed price on the main line, as loud as
+                                        // the trial (guideline 3.1.2(c)).
+                                        Text("Try \(Constants.Subscriptions.freeTrialDays) days free, then \(selectedPlanPriceDescription)")
                                             .fontWeight(.semibold)
-                                        Text(selectedPlanPriceDescription)
+                                            .multilineTextAlignment(.center)
+                                        Text("Auto-renews · cancel anytime")
                                             .font(.caption)
                                             .opacity(0.8)
                                     }
@@ -285,7 +284,7 @@ struct OnboardingPaywall: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                         animateFeatures = true
                     }
-                    startCountdown()
+                    // No countdown: nothing actually expires when it hits zero (fake urgency).
                     AppStateManager.shared.recordPaywallShown()
 
                     // Track paywall viewed
@@ -443,9 +442,9 @@ struct OnboardingPaywall: View {
             case .week: period = "week"
             default: period = "period"
             }
-            return "then \(product.displayPrice)/\(period), auto-renews"
+            return "\(product.displayPrice)/\(period)"
         }
-        return "then \(selectedPlan.price), auto-renews"
+        return selectedPlan.price
     }
 
     private var subscriptionTermsText: String {

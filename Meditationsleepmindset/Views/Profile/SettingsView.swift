@@ -1082,7 +1082,7 @@ struct TermsOfServiceView: View {
                             Text("• To personalize future conversations, the App keeps a short long-term memory summary of your chats on your device (and your private iCloud). You can erase it any time by clearing your chat history")
                             Text("• Voice mode is optional: if you tap the microphone, your speech is transcribed using Apple's speech recognition, and replies can be read aloud on your device. The microphone is only active while you are recording")
                             Text("• AI bedtime stories are intended to be set up by a parent or guardian; any child name you enter is used only to personalize the story and stays on your device (and is sent to our AI provider solely to generate that story)")
-                            Text("• Free users are limited to \(Constants.Chat.freeMessageLimit) messages per day")
+                            Text("• Free users get \(Constants.Chat.freeMessageLimit) AI coach messages")
                         }
                     }
 

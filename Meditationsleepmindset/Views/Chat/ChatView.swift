@@ -138,6 +138,18 @@ struct ChatView: View {
             } message: {
                 Text("This will permanently delete all your chat history. This cannot be undone.")
             }
+            // VoiceManager flagged denials but nothing showed it — the mic
+            // button just did nothing.
+            .alert("Voice Input Unavailable", isPresented: $voice.permissionDenied) {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("To talk with your coach, check that Microphone and Speech Recognition are allowed for Breathe in Settings.")
+            }
             .sheet(isPresented: $showingMoodTrend) {
                 MoodTrendSheet(moodHistory: ChatService.getMoodHistory(in: modelContext))
             }
@@ -813,6 +825,12 @@ struct ChatView: View {
     private func sendMessage() {
         let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
+        // A reply is in flight (dictation can land mid-request) — keep the
+        // text in the field instead of clearing it into a no-op send.
+        if chatService.isLoading {
+            messageText = text
+            return
+        }
 
         if chatService.hasReachedFreeLimit {
             showingPaywall = true
