@@ -10,7 +10,9 @@ import Charts
 struct MoodInsightsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \MeditationSession.startedAt, order: .reverse) private var sessions: [MeditationSession]
+    /// Re-read when sessions or chats change (SwiftData @Query drives refresh).
+    @Query private var sessions: [MeditationSession]
+    @Query private var chatSessions: [ChatSession]
     @State private var timeRange: TimeRange = .week
 
     enum TimeRange: String, CaseIterable {
@@ -27,82 +29,31 @@ struct MoodInsightsView: View {
         }
     }
 
-    private var filteredSessions: [MeditationSession] {
+    /// Same mood log the Profile card reads: coach check-ins + after-session moods.
+    private var entries: [MoodEntry] {
         let now = Date()
+        let start: Date?
         switch timeRange {
-        case .week:
-            let weekAgo = Calendar.current.date(byAdding: .day, value: -7, to: now) ?? now
-            return sessions.filter { $0.startedAt >= weekAgo }
-        case .month:
-            let monthAgo = Calendar.current.date(byAdding: .month, value: -1, to: now) ?? now
-            return sessions.filter { $0.startedAt >= monthAgo }
-        case .allTime:
-            return sessions
+        case .week: start = Calendar.current.date(byAdding: .day, value: -6, to: Calendar.current.startOfDay(for: now))
+        case .month: start = Calendar.current.date(byAdding: .month, value: -1, to: now)
+        case .allTime: start = nil
         }
+        _ = sessions.count + chatSessions.count // dependency for refresh
+        return MoodLog.entries(since: start, in: modelContext)
     }
 
-    private var sessionsWithMoods: [MeditationSession] {
-        filteredSessions.filter { $0.postMood != nil }
-    }
-
-    private var postMoodCounts: [(mood: Mood, count: Int)] {
-        var counts: [Mood: Int] = [:]
-        for session in filteredSessions {
-            if let raw = session.postMood, let mood = Mood(rawValue: raw) {
-                counts[mood, default: 0] += 1
-            }
-        }
-        return counts.map { (mood: $0.key, count: $0.value) }
-            .sorted { $0.count > $1.count }
-    }
-
-    // Average post-session mood score
-    private var averageMoodScore: Double {
-        let scored = sessionsWithMoods.compactMap { session -> Int? in
-            guard let raw = session.postMood else { return nil }
-            return moodScore(raw)
-        }
-        guard !scored.isEmpty else { return 0 }
-        return Double(scored.reduce(0, +)) / Double(scored.count)
-    }
-
-    private func moodScore(_ raw: String) -> Int {
-        switch Mood(rawValue: raw) {
-        case .grateful: return 9
-        case .happy: return 8
-        case .energetic: return 7
-        case .focused: return 6
-        case .calm: return 5
-        case .tired: return 3
-        case .sad: return 2
-        case .anxious: return 1
-        case .stressed: return 0
-        case .none: return 4
-        }
-    }
-
-    // Daily mood trend data
-    private var dailyMoodTrend: [(date: Date, moodScore: Double)] {
-        let calendar = Calendar.current
-        var grouped: [Date: [Int]] = [:]
-
-        for session in filteredSessions {
-            let day = calendar.startOfDay(for: session.startedAt)
-            if let post = session.postMood {
-                grouped[day, default: []].append(moodScore(post))
-            }
-        }
-
-        return grouped.compactMap { (date, scores) in
-            guard !scores.isEmpty else { return nil }
-            let avg = Double(scores.reduce(0, +)) / Double(scores.count)
-            return (date: date, moodScore: avg)
-        }
-        .sorted { $0.date < $1.date }
+    private func labelCounts(_ entries: [MoodEntry]) -> [(label: String, level: MoodLevel, count: Int)] {
+        Dictionary(grouping: entries, by: \.label)
+            .map { (label: $0.key, level: $0.value[0].level, count: $0.value.count) }
+            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.level.score > $1.level.score }
     }
 
     var body: some View {
-        NavigationStack {
+        let current = entries
+        let daily = MoodLog.dailyAverages(current)
+        let counts = labelCounts(current)
+
+        return NavigationStack {
             ZStack {
                 Theme.profileGradient.ignoresSafeArea()
 
@@ -117,20 +68,20 @@ struct MoodInsightsView: View {
                         .pickerStyle(.segmented)
                         .padding(.horizontal)
 
-                        if sessionsWithMoods.isEmpty {
+                        if current.isEmpty {
                             emptyStateView
                         } else {
                             // Summary stats
-                            summaryCard
+                            summaryCard(current, topLabel: counts.first?.label)
 
                             // Mood trend chart
-                            if !dailyMoodTrend.isEmpty {
-                                moodTrendChart
+                            if !daily.isEmpty {
+                                moodTrendChart(daily)
                             }
 
-                            // Post-mood distribution
-                            if !postMoodCounts.isEmpty {
-                                moodDistributionCard(title: "After Sessions", counts: postMoodCounts)
+                            // Distribution across everything the user picked
+                            if !counts.isEmpty {
+                                moodDistributionCard(title: "How You've Felt", counts: counts)
                             }
                         }
 
@@ -176,7 +127,7 @@ struct MoodInsightsView: View {
                 .font(.headline)
                 .foregroundStyle(Theme.textPrimary)
 
-            Text("Complete sessions with mood check-ins to see your insights here")
+            Text("Check in after a session or with Breathe AI to see your insights here")
                 .font(.subheadline)
                 .foregroundStyle(Theme.textSecondary)
                 .multilineTextAlignment(.center)
@@ -186,10 +137,12 @@ struct MoodInsightsView: View {
 
     // MARK: - Summary Card
 
-    private var summaryCard: some View {
-        HStack(spacing: 0) {
+    private func summaryCard(_ current: [MoodEntry], topLabel: String?) -> some View {
+        let average = Double(current.map(\.level.score).reduce(0, +)) / Double(max(current.count, 1))
+        let averageLevel = MoodLevel(score: average)
+        return HStack(spacing: 0) {
             VStack(spacing: 6) {
-                Text("\(sessionsWithMoods.count)")
+                Text("\(current.count)")
                     .font(.title2.bold())
                     .foregroundStyle(.white)
                 Text("Check-ins")
@@ -203,9 +156,11 @@ struct MoodInsightsView: View {
                 .frame(width: 1, height: 40)
 
             VStack(spacing: 6) {
-                Text(String(format: "%.1f", averageMoodScore))
-                    .font(.title2.bold())
-                    .foregroundStyle(averageMoodScore >= 5 ? .green : .white)
+                Text("\(averageLevel.emoji) \(averageLevel.displayName)")
+                    .font(.title3.bold())
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                 Text("Avg Mood")
                     .font(.caption)
                     .foregroundStyle(Theme.textSecondary)
@@ -217,8 +172,8 @@ struct MoodInsightsView: View {
                 .frame(width: 1, height: 40)
 
             VStack(spacing: 6) {
-                if let topMood = postMoodCounts.first {
-                    Text(topMood.mood.displayName)
+                if let topLabel {
+                    Text(topLabel)
                         .font(.title3.bold())
                         .foregroundStyle(.white)
                 } else {
@@ -240,17 +195,17 @@ struct MoodInsightsView: View {
 
     // MARK: - Mood Trend Chart
 
-    private var moodTrendChart: some View {
+    private func moodTrendChart(_ daily: [(date: Date, score: Double)]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Mood Trend")
                 .font(.headline)
                 .foregroundStyle(Theme.textPrimary)
 
             Chart {
-                ForEach(dailyMoodTrend, id: \.date) { entry in
+                ForEach(daily, id: \.date) { entry in
                     LineMark(
                         x: .value("Date", entry.date),
-                        y: .value("Score", entry.moodScore)
+                        y: .value("Score", entry.score)
                     )
                     .foregroundStyle(.cyan)
                     .symbol(.circle)
@@ -258,14 +213,14 @@ struct MoodInsightsView: View {
 
                     PointMark(
                         x: .value("Date", entry.date),
-                        y: .value("Score", entry.moodScore)
+                        y: .value("Score", entry.score)
                     )
                     .foregroundStyle(.cyan)
                 }
             }
-            .chartYScale(domain: 0...9)
+            .chartYScale(domain: 1...5)
             .chartYAxis {
-                AxisMarks(values: [0, 3, 5, 7, 9]) { value in
+                AxisMarks(values: [1, 2, 3, 4, 5]) { value in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
                         .foregroundStyle(Color.white.opacity(0.1))
                     AxisValueLabel {
@@ -295,7 +250,7 @@ struct MoodInsightsView: View {
             // Legend
             HStack(spacing: 4) {
                 Circle().fill(.cyan).frame(width: 8, height: 8)
-                Text("Post-session mood").font(.caption).foregroundStyle(Theme.textSecondary)
+                Text("Daily mood · check-ins + after sessions").font(.caption).foregroundStyle(Theme.textSecondary)
             }
         }
         .padding()
@@ -304,31 +259,25 @@ struct MoodInsightsView: View {
         .padding(.horizontal)
     }
 
+    /// Same 5-point scale (and names) as the Profile mood card.
     private func moodLabel(for score: Int) -> String {
-        switch score {
-        case 0: return "Stressed"
-        case 3: return "Tired"
-        case 5: return "Calm"
-        case 7: return "Energetic"
-        case 9: return "Grateful"
-        default: return ""
-        }
+        MoodLevel(score: Double(score)).displayName
     }
 
     // MARK: - Mood Distribution Card
 
-    private func moodDistributionCard(title: String, counts: [(mood: Mood, count: Int)]) -> some View {
+    private func moodDistributionCard(title: String, counts: [(label: String, level: MoodLevel, count: Int)]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)
                 .font(.headline)
                 .foregroundStyle(Theme.textPrimary)
 
-            Chart(counts, id: \.mood) { item in
+            Chart(counts, id: \.label) { item in
                 BarMark(
                     x: .value("Count", item.count),
-                    y: .value("Mood", item.mood.rawValue)
+                    y: .value("Mood", item.label)
                 )
-                .foregroundStyle(colorForMood(item.mood))
+                .foregroundStyle(item.level.color.opacity(0.75))
                 .cornerRadius(4)
             }
             .chartXAxis {
@@ -353,21 +302,4 @@ struct MoodInsightsView: View {
         .padding(.horizontal)
     }
 
-    /// Semantic mapping is kept — calm reads cool, stressed reads hot — but the
-    /// fully saturated system colours fought the muted dark palette everywhere
-    /// else in the app. These are the same hues pulled down in saturation and
-    /// lightness so the chart sits in the design rather than shouting over it.
-    private func colorForMood(_ mood: Mood) -> Color {
-        switch mood {
-        case .calm:      return Color(red: 0.38, green: 0.75, blue: 0.82)
-        case .happy:     return Color(red: 0.90, green: 0.76, blue: 0.42)
-        case .anxious:   return Color(red: 0.88, green: 0.60, blue: 0.40)
-        case .stressed:  return Color(red: 0.84, green: 0.45, blue: 0.45)
-        case .sad:       return Color(red: 0.45, green: 0.58, blue: 0.82)
-        case .tired:     return Color(red: 0.58, green: 0.62, blue: 0.68)
-        case .energetic: return Color(red: 0.50, green: 0.78, blue: 0.58)
-        case .focused:   return Color(red: 0.62, green: 0.56, blue: 0.85)
-        case .grateful:  return Color(red: 0.85, green: 0.58, blue: 0.72)
-        }
-    }
 }

@@ -56,6 +56,13 @@ actor VideoCache {
             return cachedURL
         }
 
+        // Downloads are Wi-Fi only. Every full-file download (offline packs,
+        // background caching, next-track prefetch) comes through here;
+        // streaming playback doesn't, so listening on cellular still works.
+        guard await !NetworkMonitor.shared.isExpensive else {
+            throw VideoDownloadError.wifiRequired
+        }
+
         // Check if already downloading
         let downloadKey = "\(videoID)_\(audioOnly)"
         if let existingTask = activeDownloads[downloadKey] {
@@ -264,9 +271,12 @@ enum VideoDownloadError: Error, LocalizedError {
     case downloadFailed
     case invalidResponse
     case fileWriteError
+    case wifiRequired
 
     var errorDescription: String? {
         switch self {
+        case .wifiRequired:
+            return "Connect to Wi-Fi to download"
         case .downloadFailed:
             return "Failed to download video file"
         case .invalidResponse:

@@ -206,7 +206,10 @@ struct OnboardingPaywall: View {
                                     VStack(spacing: 2) {
                                         // Billed price on the main line, as loud as
                                         // the trial (guideline 3.1.2(c)).
-                                        Text("Try \(Constants.Subscriptions.freeTrialDays) days free, then \(selectedPlanPriceDescription)")
+                                        // Trial wording only when StoreKit says this
+                                        // Apple ID can still get it.
+                                        Text(selectedTrialDays.map { "Try \($0) days free, then \(selectedPlanPriceDescription)" }
+                                             ?? "Subscribe for \(selectedPlanPriceDescription)")
                                             .fontWeight(.semibold)
                                             .multilineTextAlignment(.center)
                                         Text("Auto-renews · cancel anytime")
@@ -447,6 +450,10 @@ struct OnboardingPaywall: View {
         return selectedPlan.price
     }
 
+    private var selectedTrialDays: Int? {
+        storeManager.freeTrialDays(for: storeKitProduct(for: selectedPlan))
+    }
+
     private var subscriptionTermsText: String {
         if let product = storeKitProduct(for: selectedPlan) {
             let period: String
@@ -456,7 +463,10 @@ struct OnboardingPaywall: View {
             case .week: period = "week"
             default: period = "period"
             }
-            return "After the \(Constants.Subscriptions.freeTrialDays)-day free trial, you will be charged \(product.displayPrice)/\(period). Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account."
+            if let days = selectedTrialDays {
+                return "After the \(days)-day free trial, you will be charged \(product.displayPrice)/\(period). Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account."
+            }
+            return "You will be charged \(product.displayPrice)/\(period) when you subscribe. Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account."
         }
         return "Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account."
     }

@@ -522,43 +522,22 @@ class ChatService: ObservableObject {
     // MARK: - Mood History
 
     /// Returns the most recent mood check-in for each of the last 7 days
+    /// Last 7 days of mood (today first), from coach check-ins AND
+    /// after-session reflections — the same data Mood Insights shows.
     static func getMoodHistory(in context: ModelContext) -> [DayMood] {
         let calendar = Calendar.current
-        guard let sevenDaysAgo = calendar.date(byAdding: .day, value: -6, to: calendar.startOfDay(for: Date())) else {
+        let today = calendar.startOfDay(for: Date())
+        guard let sevenDaysAgo = calendar.date(byAdding: .day, value: -6, to: today) else {
             return []
         }
 
-        let descriptor = FetchDescriptor<ChatSession>(
-            predicate: #Predicate { $0.startedAt >= sevenDaysAgo && $0.moodLevelRaw != nil },
-            sortBy: [SortDescriptor(\.startedAt, order: .reverse)]
-        )
+        let daily = MoodLog.dailyAverages(MoodLog.entries(since: sevenDaysAgo, in: context))
+        let byDay = Dictionary(uniqueKeysWithValues: daily.map { ($0.date, $0.score) })
 
-        guard let sessions = try? context.fetch(descriptor) else { return [] }
-
-        // Group by day, take latest per day
-        var moodByDay: [String: (date: Date, mood: MoodLevel)] = [:]
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-
-        for session in sessions {
-            guard let mood = session.moodLevel else { continue }
-            let key = formatter.string(from: session.startedAt)
-            if moodByDay[key] == nil {
-                moodByDay[key] = (session.startedAt, mood)
-            }
+        return (0..<7).compactMap { dayOffset in
+            guard let date = calendar.date(byAdding: .day, value: -dayOffset, to: today) else { return nil }
+            return DayMood(date: date, mood: byDay[date].map { MoodLevel(score: $0) })
         }
-
-        // Build 7-day array (today first, oldest last)
-        let today = calendar.startOfDay(for: Date())
-        var result: [DayMood] = []
-        for dayOffset in 0..<7 {
-            guard let date = calendar.date(byAdding: .day, value: -dayOffset, to: today) else { continue }
-            let key = formatter.string(from: date)
-            let mood = moodByDay[key]?.mood
-            result.append(DayMood(date: date, mood: mood))
-        }
-
-        return result
     }
 
     struct DayMood: Identifiable {

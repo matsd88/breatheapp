@@ -15,6 +15,14 @@ struct PremiumUpsellBanner: View {
     /// Falls back to a calm default.
     var hook: String? = nil
 
+    @ObservedObject private var storeManager = StoreManager.shared
+
+    /// The paywall preselects annual, so promise the trial only if this
+    /// Apple ID can actually get it on that plan.
+    private var trialDays: Int? {
+        storeManager.freeTrialDays(for: storeManager.subscriptions.first { $0.subscription?.subscriptionPeriod.unit == .year })
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Header: crown badge + title + hook
@@ -64,7 +72,7 @@ struct PremiumUpsellBanner: View {
             // CTA
             VStack(spacing: 6) {
                 HStack(spacing: 6) {
-                    Text("Try 7 Days Free")
+                    Text(trialDays.map { "Try \($0) Days Free" } ?? "See Premium Plans")
                         .font(.subheadline.weight(.bold))
                     Image(systemName: "chevron.right")
                         .font(.caption.weight(.bold))
@@ -115,7 +123,7 @@ struct PremiumUpsellBanner: View {
         )
         .shadow(color: Color(red: 0.3, green: 0.2, blue: 0.7).opacity(0.35), radius: 16, x: 0, y: 8)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Breathe Premium. \(hook ?? "Everything unlocked."). Try 7 days free.")
+        .accessibilityLabel("Breathe Premium. \(hook ?? "Everything unlocked."). \(trialDays.map { "Try \($0) days free." } ?? "See plans.")")
         .accessibilityAddTraits(.isButton)
     }
 

@@ -932,7 +932,6 @@ struct ManageSubscriptionView: View {
 struct PlaybackSettingsView: View {
     @StateObject private var audioManager = AudioPlayerManager.shared
     @AppStorage(Constants.UserDefaultsKeys.autoPlayNextContent) private var autoPlayNext = true
-    @AppStorage(Constants.UserDefaultsKeys.downloadOverCellular) private var downloadOverCellular = false
     @AppStorage(Constants.UserDefaultsKeys.preferredPlaybackSpeed) private var defaultPlaybackSpeed: Double = 1.0
 
     private let playbackSpeeds: [Double] = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
@@ -982,27 +981,6 @@ struct PlaybackSettingsView: View {
                                         .foregroundStyle(Theme.textPrimary)
 
                                     Text("Automatically play the next track in queue")
-                                        .font(.caption)
-                                        .foregroundStyle(Theme.textSecondary)
-                                }
-                            }
-                        }
-                        .padding()
-                        .tint(.white)
-                    }
-
-                    SettingsSection(title: "Downloads") {
-                        Toggle(isOn: $downloadOverCellular) {
-                            HStack(spacing: 12) {
-                                Image(systemName: "antenna.radiowaves.left.and.right")
-                                    .foregroundStyle(.white)
-                                    .frame(width: 28)
-
-                                VStack(alignment: .leading) {
-                                    Text("Download over Cellular")
-                                        .foregroundStyle(Theme.textPrimary)
-
-                                    Text("May use mobile data")
                                         .font(.caption)
                                         .foregroundStyle(Theme.textSecondary)
                                 }

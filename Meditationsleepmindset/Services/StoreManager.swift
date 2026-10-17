@@ -38,6 +38,12 @@ class StoreManager: ObservableObject {
     @Published var showAlert = false
     @Published var isSubscribed = false
     @Published var isRestoring = false
+    /// Whether this Apple ID can still get the introductory offer for our
+    /// subscription group. Someone who already used the trial (reinstall,
+    /// lapsed subscriber) is charged immediately, so paywalls must not
+    /// promise them a free trial. Starts false: no trial copy until StoreKit
+    /// has actually confirmed eligibility.
+    @Published private(set) var isEligibleForIntroOffer = false
 
     private var updateListenerTask: Task<Void, Error>?
     private var reportedTransactionIDs: Set<UInt64> = []
@@ -121,6 +127,7 @@ class StoreManager: ObservableObject {
             if !products.isEmpty, alertTitle == String(localized: "Can't Load Plans") {
                 dismissAlert()
             }
+            await refreshIntroOfferEligibility()
         } catch {
             guard !silent else {
                 FirebaseService.shared.logProductsLoadFailed(error: error.localizedDescription)
@@ -134,6 +141,31 @@ class StoreManager: ObservableObject {
                 title: String(localized: "Can't Load Plans"),
                 message: friendlyMessage(for: error)
             )
+        }
+    }
+
+    // MARK: - Introductory Offer
+
+    func refreshIntroOfferEligibility() async {
+        // Eligibility is per subscription group; all plans share one group.
+        guard let subscription = subscriptions.first?.subscription else { return }
+        isEligibleForIntroOffer = await subscription.isEligibleForIntroOffer
+    }
+
+    /// Length of the free trial this user would actually get on `product`,
+    /// or nil when there's no trial to promise (not eligible, the product has
+    /// no free-trial intro offer, or products haven't loaded).
+    func freeTrialDays(for product: Product?) -> Int? {
+        guard isEligibleForIntroOffer,
+              let offer = product?.subscription?.introductoryOffer,
+              offer.paymentMode == .freeTrial else { return nil }
+        let period = offer.period
+        switch period.unit {
+        case .day: return period.value
+        case .week: return period.value * 7
+        case .month: return period.value * 30
+        case .year: return period.value * 365
+        @unknown default: return nil
         }
     }
 
@@ -395,6 +427,8 @@ class StoreManager: ObservableObject {
 
         purchasedSubscriptions = purchased
         isSubscribed = hasSubscription
+        // A trial that just started or lapsed changes eligibility.
+        await refreshIntroOfferEligibility()
 
         // If the user is subscribed, drop any pending win-back — a lapsed user
         // who re-subscribes before the 3-day offer fires shouldn't get it.

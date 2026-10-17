@@ -64,7 +64,7 @@ struct AlarmSettingsView: View {
 
                         if alarmService.isEnabled {
                             if isRegular {
-                                // iPad: two-column layout — time picker left, sound + snooze right
+                                // iPad: two-column layout — time picker left, snooze right
                                 HStack(alignment: .top, spacing: 20) {
                                     // Left column: Time picker
                                     VStack(spacing: 12) {
@@ -89,44 +89,8 @@ struct AlarmSettingsView: View {
                                     .background(Color.white.opacity(0.06))
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
 
-                                    // Right column: Sound + Snooze
+                                    // Right column: Snooze
                                     VStack(spacing: 20) {
-                                        // Sound selection
-                                        VStack(alignment: .leading, spacing: 14) {
-                                            Text("Alarm Sound")
-                                                .font(.headline)
-                                                .foregroundStyle(Theme.textSecondary)
-
-                                            ForEach(AlarmService.soundOptions, id: \.self) { sound in
-                                                Button {
-                                                    alarmService.selectedSoundName = sound
-                                                } label: {
-                                                    HStack {
-                                                        Image(systemName: AlarmService.iconForSound(sound))
-                                                            .foregroundStyle(.cyan)
-                                                            .font(.body)
-                                                            .frame(width: 28)
-
-                                                        Text(sound)
-                                                            .font(.body)
-                                                            .foregroundStyle(.white)
-
-                                                        Spacer()
-
-                                                        if alarmService.selectedSoundName == sound {
-                                                            Image(systemName: "checkmark.circle.fill")
-                                                                .foregroundStyle(.cyan)
-                                                        }
-                                                    }
-                                                    .padding(.vertical, 10)
-                                                }
-                                                .buttonStyle(.plain)
-                                            }
-                                        }
-                                        .padding(20)
-                                        .background(Color.white.opacity(0.06))
-                                        .clipShape(RoundedRectangle(cornerRadius: 14))
-
                                         // Snooze
                                         VStack(spacing: 14) {
                                             Toggle(isOn: $alarmService.snoozeEnabled) {
@@ -178,40 +142,6 @@ struct AlarmSettingsView: View {
                                     .colorScheme(.dark)
                                     .onChange(of: alarmService.alarmTime) { _, _ in
                                         alarmService.scheduleAlarm()
-                                    }
-                                }
-                                .padding()
-                                .background(Color.white.opacity(0.06))
-                                .clipShape(RoundedRectangle(cornerRadius: 14))
-
-                                // Sound selection
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text("Alarm Sound")
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(Theme.textSecondary)
-
-                                    ForEach(AlarmService.soundOptions, id: \.self) { sound in
-                                        Button {
-                                            alarmService.selectedSoundName = sound
-                                        } label: {
-                                            HStack {
-                                                Image(systemName: AlarmService.iconForSound(sound))
-                                                    .foregroundStyle(.cyan)
-                                                    .frame(width: 24)
-
-                                                Text(sound)
-                                                    .foregroundStyle(.white)
-
-                                                Spacer()
-
-                                                if alarmService.selectedSoundName == sound {
-                                                    Image(systemName: "checkmark")
-                                                        .foregroundStyle(.cyan)
-                                                }
-                                            }
-                                            .padding(.vertical, 8)
-                                        }
-                                        .buttonStyle(.plain)
                                     }
                                 }
                                 .padding()

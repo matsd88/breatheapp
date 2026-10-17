@@ -16,12 +16,6 @@ class AlarmService: ObservableObject {
     @Published var alarmTime: Date {
         didSet { UserDefaults.standard.set(alarmTime.timeIntervalSince1970, forKey: "alarmTime") }
     }
-    @Published var selectedSoundName: String {
-        didSet {
-            UserDefaults.standard.set(selectedSoundName, forKey: "alarmSound")
-            scheduleAlarm() // Reschedule with new sound
-        }
-    }
     @Published var snoozeEnabled: Bool {
         didSet { UserDefaults.standard.set(snoozeEnabled, forKey: "alarmSnooze") }
     }
@@ -33,7 +27,8 @@ class AlarmService: ObservableObject {
         self.isEnabled = UserDefaults.standard.bool(forKey: "alarmEnabled")
         let savedTime = UserDefaults.standard.double(forKey: "alarmTime")
         self.alarmTime = savedTime > 0 ? Date(timeIntervalSince1970: savedTime) : Self.defaultAlarmTime()
-        self.selectedSoundName = UserDefaults.standard.string(forKey: "alarmSound") ?? "Gentle Chimes"
+        // The sound picker is gone (no sound files ever shipped); drop its key.
+        UserDefaults.standard.removeObject(forKey: "alarmSound")
         self.snoozeEnabled = UserDefaults.standard.object(forKey: "alarmSnooze") == nil ? true : UserDefaults.standard.bool(forKey: "alarmSnooze")
         self.snoozeMinutes = max(1, UserDefaults.standard.integer(forKey: "alarmSnoozeMinutes") == 0 ? 5 : UserDefaults.standard.integer(forKey: "alarmSnoozeMinutes"))
     }
@@ -43,27 +38,6 @@ class AlarmService: ObservableObject {
         components.hour = 7
         components.minute = 0
         return Calendar.current.date(from: components) ?? Date()
-    }
-
-    static let soundOptions = [
-        "Gentle Chimes",
-        "Birds",
-        "Ocean Waves",
-        "Soft Piano",
-        "Rain",
-        "Forest"
-    ]
-
-    static func iconForSound(_ name: String) -> String {
-        switch name {
-        case "Gentle Chimes": return "bell.fill"
-        case "Birds": return "bird.fill"
-        case "Ocean Waves": return "water.waves"
-        case "Soft Piano": return "pianokeys"
-        case "Rain": return "cloud.rain.fill"
-        case "Forest": return "leaf.fill"
-        default: return "bell.fill"
-        }
     }
 
     func scheduleAlarm() {
@@ -80,7 +54,7 @@ class AlarmService: ObservableObject {
         let content = UNMutableNotificationContent()
         content.title = "Good Morning"
         content.body = "Time to wake up and start your day mindfully."
-        content.sound = notificationSound(for: selectedSoundName)
+        content.sound = .default
         content.categoryIdentifier = "ALARM"
 
         let components = Calendar.current.dateComponents([.hour, .minute], from: alarmTime)
@@ -110,7 +84,7 @@ class AlarmService: ObservableObject {
         let content = UNMutableNotificationContent()
         content.title = "Alarm"
         content.body = "Snooze is over — time to rise."
-        content.sound = notificationSound(for: selectedSoundName)
+        content.sound = .default
         // Same category as the alarm, so the snoozed alarm can be snoozed again.
         content.categoryIdentifier = "ALARM"
 
@@ -121,26 +95,6 @@ class AlarmService: ObservableObject {
 
         let request = UNNotificationRequest(identifier: "sleepAlarmSnooze", content: content, trigger: trigger)
         center.add(request)
-    }
-
-    /// Map user-facing sound name to a system notification sound.
-    /// If custom .caf files are added to the bundle, they'll be used automatically.
-    /// Otherwise iOS falls back to the default system sound gracefully.
-    private func notificationSound(for soundName: String) -> UNNotificationSound {
-        let fileName: String? = switch soundName {
-        case "Birds": "birds.caf"
-        case "Ocean Waves": "ocean.caf"
-        case "Soft Piano": "piano.caf"
-        case "Rain": "rain.caf"
-        case "Forest": "forest.caf"
-        default: nil
-        }
-
-        // Only use custom sound if the file actually exists in the bundle
-        if let fileName, Bundle.main.url(forResource: fileName.replacingOccurrences(of: ".caf", with: ""), withExtension: "caf") != nil {
-            return UNNotificationSound(named: UNNotificationSoundName(fileName))
-        }
-        return .default
     }
 
     var formattedAlarmTime: String {

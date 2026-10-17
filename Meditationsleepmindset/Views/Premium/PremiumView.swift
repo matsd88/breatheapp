@@ -168,8 +168,14 @@ struct PremiumPaywallView: View {
     /// Spells out exactly what happens and when, including the reminder before
     /// billing. Nothing here is a promise the app can't keep — the day-5 line
     /// describes Apple's own pre-renewal notice for introductory offers.
-    private var trialTimeline: some View {
-        VStack(alignment: .leading, spacing: 0) {
+    /// Trial the user would really get on the selected plan (nil = none).
+    private var selectedTrialDays: Int? {
+        storeManager.freeTrialDays(for: storeKitProduct(for: selectedPlan))
+    }
+
+    private func trialTimeline(days: Int) -> some View {
+        let reminderDay = max(1, days - 2)
+        return VStack(alignment: .leading, spacing: 0) {
             timelineRow(
                 icon: "lock.open.fill",
                 title: String(localized: "Today"),
@@ -178,13 +184,13 @@ struct PremiumPaywallView: View {
             )
             timelineRow(
                 icon: "bell.fill",
-                title: String(localized: "Day 5"),
+                title: String(localized: "Day \(reminderDay)"),
                 detail: String(localized: "Apple emails you a reminder that the trial is ending."),
                 isLast: false
             )
             timelineRow(
                 icon: "creditcard.fill",
-                title: String(localized: "Day 7"),
+                title: String(localized: "Day \(days)"),
                 detail: String(localized: "Your subscription begins. Cancel any time before then and you pay nothing."),
                 isLast: true
             )
@@ -194,7 +200,7 @@ struct PremiumPaywallView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .padding(.horizontal, 24)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(String(localized: "Free trial timeline: full access today, a reminder on day 5, billing begins on day 7. Cancel before then and you pay nothing."))
+        .accessibilityLabel(String(localized: "Free trial timeline: full access today, a reminder on day \(reminderDay), billing begins on day \(days). Cancel before then and you pay nothing."))
     }
 
     private func timelineRow(icon: String, title: String, detail: String, isLast: Bool) -> some View {
@@ -348,7 +354,9 @@ struct PremiumPaywallView: View {
                             VStack(spacing: 2) {
                                 // Billed price on the main line, as loud as the
                                 // trial (guideline 3.1.2(c)), in the store's currency.
-                                Text("Try \(Constants.Subscriptions.freeTrialDays) days free, then \(PremiumPlanOptionView.billedPrice(plan: selectedPlan, product: storeKitProduct(for: selectedPlan)))")
+                                // Trial wording only for users StoreKit says are
+                                // eligible — anyone else is charged immediately.
+                                Text(ctaTitle)
                                     .fontWeight(.semibold)
                                     .multilineTextAlignment(.center)
                                 Text("Auto-renews · cancel anytime")
@@ -377,7 +385,9 @@ struct PremiumPaywallView: View {
                 // Trial timeline — the single strongest trust device on a
                 // wellness paywall: it removes the "when am I actually charged?"
                 // doubt that stops people starting a trial at all.
-                trialTimeline
+                if let days = selectedTrialDays {
+                    trialTimeline(days: days)
+                }
 
                 // Trust signals
                 VStack(spacing: 12) {
@@ -514,6 +524,14 @@ struct PremiumPaywallView: View {
         }
     }
 
+    private var ctaTitle: String {
+        let price = PremiumPlanOptionView.billedPrice(plan: selectedPlan, product: storeKitProduct(for: selectedPlan))
+        if let days = selectedTrialDays {
+            return String(localized: "Try \(days) days free, then \(price)")
+        }
+        return String(localized: "Subscribe for \(price)")
+    }
+
     private var subscriptionTermsText: String {
         if let product = storeKitProduct(for: selectedPlan) {
             let period: String
@@ -523,7 +541,10 @@ struct PremiumPaywallView: View {
             case .week: period = "week"
             default: period = "period"
             }
-            return "After the 7-day free trial, you will be charged \(product.displayPrice)/\(period). Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account."
+            if let days = selectedTrialDays {
+                return "After the \(days)-day free trial, you will be charged \(product.displayPrice)/\(period). Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account."
+            }
+            return "You will be charged \(product.displayPrice)/\(period) when you subscribe. Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account."
         }
         return "Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account."
     }

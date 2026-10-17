@@ -897,7 +897,7 @@ struct MoodHistoryCard: View {
             if moodHistory.isEmpty || moodHistory.allSatisfy({ $0.mood == nil }) {
                 HStack {
                     Spacer()
-                    Text("Chat with Breathe AI to track your mood")
+                    Text("Check in after a session or with Breathe AI to track your mood")
                         .font(.subheadline)
                         .foregroundStyle(Theme.textSecondary)
                         .multilineTextAlignment(.center)

@@ -692,11 +692,14 @@ struct DiscountedPaywallView: View {
         storeManager.subscriptions.first { $0.subscription?.subscriptionPeriod.unit == .year }
     }
 
-    private var priceText: String {
-        if let product = annualProduct {
-            return "Then \(product.displayPrice)/year"
-        }
-        return "Then $49.99/year"
+    private var annualPrice: String {
+        annualProduct.map { "\($0.displayPrice)/year" } ?? "$49.99/year"
+    }
+
+    /// nil when this Apple ID can't get the trial (it already used it) —
+    /// win-back taps land here, and those users are charged immediately.
+    private var trialDays: Int? {
+        storeManager.freeTrialDays(for: annualProduct)
     }
 
     var body: some View {
@@ -714,7 +717,7 @@ struct DiscountedPaywallView: View {
 
                 ScrollView {
                     VStack(spacing: 24) {
-                        Text("Try Premium Free")
+                        Text(trialDays != nil ? "Try Premium Free" : "Unlock Premium")
                             .font(.largeTitle)
                             .fontWeight(.bold)
                             .foregroundStyle(.white)
@@ -724,15 +727,21 @@ struct DiscountedPaywallView: View {
                         // the price was 70%-opacity title3 under a 48pt
                         // "7 Days Free" (guideline 3.1.2(c)).
                         VStack(spacing: 8) {
-                            Text("7 days free")
-                                .font(.title.weight(.bold))
-                                .foregroundStyle(.white)
+                            if let trialDays {
+                                Text("\(trialDays) days free")
+                                    .font(.title.weight(.bold))
+                                    .foregroundStyle(.white)
 
-                            Text(priceText)
-                                .font(.title.weight(.bold))
-                                .foregroundStyle(.white)
+                                Text("Then \(annualPrice)")
+                                    .font(.title.weight(.bold))
+                                    .foregroundStyle(.white)
+                            } else {
+                                Text(annualPrice)
+                                    .font(.title.weight(.bold))
+                                    .foregroundStyle(.white)
+                            }
 
-                            Text("Cancel anytime during trial")
+                            Text(trialDays != nil ? "Cancel anytime during trial" : "Cancel anytime")
                                 .font(.subheadline)
                                 .foregroundStyle(.green)
                         }
@@ -768,7 +777,7 @@ struct DiscountedPaywallView: View {
                                 }
                             }
                         } label: {
-                            Text("Start Free Trial")
+                            Text(trialDays != nil ? "Start Free Trial" : "Subscribe for \(annualPrice)")
                                 .font(.headline)
                                 .foregroundStyle(Color(red: 0.2, green: 0.1, blue: 0.4))
                                 .frame(maxWidth: .infinity)
@@ -784,7 +793,9 @@ struct DiscountedPaywallView: View {
                         .foregroundStyle(.white.opacity(0.6))
 
                         // Fine print (Apple requirement: price, duration, auto-renewal terms)
-                        Text("After the 7-day free trial, you will be charged \(annualProduct?.displayPrice ?? "$49.99")/year. Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account.")
+                        Text((trialDays.map { "After the \($0)-day free trial, you will be charged \(annualPrice)." }
+                              ?? "You will be charged \(annualPrice) when you subscribe.")
+                             + " Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Payment is charged to your Apple ID account.")
                             .font(.caption2)
                             .foregroundStyle(.white.opacity(0.4))
                             .multilineTextAlignment(.center)

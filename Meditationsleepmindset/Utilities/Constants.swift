@@ -56,7 +56,6 @@ enum Constants {
         static let reminderTime = "reminderTime"
         static let preferredPlaybackSpeed = "preferredPlaybackSpeed"
         static let autoPlayNextContent = "autoPlayNextContent"
-        static let downloadOverCellular = "downloadOverCellular"
         static let showMoodCheckIn = "showMoodCheckIn"
         static let chatMessagesSentCount = "chatMessagesSentCount"
         // Daily Intention ritual

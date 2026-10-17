@@ -43,6 +43,11 @@ struct OfflinePacksView: View {
                         // Header stats
                         headerStats
 
+                        Label("Downloads use Wi-Fi only, never your mobile data", systemImage: "wifi")
+                            .font(.caption)
+                            .foregroundStyle(Theme.textSecondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
                         // Downloaded section
                         if !downloadedPacks.isEmpty {
                             downloadedSection

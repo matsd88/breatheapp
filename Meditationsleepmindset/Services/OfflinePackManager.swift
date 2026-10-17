@@ -261,6 +261,12 @@ class OfflinePackManager: ObservableObject {
             return
         }
 
+        // Downloads are Wi-Fi only (VideoCache enforces it per file too)
+        guard !NetworkMonitor.shared.isExpensive else {
+            downloadStates[pack.id] = .failed(error: String(localized: "Connect to Wi-Fi to download"))
+            return
+        }
+
         // Start download
         downloadStates[pack.id] = .downloading(progress: 0)
 
@@ -347,10 +353,20 @@ class OfflinePackManager: ObservableObject {
 
                 let progress = Double(downloadedCount) / Double(totalItems)
                 downloadStates[pack.id] = .downloading(progress: progress)
+            } catch VideoDownloadError.wifiRequired {
+                // Left Wi-Fi mid-pack: stop rather than fail every remaining item
+                downloadStates[pack.id] = .failed(error: String(localized: "Wi-Fi lost. Reconnect to finish downloading"))
+                return
             } catch {
                 // Continue with other downloads even if one fails
                 print("Failed to download \(item.title): \(error)")
             }
+        }
+
+        // Nothing actually downloaded — don't report the pack as saved
+        guard downloadedCount > 0 else {
+            downloadStates[pack.id] = .failed(error: String(localized: "Download failed"))
+            return
         }
 
         // Mark as complete

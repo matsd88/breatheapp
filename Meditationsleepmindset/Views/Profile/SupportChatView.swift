@@ -357,7 +357,7 @@ class SupportChatViewModel: ObservableObject {
 
         case "offline_downloads":
             addBotMessage(
-                text: String(localized: "Offline packs let you download sessions and play them with no signal — flights, the Underground, a cabin with bad wifi.\n\nGo to the You tab → Offline Packs, choose a pack, and tap download. Once it's on your device it plays without a connection, and it keeps counting toward your streak.\n\nDownloads are part of Premium. Everything you've already downloaded stays available."),
+                text: String(localized: "Offline packs let you download sessions and play them with no signal — flights, the Underground, a cabin with bad wifi.\n\nGo to the You tab → Offline Packs, choose a pack, and tap download (downloads run on Wi-Fi only, so they never use your mobile data). Once it's on your device it plays without a connection, and it keeps counting toward your streak.\n\nDownloads are part of Premium. Everything you've already downloaded stays available."),
                 options: [
                     SupportOption(id: "see_premium", icon: "sparkles", title: String(localized: "See Premium plans"), tint: SupportTint.amber, action: .route(.premium)),
                     backToMainOption, wasThisHelpfulOption
@@ -366,7 +366,7 @@ class SupportChatViewModel: ObservableObject {
 
         case "sleep_tools":
             addBotMessage(
-                text: String(localized: "The Sleep tab has three tools:\n\n⏱️ Sleep timer — fades the audio out and stops playback so it doesn't run all night.\n⏰ Alarm — wakes you with a gentle sound rather than a jolt.\n📊 Sleep score — take the short sleep assessment and you'll get a persona and a plan tuned to how you actually sleep.\n\nThe wind-down banner on that tab also suggests the best time to start based on your usual bedtime."),
+                text: String(localized: "The Sleep tab has three tools:\n\n⏱️ Sleep timer — fades the audio out and stops playback so it doesn't run all night.\n⏰ Alarm — a wake-up alert at the time you set, with optional snooze.\n📊 Sleep score — take the short sleep assessment and you'll get a persona and a plan tuned to how you actually sleep.\n\nThe wind-down banner on that tab also suggests the best time to start based on your usual bedtime."),
                 options: [backToMainOption, wasThisHelpfulOption]
             )
 
@@ -521,7 +521,7 @@ class SupportChatViewModel: ObservableObject {
         // Offline Downloads
         case "offline_issues":
             addBotMessage(
-                text: String(localized: "For offline download issues:\n\n1. Make sure you have an active Premium subscription\n2. Check that you have enough storage space on your device\n3. Try downloading on a stable WiFi connection\n4. If a download is stuck, try deleting it and re-downloading\n\nDownloads are stored on your device — manage them with the button below. An active subscription is required to download and play premium content offline."),
+                text: String(localized: "For offline download issues:\n\n1. Make sure you have an active Premium subscription\n2. Check that you have enough storage space on your device\n3. Connect to Wi-Fi — downloads only run on Wi-Fi, never on mobile data\n4. If a download is stuck, try deleting it and re-downloading\n\nDownloads are stored on your device — manage them with the button below. An active subscription is required to download and play premium content offline."),
                 options: [
                     SupportOption(id: "open_offline", icon: "arrow.down.circle", title: String(localized: "Open Offline Packs"), tint: SupportTint.green, action: .route(.offlineDownloads)),
                     backToMainOption, wasThisHelpfulOption
