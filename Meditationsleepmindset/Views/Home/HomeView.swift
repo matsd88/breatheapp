@@ -34,6 +34,7 @@ struct HomeView: View {
     @State private var cachedPlaylistItemsByID: [UUID: [PlaylistItem]] = [:]
     @State private var cachedRecentlyPlayed: [Content] = []
     @State private var cachedContinueListening: (content: Content, session: MeditationSession)?
+    @State private var cachedQuickMeditations: [Content] = []
 
     enum HomeSheetType: Identifiable {
         case unguidedTimer
@@ -297,6 +298,19 @@ struct HomeView: View {
 
         // Playlist items grouped by playlist ID
         cachedPlaylistItemsByID = Dictionary(grouping: playlistItems, by: \.playlistID)
+
+        // Quick Meditations — guided meditations of 1–10 minutes, shortest
+        // first; free users see the free ones first (premium only previews).
+        let quick = allContent.filter {
+            $0.contentType == .meditation && !$0.isUserAdded
+                && (60...600).contains($0.durationSeconds)
+        }
+        let subscribed = storeManager.isSubscribed
+        cachedQuickMeditations = Array(quick.sorted { a, b in
+            if !subscribed, a.isPremium != b.isPremium { return !a.isPremium }
+            if a.durationSeconds != b.durationSeconds { return a.durationSeconds < b.durationSeconds }
+            return a.title < b.title
+        }.prefix(12))
 
         // Recently played
         let contentByVideoID = Dictionary(allContent.map { ($0.youtubeVideoID, $0) }, uniquingKeysWith: { first, _ in first })
@@ -613,6 +627,11 @@ struct HomeView: View {
                         )
                         .id(TodaysPlanSection.todayKey)
 
+                        // Quick Meditations — short guided sessions, one tap to start
+                        if !cachedQuickMeditations.isEmpty {
+                            quickMeditationsSection
+                        }
+
                         // AI Studio hero — signature differentiator, single clear CTA
                         DailyToolsSection(mode: .hero)
 
@@ -898,11 +917,50 @@ struct HomeView: View {
             .onChange(of: favorites.count) { _, _ in
                 recomputeDerivedState()
             }
+            .onChange(of: storeManager.isSubscribed) { _, _ in
+                recomputeDerivedState()
+            }
             .onChange(of: sessions.count) { _, _ in
                 recomputeDerivedState()
             }
             .onChange(of: playlistItems.count) { _, _ in
                 cachedPlaylistItemsByID = Dictionary(grouping: playlistItems, by: \.playlistID)
+            }
+        }
+    }
+
+    // MARK: - Quick Meditations Section
+
+    private var quickMeditationsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "bolt.heart.fill")
+                    .foregroundStyle(.purple)
+                    .accessibilityHidden(true)
+                Text("Quick Meditations")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Theme.textPrimary)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+            }
+            .padding(.horizontal)
+
+            Text("10 minutes or less")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.5))
+                .padding(.horizontal)
+                .padding(.top, -8)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 16) {
+                    ForEach(cachedQuickMeditations) { content in
+                        RecentlyPlayedCard(content: content) {
+                            playContent(content, from: cachedQuickMeditations)
+                        }
+                    }
+                }
+                .padding(.horizontal)
             }
         }
     }
