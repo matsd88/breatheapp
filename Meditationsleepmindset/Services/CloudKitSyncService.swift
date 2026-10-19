@@ -47,7 +47,11 @@ class CloudKitSyncService: ObservableObject {
             lastSyncDate = Date()
         }
 
-        // Upload all local data
+        // Merge what the cloud already has (e.g. signing in on a new or
+        // reinstalled device) BEFORE uploading: the upload overwrites the
+        // singleton records, so uploading first replaced a 40-day cloud
+        // streak with this device's 0.
+        await fetchAndMergeAll()
         await uploadAllLocalData()
 
         AccountService.shared.hasMigratedToCloudKit = true
@@ -64,9 +68,11 @@ class CloudKitSyncService: ObservableObject {
             lastSyncDate = Date()
         }
 
-        // Upload local changes, then fetch and merge cloud data
-        await uploadAllLocalData()
+        // Fetch and merge cloud data first, then upload the merged result.
+        // Uploading first overwrote the cloud record with this device's
+        // (possibly older/lower) values, so the merge had nothing to merge.
         await fetchAndMergeAll()
+        await uploadAllLocalData()
     }
 
     // MARK: - Upload All Local Data
@@ -187,8 +193,11 @@ class CloudKitSyncService: ObservableObject {
                 }
             }
 
-            // Note: StreakService properties are @Published, so UI updates automatically.
-            // The merged data will be saved on next recordSession() call or app background.
+            // Persist the merge — it previously lived only in memory until the
+            // next session, and was lost if the app was killed first.
+            if changed {
+                streakService.persistMergedData()
+            }
         } catch {
             // Record doesn't exist yet — that's fine on first sync
             #if DEBUG
@@ -215,14 +224,23 @@ class CloudKitSyncService: ObservableObject {
     private func deleteAllRecords(ofType recordType: String) async throws {
         let query = CKQuery(recordType: recordType, predicate: NSPredicate(value: true))
         do {
-            let (results, _) = try await privateDB.records(matching: query)
-            let recordIDs = results.compactMap { result -> CKRecord.ID? in
-                guard case .success = result.1 else { return nil }
-                return result.0
+            // Follow the cursor: a query returns one page (~100 records), so a
+            // user with more favorites than that kept the rest after "deleting".
+            var recordIDs: [CKRecord.ID] = []
+            var (results, cursor) = try await privateDB.records(matching: query)
+            while true {
+                recordIDs += results.compactMap { result -> CKRecord.ID? in
+                    guard case .success = result.1 else { return nil }
+                    return result.0
+                }
+                guard let next = cursor else { break }
+                (results, cursor) = try await privateDB.records(continuingMatchFrom: next)
             }
 
-            if !recordIDs.isEmpty {
-                _ = try await privateDB.modifyRecords(saving: [], deleting: recordIDs)
+            // CloudKit caps one modify operation at 400 records.
+            for start in stride(from: 0, to: recordIDs.count, by: 400) {
+                let batch = Array(recordIDs[start..<min(start + 400, recordIDs.count)])
+                _ = try await privateDB.modifyRecords(saving: [], deleting: batch)
             }
         } catch let error as CKError where error.code == .unknownItem {
             // The record type has never been created in this user's private
