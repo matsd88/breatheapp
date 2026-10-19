@@ -79,6 +79,8 @@ struct SleepView: View {
     @StateObject private var health = HealthKitService.shared
     @Query(sort: \MeditationSession.startedAt, order: .reverse) private var sessions: [MeditationSession]
     @AppStorage("dismissedBedtimePrompt") private var dismissedBedtimePrompt = false
+    @State private var showNotificationsDenied = false
+    @Environment(\.openURL) private var openURL
 
     private let sleepTimeFormatter: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "h:mm a"; return f
@@ -267,10 +269,15 @@ struct SleepView: View {
     // MARK: - Sleep Pills
     private var sleepPillsRow: some View {
         HStack(spacing: sizeClass == .regular ? 12 : 8) {
+            // "End of session" / "End of queue" stop modes have no countdown,
+            // so the pill used to read plain "Timer" (inactive) right after the
+            // user set one — it looked like the choice hadn't taken.
             SleepActionPill(
-                title: playerManager.sleepTimerRemaining.map { timerFormatted($0) } ?? "Timer",
+                title: playerManager.sleepTimerRemaining.map { timerFormatted($0) }
+                    ?? playerManager.sleepStopMode?.label
+                    ?? String(localized: "Timer"),
                 icon: "moon.zzz.fill",
-                isActive: playerManager.sleepTimerRemaining != nil
+                isActive: playerManager.sleepTimerActive
             ) {
                 activeSleepSheet = .sleepTimer
             }
@@ -497,7 +504,16 @@ struct SleepView: View {
                             if !notificationService.bedtimeReminderEnabled && !dismissedBedtimePrompt {
                                 BedtimeReminderPrompt(
                                     onEnable: {
-                                        notificationService.setBedtimeReminder(enabled: true)
+                                        // Scheduling without permission silently never
+                                        // fires, yet the prompt vanished as if it worked.
+                                        Task {
+                                            if await notificationService.requestAuthorization() {
+                                                notificationService.setBedtimeReminder(enabled: true)
+                                                ToastManager.shared.show("Bedtime reminder on", icon: "bell.fill", style: .success)
+                                            } else {
+                                                showNotificationsDenied = true
+                                            }
+                                        }
                                     },
                                     onDismiss: {
                                         dismissedBedtimePrompt = true
@@ -562,6 +578,16 @@ struct SleepView: View {
         }
         .sheet(isPresented: $showSleepPreparation) {
             SleepPreparationView()
+        }
+        .alert("Notifications Are Off", isPresented: $showNotificationsDenied) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    openURL(url)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Bedtime reminders need notifications. Turn them on for Breathe in Settings.")
         }
     }
 

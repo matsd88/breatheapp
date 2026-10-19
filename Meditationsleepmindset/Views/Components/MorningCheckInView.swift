@@ -120,6 +120,9 @@ struct MorningCheckInView: View {
         }
         .onDisappear {
             dismissTask?.cancel()
+            // Swiping the sheet away never stamped today's date, so the
+            // check-in came back on every launch that morning.
+            onDismiss()
         }
     }
 }
@@ -157,9 +160,12 @@ class MorningCheckInManager: ObservableObject {
             return
         }
 
+        // One window: 8 PM yesterday → 2 AM today. The old `>= yesterdayEvening
+        // || …` also matched anything played this morning (a 7 AM soundscape
+        // produced "You fell asleep to …").
         let sleepSession = sessions.first { session in
             let date = session.startedAt
-            let isNightTime = date >= yesterdayEvening || (date >= calendar.startOfDay(for: now) && date <= thisEarlyMorning)
+            let isNightTime = date >= yesterdayEvening && date <= thisEarlyMorning
             let isSleepContent = SleepAnalyticsService.sleepContentTypes.contains(session.sessionType)
             return isNightTime && isSleepContent
         }

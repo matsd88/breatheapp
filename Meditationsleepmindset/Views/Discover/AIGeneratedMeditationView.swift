@@ -150,7 +150,10 @@ struct AIGeneratedMeditationView: View {
                         Image(systemName: "xmark")
                             .font(.body.weight(.semibold))
                             .foregroundStyle(.white.opacity(0.7))
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
+                    .accessibilityLabel("Close")
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
@@ -512,6 +515,7 @@ struct SelectableChip: View {
                 )
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -548,6 +552,11 @@ struct SelectableCard: View {
             )
         }
         .buttonStyle(.plain)
+        // Duration / focus / voice pickers gave VoiceOver no hint of which
+        // option was chosen.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 }
 
@@ -764,7 +773,10 @@ struct AIGeneratedPlayerView: View {
                                 .frame(width: 32, height: 32)
                                 .background(Color.white.opacity(0.15))
                                 .clipShape(Circle())
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
                         }
+                        .accessibilityLabel("Close")
 
                         Spacer()
 
@@ -877,6 +889,7 @@ struct AIGeneratedPlayerView: View {
                                 .font(.title)
                                 .foregroundStyle(.white.opacity(0.8))
                         }
+                        .accessibilityLabel("Back 15 seconds")
 
                         Button {
                             togglePlayPause()
@@ -892,6 +905,7 @@ struct AIGeneratedPlayerView: View {
                                     .offset(x: isPlaying ? 0 : 2)
                             }
                         }
+                        .accessibilityLabel(isPlaying ? "Pause" : "Play")
 
                         Button {
                             skip(by: 15)
@@ -900,6 +914,7 @@ struct AIGeneratedPlayerView: View {
                                 .font(.title)
                                 .foregroundStyle(.white.opacity(0.8))
                         }
+                        .accessibilityLabel("Forward 15 seconds")
                     }
                     .padding(.top, 32)
 
@@ -927,12 +942,21 @@ struct AIGeneratedPlayerView: View {
             return
         }
 
+        // This player is separate from AudioPlayerManager, so a library
+        // track or sleep story that was playing kept going underneath the
+        // AI voice — two narrators at once.
+        if AudioPlayerManager.shared.isPlaying {
+            AudioPlayerManager.shared.pause()
+        }
+
         let playerItem = AVPlayerItem(url: audioURL)
         player = AVPlayer(playerItem: playerItem)
 
         // Observe duration
         Task {
-            if let loadedDuration = try? await playerItem.asset.load(.duration) {
+            // Int(Double.nan) traps in formatTime — only accept a real duration.
+            if let loadedDuration = try? await playerItem.asset.load(.duration),
+               loadedDuration.seconds.isFinite {
                 duration = loadedDuration.seconds
             }
         }
@@ -940,7 +964,7 @@ struct AIGeneratedPlayerView: View {
         // Time observer
         let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         timeObserver = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { time in
-            currentTime = time.seconds
+            if time.seconds.isFinite { currentTime = time.seconds }
         }
 
         // End of playback notification

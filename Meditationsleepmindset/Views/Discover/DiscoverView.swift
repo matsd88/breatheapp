@@ -44,13 +44,19 @@ struct DiscoverView: View {
     }
 
     private var filteredContent: [Content] {
-        if searchText.isEmpty {
+        // Trim: autocomplete / dictation leave a trailing space, and "sleep "
+        // then matched no tag at all.
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if query.isEmpty {
             return allContent
         }
         return allContent.filter {
-            $0.title.localizedCaseInsensitiveContains(searchText) ||
-            ($0.narrator?.localizedCaseInsensitiveContains(searchText) ?? false) ||
-            $0.tags.contains { $0.localizedCaseInsensitiveContains(searchText) }
+            $0.title.localizedCaseInsensitiveContains(query) ||
+            ($0.narrator?.localizedCaseInsensitiveContains(query) ?? false) ||
+            $0.tags.contains { $0.localizedCaseInsensitiveContains(query) } ||
+            // Searching a category name ("ASMR", "Sleep Story") found nothing
+            // unless a title happened to contain it.
+            $0.contentType.displayName.localizedCaseInsensitiveContains(query)
         }
     }
 
@@ -96,7 +102,7 @@ struct DiscoverView: View {
                             if isSearchActive {
                                 // While searching, render a light hierarchy so the keyboard
                                 // appears instantly (the full browse grid below is what stalled it).
-                                if searchText.isEmpty {
+                                if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                                     VStack(spacing: 12) {
                                         Image(systemName: "magnifyingglass")
                                             .font(.system(size: 40))
@@ -279,6 +285,15 @@ struct DiscoverView: View {
                     selectedCategory = category
                     initialCategory = nil  // Clear after consuming
                 }
+            }
+            // A quick action fired while Discover was already the visible tab
+            // never re-ran onAppear, so the category was silently ignored.
+            .onChange(of: initialCategory) { _, category in
+                guard let category else { return }
+                searchText = ""
+                isSearchActive = false
+                selectedCategory = category
+                initialCategory = nil
             }
         }
     }
@@ -1295,6 +1310,7 @@ struct UnguidedTimerView: View {
                         .background(.red)
                         .clipShape(Circle())
                 }
+                .accessibilityLabel("End session")
 
                 Button {
                     togglePause()
@@ -1306,6 +1322,7 @@ struct UnguidedTimerView: View {
                         .background(.white)
                         .clipShape(Circle())
                 }
+                .accessibilityLabel(timer != nil ? "Pause" : "Resume")
             }
             .padding(.bottom, 32)
         }
@@ -1337,6 +1354,8 @@ struct UnguidedTimerView: View {
                                     )
                                     .clipShape(Circle())
                             }
+                            .accessibilityLabel("\(duration) minutes")
+                            .accessibilityAddTraits(selectedDuration == duration ? .isSelected : [])
                         }
                     }
                     .padding(.horizontal)
@@ -1458,11 +1477,13 @@ struct UnguidedTimerView: View {
         // Stop ambient sound
         ambientSoundService.stop()
 
-        // Record partial session if timer was started
-        if isTimerRunning, let startTime = sessionStartTime {
-            let actualDuration = Int(Date().timeIntervalSince(startTime))
+        // Record partial session if timer was started. Count only time that
+        // actually ran: wall-clock since start also counted every paused
+        // minute (pause for 30 min, stop → a 30-minute "meditation").
+        if isTimerRunning, sessionStartTime != nil {
+            let actualDuration = max(0, selectedDuration * 60 - timeRemaining)
             if actualDuration > 60 { // Only record if at least 1 minute
-                recordSession(durationSeconds: actualDuration)
+                recordSession(durationSeconds: actualDuration, completed: false)
             }
         }
 
@@ -1479,7 +1500,7 @@ struct UnguidedTimerView: View {
         ambientSoundService.fadeOut(duration: 2.0)
 
         // Record completed session
-        recordSession(durationSeconds: selectedDuration * 60)
+        recordSession(durationSeconds: selectedDuration * 60, completed: true)
 
         // Count toward rating prompt
         AppStateManager.shared.onSessionCompleted()
@@ -1488,13 +1509,20 @@ struct UnguidedTimerView: View {
         sessionStartTime = nil
     }
 
-    private func recordSession(durationSeconds: Int) {
+    private func recordSession(durationSeconds: Int, completed: Bool) {
+        // listenedSeconds/wasCompleted were left at 0/false, so every stat
+        // that sums listenedSeconds (minutes, sleep analytics, Watch sync of
+        // completed sessions) treated unguided sits as zero minutes.
         let session = MeditationSession(
             contentID: nil,
+            contentTitle: String(localized: "Unguided Timer"),
             durationSeconds: durationSeconds,
+            listenedSeconds: durationSeconds,
+            wasCompleted: completed,
             completedAt: Date()
         )
         modelContext.insert(session)
+        try? modelContext.save()
 
         // Update streak
         streakService.recordSession(durationMinutes: durationSeconds / 60, context: nil) // session already inserted above

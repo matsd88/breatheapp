@@ -256,8 +256,15 @@ struct DailyIntentionView: View {
         savedIntentionDate = Date().timeIntervalSince1970
         savedIntentionFocus = selectedFocus.rawValue
 
-        let record = DailyIntentionRecord(text: trimmed, focusRaw: selectedFocus.rawValue)
-        modelContext.insert(record)
+        // "Update your intention" added a second record for the same day;
+        // keep one per day.
+        if let todays = records.first(where: { $0.isFromToday }) {
+            todays.text = trimmed
+            todays.focusRaw = selectedFocus.rawValue
+        } else {
+            let record = DailyIntentionRecord(text: trimmed, focusRaw: selectedFocus.rawValue)
+            modelContext.insert(record)
+        }
         try? modelContext.save()
 
         didSaveThisVisit = true
