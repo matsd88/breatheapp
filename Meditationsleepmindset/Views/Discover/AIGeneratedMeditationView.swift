@@ -894,6 +894,12 @@ struct AIGeneratedPlayerView: View {
             return
         }
 
+        // A meditation or story already playing in the main player kept going
+        // underneath, so two voices talked over each other.
+        if AudioPlayerManager.shared.isPlaying {
+            AudioPlayerManager.shared.pause()
+        }
+
         let playerItem = AVPlayerItem(url: audioURL)
         player = AVPlayer(playerItem: playerItem)
 
