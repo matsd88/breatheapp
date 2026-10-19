@@ -523,6 +523,9 @@ class StreakService: ObservableObject {
 
         // Reload widget timelines
         WidgetCenter.shared.reloadAllTimelines()
+
+        // Keep the Watch's streak/minutes in step with the phone.
+        PhoneWatchConnectivityService.shared.sendSyncData()
     }
 
     /// Sync recent content for quick actions widget

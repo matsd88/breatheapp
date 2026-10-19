@@ -155,6 +155,12 @@ struct Meditation_Sleep_MindsetApp: App {
                         await preloadAllContent()
                     }
 
+                    // Start the Watch link. Nothing ever touched the phone-side
+                    // service, so its WCSession never activated: the Watch got no
+                    // stats, its playback buttons did nothing, and Watch breathing
+                    // sessions never reached the phone's streak or history.
+                    PhoneWatchConnectivityService.shared.setModelContext(sharedModelContainer.mainContext)
+
                     // Verify Apple ID credential state on launch
                     accountService.checkCredentialState()
 

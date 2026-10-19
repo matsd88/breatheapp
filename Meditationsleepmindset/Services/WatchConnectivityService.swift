@@ -150,9 +150,23 @@ class PhoneWatchConnectivityService: NSObject, ObservableObject {
     private func handleBreathingSessionComplete(durationSeconds: Int) {
         let minutes = max(1, durationSeconds / 60)
 
-        // Record session
-        // recordSession now records today's minutes itself
-        StreakService.shared.recordSession(durationMinutes: minutes, context: modelContext)
+        // Log it like the phone's own breathing sessions do. Passing the
+        // context to recordSession stored an untitled, not-completed "guided"
+        // session, so it never showed up as a completed breathing session.
+        if let modelContext {
+            let session = MeditationSession(
+                contentTitle: String(localized: "Breathing (Apple Watch)"),
+                durationSeconds: durationSeconds,
+                listenedSeconds: durationSeconds,
+                wasCompleted: true,
+                sessionType: "breathing",
+                completedAt: Date()
+            )
+            modelContext.insert(session)
+            try? modelContext.save()
+        }
+        // recordSession records today's minutes itself
+        StreakService.shared.recordSession(durationMinutes: minutes, context: nil)
 
         // Write to HealthKit
         let endTime = Date()
@@ -215,6 +229,27 @@ extension PhoneWatchConnectivityService: WCSessionDelegate {
     nonisolated func sessionWatchStateDidChange(_ session: WCSession) {
         Task { @MainActor in
             self.isWatchAppInstalled = session.isWatchAppInstalled
+        }
+    }
+
+    /// The Watch sends playback commands with `replyHandler: nil`, which WatchConnectivity
+    /// delivers ONLY to this variant. Without it every Now Playing button on the
+    /// Watch was silently dropped.
+    nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+        Task { @MainActor in
+            guard let typeRaw = message[WatchMessageKey.messageType] as? String,
+                  let type = WatchMessageType(rawValue: typeRaw) else { return }
+            switch type {
+            case .playbackCommand:
+                if let commandRaw = message[WatchMessageKey.command] as? String,
+                   let command = PlaybackCommand(rawValue: commandRaw) {
+                    self.handlePlaybackCommand(command)
+                }
+            case .startBreathingOnPhone:
+                NotificationCenter.default.post(name: .openBreathingExercise, object: nil)
+            default:
+                break
+            }
         }
     }
 
