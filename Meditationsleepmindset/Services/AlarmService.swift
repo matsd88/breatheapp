@@ -17,7 +17,14 @@ class AlarmService: ObservableObject {
         didSet { UserDefaults.standard.set(alarmTime.timeIntervalSince1970, forKey: "alarmTime") }
     }
     @Published var snoozeEnabled: Bool {
-        didSet { UserDefaults.standard.set(snoozeEnabled, forKey: "alarmSnooze") }
+        didSet {
+            UserDefaults.standard.set(snoozeEnabled, forKey: "alarmSnooze")
+            // The notification's category decides whether it shows a Snooze
+            // button, so the pending alarm has to be re-registered.
+            if isEnabled && oldValue != snoozeEnabled {
+                scheduleAlarm()
+            }
+        }
     }
     @Published var snoozeMinutes: Int {
         didSet { UserDefaults.standard.set(snoozeMinutes, forKey: "alarmSnoozeMinutes") }
@@ -55,7 +62,9 @@ class AlarmService: ObservableObject {
         content.title = "Good Morning"
         content.body = "Time to wake up and start your day mindfully."
         content.sound = .default
-        content.categoryIdentifier = "ALARM"
+        // With snooze off, the alarm used to still show a Snooze button that
+        // silently did nothing.
+        content.categoryIdentifier = snoozeEnabled ? "ALARM" : "ALARM_NO_SNOOZE"
 
         let components = Calendar.current.dateComponents([.hour, .minute], from: alarmTime)
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
@@ -77,7 +86,10 @@ class AlarmService: ObservableObject {
         )
     }
 
-    func snooze() {
+    /// Async so the notification-action handler can finish scheduling before
+    /// it tells the system it's done (a background action launch can be
+    /// suspended right after, dropping the snooze).
+    func snooze() async {
         guard snoozeEnabled else { return }
 
         let center = UNUserNotificationCenter.current()
@@ -94,7 +106,7 @@ class AlarmService: ObservableObject {
         )
 
         let request = UNNotificationRequest(identifier: "sleepAlarmSnooze", content: content, trigger: trigger)
-        center.add(request)
+        try? await center.add(request)
     }
 
     var formattedAlarmTime: String {

@@ -195,6 +195,13 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             intentIdentifiers: [],
             options: []
         )
+        // Used when the user turned snooze off — no dead Snooze button.
+        let alarmNoSnoozeCategory = UNNotificationCategory(
+            identifier: "ALARM_NO_SNOOZE",
+            actions: [stop],
+            intentIdentifiers: [],
+            options: []
+        )
 
         // One-tap actions turn passive reminders into action: a daily nudge becomes
         // "Start a session", a bedtime nudge becomes "Play a sleep story", etc.
@@ -231,7 +238,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         let trialConversion = UNNotificationCategory(identifier: "TRIAL_CONVERSION", actions: [seePlans], intentIdentifiers: [], options: [])
 
         center.setNotificationCategories([
-            alarmCategory, dailyReminder, streakAtRisk, reEngagement, bedtimeReminder, aiCheckIn, trialConversion
+            alarmCategory, alarmNoSnoozeCategory, dailyReminder, streakAtRisk, reEngagement, bedtimeReminder, aiCheckIn, trialConversion
         ])
     }
 
@@ -245,9 +252,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         let isPremiumBound = notifID.hasPrefix("trial-") || notifID.hasPrefix("winback-")
 
         if response.actionIdentifier == "SNOOZE_ALARM" {
+            // Complete only after the snooze request is registered.
             Task { @MainActor in
-                AlarmService.shared.snooze()
+                await AlarmService.shared.snooze()
+                completionHandler()
             }
+            return
         } else if response.actionIdentifier == "OPEN_PREMIUM"
                     || (response.actionIdentifier == UNNotificationDefaultActionIdentifier && isPremiumBound) {
             // Tapping a trial/win-back notification (button OR body) opens the
