@@ -21,6 +21,7 @@ struct GratitudeJournalView: View {
     @State private var entryText: String = ""
     @State private var activePrompt: String = GratitudeJournalView.prompts.first ?? "What are you grateful for today?"
     @FocusState private var isEditorFocused: Bool
+    @State private var entryToDelete: GratitudeEntry?
 
     static let prompts: [String] = [
         String(localized: "What are three things you're grateful for today?"),
@@ -107,8 +108,9 @@ struct GratitudeJournalView: View {
 
                                 ForEach(entries) { entry in
                                     GratitudeEntryRow(entry: entry) {
-                                        modelContext.delete(entry)
-                                        try? modelContext.save()
+                                        // Journal entries were deleted with no
+                                        // confirmation and no way back.
+                                        entryToDelete = entry
                                     }
                                 }
                             }
@@ -135,6 +137,23 @@ struct GratitudeJournalView: View {
                 if let initialPrompt {
                     activePrompt = initialPrompt
                 }
+            }
+            .alert(
+                "Delete Entry?",
+                isPresented: Binding(
+                    get: { entryToDelete != nil },
+                    set: { if !$0 { entryToDelete = nil } }
+                ),
+                presenting: entryToDelete
+            ) { entry in
+                Button("Cancel", role: .cancel) { entryToDelete = nil }
+                Button("Delete Entry", role: .destructive) {
+                    modelContext.delete(entry)
+                    try? modelContext.save()
+                    entryToDelete = nil
+                }
+            } message: { _ in
+                Text("This gratitude entry will be permanently deleted.")
             }
         }
     }
@@ -179,8 +198,10 @@ struct GratitudeEntryRow: View {
                     Image(systemName: "ellipsis")
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.5))
-                        .frame(width: 28, height: 28)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
+                .accessibilityLabel("Entry options")
             }
 
             if let prompt = entry.prompt {

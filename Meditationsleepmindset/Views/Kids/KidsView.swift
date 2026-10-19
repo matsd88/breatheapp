@@ -24,6 +24,7 @@ struct KidsView: View {
 
     @State private var showingPaywall = false
     @State private var generatedStory: AIGeneratedMeditation?
+    @State private var storyToDelete: AIGeneratedMeditation?
 
     private var isRegular: Bool { sizeClass == .regular }
 
@@ -109,6 +110,22 @@ struct KidsView: View {
             }
             .fullScreenCover(item: $generatedStory) { story in
                 AIGeneratedPlayerView(meditation: story)
+            }
+            .alert(
+                "Delete Story?",
+                isPresented: Binding(
+                    get: { storyToDelete != nil },
+                    set: { if !$0 { storyToDelete = nil } }
+                ),
+                presenting: storyToDelete
+            ) { story in
+                Button("Cancel", role: .cancel) { storyToDelete = nil }
+                Button("Delete Story", role: .destructive) {
+                    AIMeditationService.shared.deleteMeditation(story, context: modelContext)
+                    storyToDelete = nil
+                }
+            } message: { story in
+                Text("This will permanently delete \"\(story.title)\". This cannot be undone.")
             }
             .alert("Story Creation Failed", isPresented: $aiService.showError) {
                 Button("OK", role: .cancel) { }
@@ -215,7 +232,9 @@ struct KidsView: View {
                             MyCreationCard(meditation: story) {
                                 generatedStory = story
                             } onDelete: {
-                                AIMeditationService.shared.deleteMeditation(story, context: modelContext)
+                                // Deleted instantly — for a free user that was
+                                // their one lifetime creation, gone for good.
+                                storyToDelete = story
                             }
                             .padding(.horizontal, 20)
                         }
