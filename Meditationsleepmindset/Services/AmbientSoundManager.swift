@@ -42,6 +42,11 @@ class AmbientSoundManager: ObservableObject {
     /// Per-sound fade-IN timers (keyed by sound id). Fade-out uses detached timers.
     private var fadeTimers: [String: Timer] = [:]
     private let fadeSteps = 16
+    /// Sounds whose stream URL is still resolving. They count toward the
+    /// 3-sound limit and can be cancelled before their player exists —
+    /// double-tapping a loading tile used to start two players for one id,
+    /// orphaning one that no button could ever stop.
+    private var pendingLoads: Set<String> = []
 
     let availableSounds: [AmbientSound] = [
         AmbientSound(id: "rain", name: "Rain", iconName: "cloud.rain.fill", youtubeVideoID: "yIQd2Ya0Ziw"),
@@ -55,7 +60,9 @@ class AmbientSoundManager: ObservableObject {
     ]
 
     private init() {
-        setupAudioSession()
+        // No session setup here: this init runs whenever the full player
+        // opens, and setting a mixable category from it removed the
+        // lock-screen controls. The category is set when a sound starts.
         prefetchAllSoundURLs()
     }
 
@@ -71,22 +78,14 @@ class AmbientSoundManager: ObservableObject {
     }
 
     private func setupAudioSession() {
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
-            try session.setActive(true)
-        } catch {
-            #if DEBUG
-            print("Failed to set up audio session for ambient sounds: \(error)")
-            #endif
-        }
+        AudioPlayerManager.configureAmbientAudioSession()
     }
 
     func toggleSound(_ sound: AmbientSound) {
-        if activeSounds.contains(sound.id) {
+        if activeSounds.contains(sound.id) || pendingLoads.contains(sound.id) {
             stopSound(sound)
             HapticManager.light()
-        } else if activeSounds.count < 3 {
+        } else if activeSounds.count + pendingLoads.count < 3 {
             playSound(sound)
             HapticManager.medium()
         } else {
@@ -101,8 +100,10 @@ class AmbientSoundManager: ObservableObject {
     }
 
     func playSound(_ sound: AmbientSound) {
-        guard !activeSounds.contains(sound.id) else { return }
+        guard !activeSounds.contains(sound.id), !pendingLoads.contains(sound.id) else { return }
 
+        setupAudioSession()
+        pendingLoads.insert(sound.id)
         isLoading[sound.id] = true
         errors[sound.id] = nil
 
@@ -124,6 +125,8 @@ class AmbientSoundManager: ObservableObject {
                 }
             } catch {
                 await MainActor.run {
+                    // Ignore failures of a load the user already cancelled.
+                    guard self.pendingLoads.remove(sound.id) != nil else { return }
                     self.errors[sound.id] = error.localizedDescription
                     self.isLoading[sound.id] = false
                 }
@@ -132,6 +135,8 @@ class AmbientSoundManager: ObservableObject {
     }
 
     private func setupPlayer(for sound: AmbientSound, with url: URL) {
+        // Cancelled (toggled off / Stop All / mix replaced) while resolving.
+        guard pendingLoads.remove(sound.id) != nil else { return }
         let asset = AVURLAsset(url: url, options: [
             AVURLAssetPreferPreciseDurationAndTimingKey: false
         ])
@@ -190,6 +195,9 @@ class AmbientSoundManager: ObservableObject {
     }
 
     func stopSound(_ sound: AmbientSound) {
+        if pendingLoads.remove(sound.id) != nil {
+            isLoading[sound.id] = false
+        }
         guard let player = players[sound.id] else { return }
 
         // Cancel any in-progress fade-in.
@@ -238,19 +246,24 @@ class AmbientSoundManager: ObservableObject {
             sleepModeStartTime = nil
             originalVolumes.removeAll()
         }
-        for sound in availableSounds {
-            if activeSounds.contains(sound.id) {
-                stopSound(sound)
-            }
-        }
+        stopAll()
         volumes.removeAll()
     }
 
     func stopAll() {
         for sound in availableSounds {
-            if activeSounds.contains(sound.id) {
+            if activeSounds.contains(sound.id) || pendingLoads.contains(sound.id) {
                 stopSound(sound)
             }
+        }
+    }
+
+    /// Restart the active sounds after an audio interruption (phone call,
+    /// alarm) — the system paused their players and nothing resumed them.
+    func resumeAfterInterruption() {
+        for id in activeSounds {
+            guard let player = players[id], player.rate == 0 else { continue }
+            player.play()
         }
     }
 

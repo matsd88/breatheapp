@@ -89,7 +89,33 @@ final class BinauralToneGenerator: ObservableObject {
     /// touches @MainActor-isolated storage (which would be a data race).
     private let render = BinauralRenderState()
 
-    private init() {}
+    private init() {
+        // A route change (AirPods connecting, etc.) stops AVAudioEngine; the
+        // tone went silent while the UI still showed it playing.
+        NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange,
+            object: engine,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.restartEngineIfNeeded()
+            }
+        }
+    }
+
+    /// Restart after an audio interruption (call, alarm) stopped the engine.
+    func resumeAfterInterruption() {
+        restartEngineIfNeeded()
+    }
+
+    private func restartEngineIfNeeded() {
+        guard isPlaying, sourceNode != nil, !engine.isRunning else { return }
+        do {
+            try engine.start()
+        } catch {
+            stop()
+        }
+    }
 
     func play(_ preset: BinauralPreset) {
         stop()
@@ -138,8 +164,7 @@ final class BinauralToneGenerator: ObservableObject {
         engine.connect(node, to: engine.mainMixerNode, format: format)
 
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
-            try AVAudioSession.sharedInstance().setActive(true)
+            AudioPlayerManager.configureAmbientAudioSession()
             try engine.start()
             isPlaying = true
             currentPreset = preset

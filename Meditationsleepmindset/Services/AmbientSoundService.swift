@@ -93,19 +93,12 @@ class AmbientSoundService: ObservableObject {
     /// synthesized noise.
     private let streamStartupTimeout: UInt64 = 5_000_000_000 // 5s
 
-    private init() {
-        setupAudioSession()
-    }
+    private init() {}
 
+    /// Set when a sound actually starts (not at init — a mixable category set
+    /// from here removed the lock-screen controls of the main player).
     private func setupAudioSession() {
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
-            try AVAudioSession.sharedInstance().setActive(true)
-        } catch {
-            #if DEBUG
-            print("Failed to setup audio session: \(error)")
-            #endif
-        }
+        AudioPlayerManager.configureAmbientAudioSession()
     }
 
     // MARK: - Public API
@@ -122,6 +115,7 @@ class AmbientSoundService: ObservableObject {
 
         currentSound = sound
         desiredPlaying = true
+        setupAudioSession()
 
         // Try to load from bundle first (instant, offline-safe)
         if let fileName = sound.fileName, let url = bundledAudioURL(named: fileName) {
@@ -154,6 +148,7 @@ class AmbientSoundService: ObservableObject {
         currentCatalogSoundID = catalogSound.id
         currentSound = profile
         desiredPlaying = true
+        setupAudioSession()
         startRealSound(videoID: catalogSound.youtubeVideoID, profile: profile)
     }
 
@@ -192,6 +187,13 @@ class AmbientSoundService: ObservableObject {
         }
         // If neither player exists yet (stream still resolving), desiredPlaying
         // makes playback start as soon as the stream is ready.
+    }
+
+    /// Restart after an audio interruption (call, alarm) if the sound was
+    /// meant to be playing — the system paused it and nothing resumed it.
+    func resumeAfterInterruption() {
+        guard desiredPlaying else { return }
+        resume()
     }
 
     func setVolume(_ newVolume: Float) {

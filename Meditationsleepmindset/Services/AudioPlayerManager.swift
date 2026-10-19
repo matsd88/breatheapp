@@ -235,15 +235,43 @@ class AudioPlayerManager: ObservableObject {
 
     // MARK: - Audio Session Setup
     nonisolated private func setupAudioSession() {
+        Self.configureAudioSession(mixWithOthers: false)
+    }
+
+    /// The one place that sets the shared AVAudioSession category. Every audio
+    /// engine in the app (this player, the soundscape mixer, timer sounds,
+    /// binaural tones) shares one session, and the mixer/timer/binaural engines
+    /// used to set `.mixWithOthers` on it from their own inits — the mixer's
+    /// init runs whenever the full player opens. A mixable session (and
+    /// `.duckOthers`, which implies mixing) is never eligible to be the Now
+    /// Playing app, so lock-screen / Control Center / headphone controls
+    /// disappeared for the rest of the run. Sessions are only mixable while no
+    /// guided content is loaded (rain over the user's own music); as soon as
+    /// content plays the session is a normal, Now-Playing-eligible one.
+    nonisolated static func configureAudioSession(mixWithOthers: Bool, activate: Bool = true) {
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .spokenAudio, options: [.allowAirPlay, .duckOthers])
-            try session.setActive(true, options: [])
+            if mixWithOthers {
+                try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            } else {
+                try session.setCategory(.playback, mode: .spokenAudio, options: [])
+            }
+            if activate {
+                try session.setActive(true, options: [])
+            }
         } catch {
             #if DEBUG
-            print("Failed to set up audio session: \(error)")
+            print("[AudioPlayerManager] Failed to configure audio session: \(error)")
             #endif
         }
+    }
+
+    /// Category for the ambient engines (mixer, timer sounds, binaural): only
+    /// mixable while no guided content is loaded.
+    static func configureAmbientAudioSession() {
+        // Never switch a running sleep recording out of record mode.
+        guard !SleepRecordingService.shared.isRecording else { return }
+        configureAudioSession(mixWithOthers: shared.currentContent == nil)
     }
 
     /// Re-activate audio session (call after interruptions end)
@@ -387,8 +415,16 @@ class AudioPlayerManager: ObservableObject {
             wasPlayingBeforeInterruption = false
             guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else { return }
             let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-            if options.contains(.shouldResume) && shouldResumeOurs {
-                play()
+            if options.contains(.shouldResume) {
+                if shouldResumeOurs {
+                    play()
+                }
+                // The system paused the mixer / timer sound / binaural engine
+                // too; nothing restarted them, so rain went silent after a
+                // phone call while the mixer still showed it as on.
+                AmbientSoundManager.shared.resumeAfterInterruption()
+                AmbientSoundService.shared.resumeAfterInterruption()
+                BinauralToneGenerator.shared.resumeAfterInterruption()
             }
         @unknown default:
             break
@@ -402,9 +438,13 @@ class AudioPlayerManager: ObservableObject {
             return
         }
 
-        // Pause when headphones are unplugged
+        // Pause when headphones are unplugged — including the ambient
+        // engines, which otherwise jumped to the phone speaker mid-night.
         if reason == .oldDeviceUnavailable {
             pause()
+            AmbientSoundManager.shared.stopAll()
+            AmbientSoundService.shared.pause()
+            BinauralToneGenerator.shared.stop()
         }
     }
 
@@ -557,6 +597,9 @@ class AudioPlayerManager: ObservableObject {
         if sleepStopMode == .endOfTrack || (sleepStopMode == .endOfQueue && !hasNextTrack) {
             sleepStopMode = nil
             isPlaying = false
+            // "Audio will stop when this session ends" — the mixer and other
+            // sleep sounds kept going all night (the countdown already stops them).
+            stopSleepAudio()
             updateNowPlayingInfo(force: true)
             Task {
                 await LiveActivityManager.shared.endActivity(showFinalState: true)
@@ -1260,6 +1303,16 @@ class AudioPlayerManager: ObservableObject {
 
     // MARK: - Playback Controls
     func play() {
+        // Lock-screen / headphone "play" after stop() used to flip isPlaying
+        // on with nothing loaded.
+        guard currentContent != nil else { return }
+        // Another engine (voice reply, sleep recording, mixer) may have left
+        // the shared session mixable or in record mode — mixable sessions
+        // lose the lock-screen controls. Left alone during a sleep
+        // recording, whose record-mode session must stay as it is.
+        if !SleepRecordingService.shared.isRecording {
+            Self.configureAudioSession(mixWithOthers: false)
+        }
         if isPreviewRestricted, let position = player?.currentTime().seconds,
            position.isFinite, position >= Self.previewSeconds {
             previewEnded = true
@@ -1301,6 +1354,8 @@ class AudioPlayerManager: ObservableObject {
     }
 
     func skipForward(seconds: TimeInterval = 15) {
+        // Duration is 0 until the item reports it — min() then jumped to 0:00.
+        guard duration > 0 else { return }
         let newTime = min(currentTime + seconds, duration)
         seek(to: newTime)
     }
@@ -1425,11 +1480,15 @@ class AudioPlayerManager: ObservableObject {
         cancelSleepTimer()
 
         sleepTimerRemaining = TimeInterval(minutes * 60)
+        // Count against the wall clock: decrementing 1 per tick ran long
+        // whenever ticks were delayed/coalesced in the background, or froze
+        // entirely while the app was suspended.
+        let endDate = Date().addingTimeInterval(TimeInterval(minutes * 60))
 
         sleepTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                guard let self = self, var remaining = self.sleepTimerRemaining else { return }
-                remaining -= 1
+                guard let self = self, self.sleepTimerRemaining != nil else { return }
+                let remaining = endDate.timeIntervalSinceNow.rounded()
 
                 if remaining <= 0 {
                     self.fadeOutAndStop()
@@ -1458,8 +1517,15 @@ class AudioPlayerManager: ObservableObject {
         player?.volume = 1.0
         // The sleep timer is "stop the sound so I can sleep" — mixer rain and
         // the timer's ambient bed kept playing all night.
+        stopSleepAudio()
+    }
+
+    /// Everything else that makes sound at bedtime: mixer, timer sound and
+    /// binaural tones (the binaural engine kept humming after the timer).
+    private func stopSleepAudio() {
         AmbientSoundManager.shared.stopAll()
         AmbientSoundService.shared.fadeOut()
+        BinauralToneGenerator.shared.stop()
     }
 
     // MARK: - Cleanup
@@ -1474,6 +1540,12 @@ class AudioPlayerManager: ObservableObject {
         currentIndex = 0
         cachedArtwork = nil
         cachedArtworkVideoID = nil
+        // Allow the artwork to be fetched again if the same track is replayed.
+        artworkFetchVideoID = nil
+        // Clear the lock screen: pause() above just republished the stopped
+        // track, which then lingered with live-looking controls.
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        lastNowPlayingSecond = -1
         updateRemoteCommandState()
         // Stop ambient sounds when main player stops
         AmbientSoundManager.shared.stopAll()
@@ -1587,6 +1659,11 @@ class AudioPlayerManager: ObservableObject {
                prefetchedVideoID == content.youtubeVideoID {
                 prefetchedPlayerItem = nil
                 prefetchedVideoID = nil
+                // Same as loadContent: report the mode the item was actually
+                // built in (an audio-only prefetch under video mode drew a
+                // black video rectangle).
+                isVideoMode = !(prefetchedAudioOnly ?? audioOnly)
+                prefetchedAudioOnly = nil
                 setupPlayerWithItem(prefetchedItem)
                 // Fade in new player
                 player?.volume = 0
@@ -1596,6 +1673,7 @@ class AudioPlayerManager: ObservableObject {
             }
             prefetchedPlayerItem = nil
             prefetchedVideoID = nil
+            prefetchedAudioOnly = nil
 
             // Race disk cache vs stream URL for crossfade
             let cfVideoID = content.youtubeVideoID
@@ -1623,10 +1701,13 @@ class AudioPlayerManager: ObservableObject {
             }
             prefetchNextInQueue()
         } catch {
-            // Crossfade failed — stop old player immediately
+            // Crossfade failed — stop old player immediately, then go through
+            // the normal loader: it has the audio/progressive fallbacks and
+            // auto-retries this path skipped, so one failed extraction used to
+            // end an overnight queue at the next track.
             stopCrossfade()
-            self.error = error.localizedDescription
-            isLoading = false
+            guard currentContent?.youtubeVideoID == content.youtubeVideoID else { return }
+            await loadContent(content, videoMode: videoMode)
         }
     }
 

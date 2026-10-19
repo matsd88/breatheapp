@@ -182,6 +182,14 @@ final class SleepRecordingService: ObservableObject {
         startDate = nil
         // Release the record session so playback owners can reclaim it.
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        // …and put the playback category back: the session stayed in
+        // record mode (+ mixWithOthers) for the rest of the run, so sleep
+        // sounds still playing kept a record-mode route and the lock-screen
+        // controls stayed gone.
+        AudioPlayerManager.configureAudioSession(
+            mixWithOthers: AudioPlayerManager.shared.currentContent == nil,
+            activate: false
+        )
     }
 
     var elapsedFormatted: String {
