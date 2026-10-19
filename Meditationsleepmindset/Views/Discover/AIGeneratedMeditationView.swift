@@ -37,39 +37,21 @@ struct AIGeneratedMeditationView: View {
 
     private var isRegular: Bool { sizeClass == .regular }
 
+    // Counting lives in AIMeditationService (shared with Kids stories, mirrored to iCloud).
     private var hasReachedFreeLimit: Bool {
-        if storeManager.isSubscribed { return false }
-        let generationsUsed = UserDefaults.standard.integer(forKey: "aiGenerationsUsed")
-        return generationsUsed >= Constants.AIMeditation.freeGenerationLimit
+        aiService.hasReachedFreeLimit(isSubscribed: storeManager.isSubscribed)
     }
 
     private var hasReachedDailyLimit: Bool {
-        guard storeManager.isSubscribed else { return false }
-        return todayGenerationCount >= Constants.AIMeditation.premiumDailyGenerationLimit
-    }
-
-    private var todayGenerationCount: Int {
-        let defaults = UserDefaults.standard
-        let lastDate = defaults.string(forKey: "aiGenerationDate") ?? ""
-        let today = Self.todayString
-        if lastDate != today { return 0 }
-        return defaults.integer(forKey: "aiGenerationsDailyCount")
+        aiService.hasReachedDailyLimit(isSubscribed: storeManager.isSubscribed)
     }
 
     private var freeGenerationsRemaining: Int {
-        let used = UserDefaults.standard.integer(forKey: "aiGenerationsUsed")
-        return max(0, Constants.AIMeditation.freeGenerationLimit - used)
+        aiService.freeGenerationsRemaining
     }
 
     private var remainingDailyGenerations: Int {
-        Constants.AIMeditation.premiumDailyGenerationLimit - todayGenerationCount
-    }
-
-    private static var todayString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.timeZone = .current
-        return formatter.string(from: Date())
+        max(0, Constants.AIMeditation.premiumDailyGenerationLimit - aiService.todayGenerationCount)
     }
 
     private var generateButtonIcon: String {
@@ -110,23 +92,6 @@ struct AIGeneratedMeditationView: View {
             }
             .font(.caption)
             .foregroundStyle(.white.opacity(0.5))
-        }
-    }
-
-    private func recordGeneration() {
-        let defaults = UserDefaults.standard
-        let today = Self.todayString
-        let lastDate = defaults.string(forKey: "aiGenerationDate") ?? ""
-        if lastDate != today {
-            defaults.set(today, forKey: "aiGenerationDate")
-            defaults.set(1, forKey: "aiGenerationsDailyCount")
-        } else {
-            let count = defaults.integer(forKey: "aiGenerationsDailyCount") + 1
-            defaults.set(count, forKey: "aiGenerationsDailyCount")
-        }
-        if !storeManager.isSubscribed {
-            let total = defaults.integer(forKey: "aiGenerationsUsed") + 1
-            defaults.set(total, forKey: "aiGenerationsUsed")
         }
     }
 
@@ -480,7 +445,9 @@ struct AIGeneratedMeditationView: View {
         Task {
             do {
                 let meditation = try await aiService.generateMeditation(request: request, context: modelContext)
-                if !aiService.lastResultWasCached { recordGeneration() }
+                if !aiService.lastResultWasCached {
+                    aiService.recordGeneration(isSubscribed: storeManager.isSubscribed)
+                }
                 HapticManager.success()
                 generatedMeditation = meditation
             } catch {

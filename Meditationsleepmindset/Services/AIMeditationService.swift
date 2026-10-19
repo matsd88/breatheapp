@@ -47,6 +47,68 @@ class AIMeditationService: ObservableObject {
 
     private init() {}
 
+    // MARK: - Generation Limits (shared by AI Studio and Kids stories)
+
+    /// The free lifetime credit lived only in UserDefaults, so deleting and
+    /// reinstalling the app handed out a fresh free generation every time
+    /// (chat already mirrors its counter to iCloud). Both screens also kept
+    /// their own copy of the counting code. One source, mirrored to iCloud KVS;
+    /// the higher of local and cloud wins.
+    private static let freeUsedKey = "aiGenerationsUsed"
+    private static let cloudFreeUsedKey = "cloud_aiGenerationsUsed"
+    private static let dailyDateKey = "aiGenerationDate"
+    private static let dailyCountKey = "aiGenerationsDailyCount"
+
+    var freeGenerationsUsed: Int {
+        let local = UserDefaults.standard.integer(forKey: Self.freeUsedKey)
+        let cloud = Int(NSUbiquitousKeyValueStore.default.longLong(forKey: Self.cloudFreeUsedKey))
+        return max(local, cloud)
+    }
+
+    var freeGenerationsRemaining: Int {
+        max(0, Constants.AIMeditation.freeGenerationLimit - freeGenerationsUsed)
+    }
+
+    func hasReachedFreeLimit(isSubscribed: Bool) -> Bool {
+        !isSubscribed && freeGenerationsUsed >= Constants.AIMeditation.freeGenerationLimit
+    }
+
+    private static var todayString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.timeZone = .current
+        return formatter.string(from: Date())
+    }
+
+    var todayGenerationCount: Int {
+        let defaults = UserDefaults.standard
+        guard defaults.string(forKey: Self.dailyDateKey) == Self.todayString else { return 0 }
+        return defaults.integer(forKey: Self.dailyCountKey)
+    }
+
+    func hasReachedDailyLimit(isSubscribed: Bool) -> Bool {
+        isSubscribed && todayGenerationCount >= Constants.AIMeditation.premiumDailyGenerationLimit
+    }
+
+    /// Count one successful (non-cached) generation.
+    func recordGeneration(isSubscribed: Bool) {
+        let defaults = UserDefaults.standard
+        let today = Self.todayString
+        if defaults.string(forKey: Self.dailyDateKey) != today {
+            defaults.set(today, forKey: Self.dailyDateKey)
+            defaults.set(1, forKey: Self.dailyCountKey)
+        } else {
+            defaults.set(defaults.integer(forKey: Self.dailyCountKey) + 1, forKey: Self.dailyCountKey)
+        }
+        if !isSubscribed {
+            let total = freeGenerationsUsed + 1
+            defaults.set(total, forKey: Self.freeUsedKey)
+            NSUbiquitousKeyValueStore.default.set(Int64(total), forKey: Self.cloudFreeUsedKey)
+            NSUbiquitousKeyValueStore.default.synchronize()
+        }
+        objectWillChange.send()
+    }
+
     // MARK: - Script Generation Prompt
 
     private func buildMeditationPrompt(for request: AIMeditationRequest) -> String {
@@ -103,6 +165,9 @@ class AIMeditationService: ObservableObject {
     ///   - context: SwiftData model context for saving
     /// - Returns: The generated meditation content for playback
     func generateMeditation(request: AIMeditationRequest, context: ModelContext) async throws -> AIGeneratedMeditation {
+        // A quick double-tap queued two generations: two paid API runs, and a
+        // free user got two creations out of one credit.
+        guard !isGenerating else { throw CancellationError() }
         isGenerating = true
         generationProgress = 0
         error = nil
@@ -181,6 +246,9 @@ class AIMeditationService: ObservableObject {
         voice: AIMeditationVoice,
         context: ModelContext
     ) async throws -> AIGeneratedMeditation {
+        // A quick double-tap queued two generations: two paid API runs, and a
+        // free user got two creations out of one credit.
+        guard !isGenerating else { throw CancellationError() }
         isGenerating = true
         generationProgress = 0
         error = nil
@@ -340,12 +408,86 @@ class AIMeditationService: ObservableObject {
 
     // MARK: - Audio Generation
 
+    /// OpenAI TTS rejects input over 4,096 characters (the proxy returns 400).
+    /// A 10-minute script is ~800 words ≈ 4,500+ characters, so every
+    /// meditation or bedtime story of 10 minutes or more — including the
+    /// default 10-minute selection — failed at the "Recording" step. Split the
+    /// script on sentence/paragraph boundaries, voice each piece, and join the
+    /// MP3s (OpenAI returns raw MPEG frames with no ID3 header, so the frames
+    /// concatenate into one playable file).
+    private static let ttsChunkLimit = 3800
+
+    static func splitForTTS(_ script: String, limit: Int = ttsChunkLimit) -> [String] {
+        let text = script.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard text.count > limit else { return text.isEmpty ? [] : [text] }
+
+        var chunks: [String] = []
+        var current = ""
+
+        func flush() {
+            let trimmed = current.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty { chunks.append(trimmed) }
+            current = ""
+        }
+
+        // Sentence-ish units: break after . ! ? or a newline, keeping the delimiter.
+        var units: [String] = []
+        var unit = ""
+        for ch in text {
+            unit.append(ch)
+            if ch == "." || ch == "!" || ch == "?" || ch == "\n" {
+                units.append(unit)
+                unit = ""
+            }
+        }
+        if !unit.isEmpty { units.append(unit) }
+
+        for piece in units {
+            if current.count + piece.count > limit { flush() }
+            if piece.count > limit {
+                // A single run-on "sentence" longer than the limit: hard-split it.
+                var remainder = Substring(piece)
+                while remainder.count > limit {
+                    chunks.append(String(remainder.prefix(limit)))
+                    remainder = remainder.dropFirst(limit)
+                }
+                current = String(remainder)
+            } else {
+                current += piece
+            }
+        }
+        flush()
+        return chunks
+    }
+
     private func generateAudio(script: String, voice: AIMeditationVoice, cacheKey: String) async throws -> URL {
-        let data = try await OpenAIProxyService.generateSpeech(
-            text: script,
-            voice: voice.openAIVoice,
-            speed: voice.speechSpeed
-        )
+        let chunks = Self.splitForTTS(script)
+        guard !chunks.isEmpty else { throw AIMeditationError.scriptGenerationFailed }
+
+        // Voice the chunks in parallel, then reassemble in script order.
+        let parts = try await withThrowingTaskGroup(of: (Int, Data).self) { group in
+            for (index, chunk) in chunks.enumerated() {
+                group.addTask {
+                    let audio = try await OpenAIProxyService.generateSpeech(
+                        text: chunk,
+                        voice: voice.openAIVoice,
+                        speed: voice.speechSpeed
+                    )
+                    return (index, audio)
+                }
+            }
+            var collected: [Int: Data] = [:]
+            for try await (index, audio) in group {
+                collected[index] = audio
+            }
+            return collected
+        }
+
+        var data = Data()
+        for index in chunks.indices {
+            guard let part = parts[index] else { throw AIMeditationError.audioGenerationFailed }
+            data.append(part)
+        }
 
         // Save audio file
         let audioFileName = "\(cacheKey).mp3"
