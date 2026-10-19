@@ -916,6 +916,13 @@ struct PremiumPlanOptionView: View {
 // MARK: - Premium Status View (for subscribed users)
 struct PremiumStatusView: View {
     let profile: UserProfile?
+    /// Read from StoreKit. `profile.subscriptionExpiryDate` is only ever set
+    /// by the demo seeder, so real subscribers never saw this row; and a
+    /// cancelled subscription isn't billed again, so the label must say so.
+    @State private var storeExpiryDate: Date?
+    @State private var willAutoRenew = true
+
+    private var expiryDate: Date? { storeExpiryDate ?? profile?.subscriptionExpiryDate }
 
     var body: some View {
         VStack(spacing: 24) {
@@ -949,9 +956,9 @@ struct PremiumStatusView: View {
 
             // Subscription Info
             VStack(spacing: 12) {
-                if let expiryDate = profile?.subscriptionExpiryDate {
+                if let expiryDate {
                     HStack {
-                        Text("Next billing date")
+                        Text(willAutoRenew ? "Next billing date" : "Premium until")
                             .foregroundStyle(Theme.textPrimary)
                         Spacer()
                         Text(expiryDate, style: .date)
@@ -993,6 +1000,18 @@ struct PremiumStatusView: View {
             .background(Theme.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .padding(.horizontal)
+        }
+        .task {
+            for await result in Transaction.currentEntitlements {
+                guard case .verified(let transaction) = result,
+                      transaction.productType == .autoRenewable else { continue }
+                storeExpiryDate = transaction.expirationDate
+                if let status = await transaction.subscriptionStatus,
+                   case .verified(let renewal) = status.renewalInfo {
+                    willAutoRenew = renewal.willAutoRenew
+                }
+                break
+            }
         }
     }
 }
