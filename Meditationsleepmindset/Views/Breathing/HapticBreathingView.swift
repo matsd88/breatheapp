@@ -261,9 +261,16 @@ struct HapticBreathingView: View {
                 Button {
                     if engine.isRunning {
                         engine.stop()
+                        withAnimation(.easeInOut(duration: 0.6)) { orbScale = 0.6 }
                     } else {
                         engine.pattern = selectedPattern
                         engine.start()
+                        // The engine's phase starts at .inhale, so the first
+                        // inhale produced no onChange and the orb sat still for
+                        // the whole first breath (then grew during the hold).
+                        withAnimation(.easeInOut(duration: selectedPattern.inhale)) {
+                            orbScale = 1.15
+                        }
                     }
                 } label: {
                     Text(engine.isRunning ? "End Session" : "Begin")
@@ -287,6 +294,10 @@ struct HapticBreathingView: View {
                 case .inhale, .holdFull: orbScale = 1.15
                 case .exhale, .holdEmpty: orbScale = 0.6
                 }
+            }
+            // Eyes-closed use with VoiceOver: speak each phase change.
+            if engine.isRunning, UIAccessibility.isVoiceOverRunning {
+                UIAccessibility.post(notification: .announcement, argument: phase.label)
             }
         }
         .onDisappear { engine.stop() }
