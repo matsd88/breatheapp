@@ -42,6 +42,15 @@ final class VoiceManager: NSObject, ObservableObject {
     private var audioPlayer: AVAudioPlayer?
     private var speechFetchTask: Task<Void, Never>?
     private var didPruneSpeechCache = false
+    /// The utterance the synthesizer is meant to be speaking. Its delegate
+    /// callbacks arrive asynchronously, so stopping reply A to read reply B
+    /// delivered A's didCancel AFTER B had started — clearing isSpeaking and
+    /// speakingMessageID while B was still talking (stop button vanished,
+    /// tapping again restarted it instead of stopping).
+    private var currentUtteranceID: ObjectIdentifier?
+    /// Identifies the live dictation, so a late callback from a cancelled
+    /// recognition task can't end the next recording.
+    private var recordingToken = UUID()
 
     /// Called when a final transcript is ready (e.g. to populate / send the message).
     var onFinalTranscript: ((String) -> Void)?
@@ -113,10 +122,12 @@ final class VoiceManager: NSObject, ObservableObject {
 
             partialTranscript = ""
             isRecording = true
+            let token = UUID()
+            recordingToken = token
 
             recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
                 Task { @MainActor in
-                    guard let self else { return }
+                    guard let self, self.recordingToken == token else { return }
                     if let result {
                         self.partialTranscript = result.bestTranscription.formattedString
                         if result.isFinal {
@@ -163,8 +174,17 @@ final class VoiceManager: NSObject, ObservableObject {
         recognitionRequest = nil
         recognitionTask?.cancel()
         recognitionTask = nil
-        // Release the record session so playback owners can reclaim it.
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        recordingToken = UUID()
+        // Dictation left the shared session in .playAndRecord/.measurement,
+        // which every later meditation then played through (quieter, no
+        // AirPlay, Bluetooth headphones dropped to the hands-free profile).
+        // Put back the player's playback configuration, and only deactivate
+        // when nothing else in the app is playing.
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .spokenAudio, options: [.allowAirPlay, .duckOthers])
+        if !AudioPlayerManager.shared.isPlaying {
+            try? session.setActive(false, options: .notifyOthersOnDeactivation)
+        }
     }
 
     // MARK: - Speaking replies
@@ -245,6 +265,7 @@ final class VoiceManager: NSObject, ObservableObject {
         utterance.pitchMultiplier = 1.0
         isSpeaking = true
         speakingMessageID = messageID
+        currentUtteranceID = ObjectIdentifier(utterance)
         synthesizer.speak(utterance)
     }
 
@@ -270,6 +291,7 @@ final class VoiceManager: NSObject, ObservableObject {
         }
         audioPlayer?.stop()
         audioPlayer = nil
+        currentUtteranceID = nil
         isSpeaking = false
         speakingMessageID = nil
     }
@@ -310,7 +332,10 @@ final class VoiceManager: NSObject, ObservableObject {
 
 extension VoiceManager: AVAudioPlayerDelegate {
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        let finishedID = ObjectIdentifier(player)
         Task { @MainActor in
+            // Ignore a player that's already been replaced by a newer reply.
+            guard let current = self.audioPlayer, ObjectIdentifier(current) == finishedID else { return }
             self.audioPlayer = nil
             self.isSpeaking = false
             self.speakingMessageID = nil
@@ -320,14 +345,20 @@ extension VoiceManager: AVAudioPlayerDelegate {
 
 extension VoiceManager: AVSpeechSynthesizerDelegate {
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        let finishedID = ObjectIdentifier(utterance)
         Task { @MainActor in
+            guard self.currentUtteranceID == finishedID else { return }
+            self.currentUtteranceID = nil
             self.isSpeaking = false
             self.speakingMessageID = nil
         }
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+        let cancelledID = ObjectIdentifier(utterance)
         Task { @MainActor in
+            guard self.currentUtteranceID == cancelledID else { return }
+            self.currentUtteranceID = nil
             self.isSpeaking = false
             self.speakingMessageID = nil
         }
