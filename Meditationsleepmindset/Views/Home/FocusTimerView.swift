@@ -285,6 +285,7 @@ struct FocusTimerView: View {
                         .background(Color.red.opacity(0.4))
                         .clipShape(Circle())
                 }
+                .accessibilityLabel("End session")
 
                 Button {
                     togglePause()
@@ -296,6 +297,7 @@ struct FocusTimerView: View {
                         .background(.white)
                         .clipShape(Circle())
                 }
+                .accessibilityLabel(timer != nil ? "Pause" : "Resume")
 
                 Button {
                     skipPhase()
@@ -307,6 +309,7 @@ struct FocusTimerView: View {
                         .background(Color.white.opacity(0.15))
                         .clipShape(Circle())
                 }
+                .accessibilityLabel(isBreak ? "Skip break" : "Skip to break")
             }
             .padding(.bottom, 40)
         }
