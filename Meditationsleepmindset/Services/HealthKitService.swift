@@ -173,8 +173,12 @@ class HealthKitService: ObservableObject {
                 healthStore.execute(query)
             }
 
-            // Group by day, sum non-awake sleep hours
-            var dailySeconds: [Date: TimeInterval] = [:]
+            // Group each night under the day it ENDS (the morning you wake up),
+            // and merge overlapping samples before summing. Grouping by start
+            // day split one night across two dates — "Last night" showed only
+            // the after-midnight part (e.g. 6h of an 8h night) — and the Watch,
+            // iPhone and sleep apps writing the same hours counted them twice.
+            var nightIntervals: [Date: [(start: Date, end: Date)]] = [:]
             for sample in samples {
                 guard let categorySample = sample as? HKCategorySample else { continue }
                 // Skip "in bed" and "awake" categories — only count actual sleep
@@ -182,9 +186,25 @@ class HealthKitService: ObservableObject {
                 if value == .inBed || value == .awake {
                     continue
                 }
-                let dayStart = calendar.startOfDay(for: categorySample.startDate)
-                let duration = categorySample.endDate.timeIntervalSince(categorySample.startDate)
-                dailySeconds[dayStart, default: 0] += duration
+                guard categorySample.endDate > categorySample.startDate else { continue }
+                let wakeDay = calendar.startOfDay(for: categorySample.endDate)
+                nightIntervals[wakeDay, default: []].append((categorySample.startDate, categorySample.endDate))
+            }
+
+            var dailySeconds: [Date: TimeInterval] = [:]
+            for (day, intervals) in nightIntervals {
+                var total: TimeInterval = 0
+                var current: (start: Date, end: Date)?
+                for interval in intervals.sorted(by: { $0.start < $1.start }) {
+                    if let c = current, interval.start <= c.end {
+                        current = (c.start, max(c.end, interval.end))
+                    } else {
+                        if let c = current { total += c.end.timeIntervalSince(c.start) }
+                        current = interval
+                    }
+                }
+                if let c = current { total += c.end.timeIntervalSince(c.start) }
+                dailySeconds[day] = total
             }
 
             var result: [DaySleepData] = []
