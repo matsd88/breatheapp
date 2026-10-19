@@ -399,6 +399,13 @@ struct MeditationPlayerView: View {
                 showPaywall = true
             }
             checkSubscriptionAndLoad()
+            // Reopened (from the mini player) while this track is already
+            // playing: isPlaying doesn't change, so its onChange never started
+            // the listen clock and the rest of the session went uncounted.
+            if sessionStartTime == nil, playerManager.isPlaying,
+               playerManager.currentContent != nil {
+                sessionStartTime = Date()
+            }
 
             // Natural end of playback → record + show the completion moment
             playerManager.onPlaybackFinishedNaturally = { _ in
@@ -1482,8 +1489,6 @@ struct MeditationPlayerView: View {
 
     /// Records session only if user listened for minimum required time
     private func recordSessionIfEligible(showReflection: Bool = true) {
-        guard !hasRecordedSession else { return }
-
         // Calculate total listen time including current playing session.
         // sessionStartTime is nilled whenever a segment is folded in, so
         // counting it here whenever present never double-counts — and NOT
@@ -1492,6 +1497,15 @@ struct MeditationPlayerView: View {
         var totalListenTime = accumulatedListenTime
         if let startTime = sessionStartTime {
             totalListenTime += Date().timeIntervalSince(startTime)
+        }
+
+        if hasRecordedSession {
+            // Already saved a partial row for this track — typically when the
+            // phone locked a minute into a sleep story. The track then playing
+            // to its end (or the player closing later) returned here, so the
+            // session stayed at that first minute forever. Grow it instead.
+            extendEarlyRecordedSession(to: totalListenTime)
+            return
         }
 
         // Only record if user listened for at least the minimum time
@@ -1601,6 +1615,36 @@ struct MeditationPlayerView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// Update the row recordSessionIfEligible saved earlier for this track to
+    /// the full listen time, crediting only the extra minutes.
+    private func extendEarlyRecordedSession(to totalListenTime: TimeInterval) {
+        let current = displayedContent
+        guard let early = earlyRecordedSession,
+              early.youtubeVideoID == current.youtubeVideoID else { return }
+        let actualSeconds = Int(min(totalListenTime, Double(current.durationSeconds > 0 ? current.durationSeconds : Int(totalListenTime))))
+        guard actualSeconds > early.listenedSeconds else { return }
+        let extraMinutes = (actualSeconds - early.listenedSeconds) / 60
+        let isCompleted = current.durationSeconds > 0
+            && Double(actualSeconds) >= Double(current.durationSeconds) * Constants.Session.completionThreshold
+        let wasCompleted = early.wasCompleted
+        early.listenedSeconds = actualSeconds
+        early.wasCompleted = isCompleted
+        early.completedAt = isCompleted ? Date() : nil
+        try? modelContext.save()
+        if extraMinutes > 0 {
+            StreakService.shared.addMinutes(extraMinutes)
+            ChallengeService.shared.recordSession(
+                contentType: current.contentType,
+                durationMinutes: extraMinutes,
+                context: modelContext,
+                streakService: StreakService.shared
+            )
+        }
+        if isCompleted && !wasCompleted {
+            appStateManager.onSessionCompleted()
         }
     }
 
