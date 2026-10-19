@@ -391,6 +391,9 @@ class ChatService: ObservableObject {
         revealTimer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { [weak self] timer in
             Task { @MainActor in
                 guard let self else { timer.invalidate(); return }
+                // A tick queued just before the reveal was finished early must
+                // not write partial text back over the full reply.
+                guard self.revealingMessage === message else { return }
                 idx = min(chars.count, idx + chunk)
                 message.content = String(chars[0..<idx])
                 if idx >= chars.count {
