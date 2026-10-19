@@ -306,11 +306,15 @@ struct HomeView: View {
                 && (60...600).contains($0.durationSeconds)
         }
         let subscribed = storeManager.isSubscribed
+        var seenQuickTitles = Set<String>()
         cachedQuickMeditations = Array(quick.sorted { a, b in
             if !subscribed, a.isPremium != b.isPremium { return !a.isPremium }
             if a.durationSeconds != b.durationSeconds { return a.durationSeconds < b.durationSeconds }
             return a.title < b.title
-        }.prefix(12))
+        }
+        // Two videos share a title ("5-Minute Mindfulness") — show it once.
+        .filter { seenQuickTitles.insert($0.title.lowercased()).inserted }
+        .prefix(12))
 
         // Recently played
         let contentByVideoID = Dictionary(allContent.map { ($0.youtubeVideoID, $0) }, uniquingKeysWith: { first, _ in first })
