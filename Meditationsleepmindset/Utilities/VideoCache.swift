@@ -213,8 +213,14 @@ actor VideoCache {
         var freedSpace: Int64 = 0
         let targetFreeSpace = currentSize - (maxCacheSize / 2) // Free up to 50% of max
 
+        // Offline packs live in this same folder. The size cap evicted them
+        // like any background preload, so a pack still said "Downloaded" but
+        // its sessions were gone the next time there was no signal.
+        let pinned = pinnedOfflineFilenames()
+
         for (fileURL, _, fileSize) in sortedFiles {
             guard freedSpace < targetFreeSpace else { break }
+            if pinned.contains(fileURL.lastPathComponent) { continue }
 
             try? fileManager.removeItem(at: fileURL)
             freedSpace += fileSize
@@ -226,6 +232,18 @@ actor VideoCache {
         #if DEBUG
         print("[VideoCache] Freed \(freedSpace) bytes")
         #endif
+    }
+
+    /// Cache filenames that belong to a downloaded offline pack (both variants).
+    private func pinnedOfflineFilenames() -> Set<String> {
+        guard let data = UserDefaults.standard.data(forKey: "OfflinePackManager.downloadedPacks"),
+              let packs = try? JSONDecoder().decode([DownloadedPackInfo].self, from: data) else { return [] }
+        var names = Set<String>()
+        for videoID in packs.flatMap(\.contentIDs) {
+            names.insert(cacheFileURL(for: videoID, audioOnly: true).lastPathComponent)
+            names.insert(cacheFileURL(for: videoID, audioOnly: false).lastPathComponent)
+        }
+        return names
     }
 
     /// Clear all cached videos

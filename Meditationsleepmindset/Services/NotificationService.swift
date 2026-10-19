@@ -31,7 +31,10 @@ class NotificationService: ObservableObject {
 
     var dailyReminderTime: Date {
         get {
-            Calendar.current.startOfDay(for: Date()).addingTimeInterval(dailyReminderTimeInterval)
+            // Build from hour/minute, not startOfDay + seconds: on a DST
+            // change day that sum lands an hour off, and the midnight/DST
+            // reschedule then moved the reminder permanently (8 PM → 9 PM).
+            Self.wallClockToday(secondsSinceMidnight: dailyReminderTimeInterval)
         }
         set {
             let components = Calendar.current.dateComponents([.hour, .minute], from: newValue)
@@ -44,7 +47,10 @@ class NotificationService: ObservableObject {
 
     var bedtimeReminderTime: Date {
         get {
-            Calendar.current.startOfDay(for: Date()).addingTimeInterval(bedtimeReminderTimeInterval)
+            // Build from hour/minute, not startOfDay + seconds: on a DST
+            // change day that sum lands an hour off, and the midnight/DST
+            // reschedule then moved the reminder permanently (8 PM → 9 PM).
+            Self.wallClockToday(secondsSinceMidnight: bedtimeReminderTimeInterval)
         }
         set {
             let components = Calendar.current.dateComponents([.hour, .minute], from: newValue)
@@ -53,6 +59,15 @@ class NotificationService: ObservableObject {
                 scheduleBedtimeReminder()
             }
         }
+    }
+
+    private static func wallClockToday(secondsSinceMidnight seconds: Double) -> Date {
+        let total = max(0, Int(seconds))
+        let hour = (total / 3600) % 24
+        let minute = (total % 3600) / 60
+        let now = Date()
+        return Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: now)
+            ?? Calendar.current.startOfDay(for: now).addingTimeInterval(seconds)
     }
 
     private init() {
@@ -333,10 +348,13 @@ class NotificationService: ObservableObject {
     func scheduleStreakAtRisk() {
         guard streakNotificationsEnabled else { return }
 
-        // Schedule for 8 PM if user hasn't meditated today
-        var dateComponents = DateComponents()
-        dateComponents.hour = 20
-        dateComponents.minute = 0
+        // Schedule for 8 PM TODAY if user hasn't meditated today. An hour/minute-only
+        // trigger opened after 8 PM rolled to tomorrow evening — "even 3 minutes
+        // counts today" then arrived a day late, after the streak had already lapsed.
+        let calendar = Calendar.current
+        guard let fireDate = calendar.date(bySettingHour: 20, minute: 0, second: 0, of: Date()),
+              fireDate > Date() else { return }
+        let dateComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
 
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
 

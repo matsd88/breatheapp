@@ -303,7 +303,16 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
     // MARK: - Handle Quick Action
     func handleQuickAction(_ shortcutItem: UIApplicationShortcutItem) {
-        guard let action = QuickAction(rawValue: shortcutItem.type) else { return }
+        AppDelegate.handleQuickAction(shortcutItem)
+    }
+
+    /// Static so the scene delegate can reach it: with
+    /// @UIApplicationDelegateAdaptor, `UIApplication.shared.delegate` is
+    /// SwiftUI's own delegate object, so `as? AppDelegate` fails and the
+    /// shortcut was dropped.
+    @discardableResult
+    static func handleQuickAction(_ shortcutItem: UIApplicationShortcutItem) -> Bool {
+        guard let action = QuickAction(rawValue: shortcutItem.type) else { return false }
         AppDelegate.pendingQuickAction = action
 
         // Post notification for the app to handle
@@ -312,22 +321,32 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             object: nil,
             userInfo: ["action": action]
         )
+        return true
     }
 }
 
 // MARK: - Scene Delegate
 class SceneDelegate: NSObject, UIWindowSceneDelegate {
+    /// In a scene-based app a cold launch from a Home Screen quick action
+    /// delivers the item HERE, not in didFinishLaunching's launchOptions
+    /// (which is nil), so every quick action used from a cold start just
+    /// opened Home. Queue it for RootView's onAppear.
+    func scene(
+        _ scene: UIScene,
+        willConnectTo session: UISceneSession,
+        options connectionOptions: UIScene.ConnectionOptions
+    ) {
+        if let shortcutItem = connectionOptions.shortcutItem {
+            AppDelegate.handleQuickAction(shortcutItem)
+        }
+    }
+
     func windowScene(
         _ windowScene: UIWindowScene,
         performActionFor shortcutItem: UIApplicationShortcutItem,
         completionHandler: @escaping (Bool) -> Void
     ) {
-        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else {
-            completionHandler(false)
-            return
-        }
-        appDelegate.handleQuickAction(shortcutItem)
-        completionHandler(true)
+        completionHandler(AppDelegate.handleQuickAction(shortcutItem))
     }
 }
 

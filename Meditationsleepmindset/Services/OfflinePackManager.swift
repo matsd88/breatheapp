@@ -287,9 +287,12 @@ class OfflinePackManager: ObservableObject {
     func deletePack(_ packID: String) {
         guard let packInfo = downloadedPacks.first(where: { $0.packID == packID }) else { return }
 
-        // Delete cached files
+        // Delete cached files — but not ones another downloaded pack still uses
+        // (packs overlap; this deleted the other pack's sessions too).
+        let stillNeeded = Set(downloadedPacks.filter { $0.packID != packID }.flatMap(\.contentIDs))
+        let toEvict = packInfo.contentIDs.filter { !stillNeeded.contains($0) }
         Task {
-            for videoID in packInfo.contentIDs {
+            for videoID in toEvict {
                 await VideoCache.shared.evictCacheEntry(for: videoID)
             }
         }
