@@ -268,8 +268,12 @@ class StreakService: ObservableObject {
         // Notification integrations
         NotificationService.shared.cancelStreakAtRisk()
 
-        // Check for streak milestone
-        checkStreakMilestone()
+        // Milestones only on the session that actually reached them. A second
+        // or third session on the same day left the streak at e.g. 7 and
+        // re-sent the "One Week!" notification and rating ask every time.
+        if currentStreak != previousStreak {
+            checkStreakMilestone()
+        }
 
         // Update challenge streak progress
         ChallengeService.shared.updateStreakProgress(currentStreak: currentStreak)
@@ -418,6 +422,20 @@ class StreakService: ObservableObject {
         }
     }
 
+    /// Minutes per day for the current Monday–Sunday week (what the widgets'
+    /// fixed M…S labels expect), regardless of the locale's first weekday.
+    private func mondayFirstWeekActivity() -> [DayActivity] {
+        var calendar = Calendar.current
+        calendar.firstWeekday = 2 // Monday
+        guard let week = calendar.dateInterval(of: .weekOfYear, for: Date()) else { return weeklyActivity }
+        let weeklyMinutes = getWeeklyMinutesFromDefaults()
+        return (0..<7).compactMap { offset in
+            guard let date = calendar.date(byAdding: .day, value: offset, to: week.start) else { return nil }
+            let minutes = weeklyMinutes[formatDateKey(date)] ?? 0
+            return DayActivity(date: date, dayName: "", minutes: minutes, hasActivity: minutes > 0)
+        }
+    }
+
     private func formatDateKey(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -463,6 +481,15 @@ class StreakService: ObservableObject {
         cloudStore.set(Int64(totalSessions), forKey: CloudKeys.totalSessions)
     }
 
+    /// Persist values another sync source (CloudKit) merged into the
+    /// published properties — they otherwise lived only in memory until the
+    /// next session, and were lost if the app was killed first.
+    func persistMergedData() {
+        saveStreakData()
+        checkTodayStatus()
+        syncWidgetData()
+    }
+
     // MARK: - Widget Data Sync
     private func syncWidgetData() {
         guard let shared = UserDefaults(suiteName: "group.com.meditation.shared") else { return }
@@ -472,14 +499,19 @@ class StreakService: ObservableObject {
         shared.set(totalMinutes, forKey: "widget_totalMinutes")
         shared.set(lastSessionDate, forKey: "widget_lastSessionDate")
 
-        // Weekly activity for streak widget (7 bools, M-S, most recent last)
-        let weeklyActivityBools = weeklyActivity.map { $0.hasActivity }
+        // Both widgets label their 7 slots M T W T F S S, but were handed the
+        // rolling last-7-days (today always in the final "S" slot) — so a
+        // Wednesday session lit up Sunday. Send this Monday–Sunday week.
+        let widgetWeek = mondayFirstWeekActivity()
+
+        // Weekly activity for streak widget (7 bools, Monday first)
+        let weeklyActivityBools = widgetWeek.map { $0.hasActivity }
         shared.set(weeklyActivityBools, forKey: "widget_weeklyActivity")
 
         // Weekly stats for progress widget
-        let weeklyMinutesTotal = weeklyActivity.reduce(0) { $0 + $1.minutes }
-        let weeklySessionsCount = weeklyActivity.filter { $0.hasActivity }.count
-        let dailyMinutesArray = weeklyActivity.map { $0.minutes }
+        let weeklyMinutesTotal = widgetWeek.reduce(0) { $0 + $1.minutes }
+        let weeklySessionsCount = widgetWeek.filter { $0.hasActivity }.count
+        let dailyMinutesArray = widgetWeek.map { $0.minutes }
 
         shared.set(weeklyMinutesTotal, forKey: "widget_weeklyMinutes")
         shared.set(weeklySessionsCount, forKey: "widget_weeklySessions")
