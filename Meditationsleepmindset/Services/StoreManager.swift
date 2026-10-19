@@ -202,7 +202,13 @@ class StoreManager: ObservableObject {
                 break
 
             case .pending:
-                break
+                // Ask to Buy / SCA approval: the sheet closed and nothing
+                // happened, so the button looked broken. The updates listener
+                // unlocks Premium once it's approved.
+                presentAlert(
+                    title: String(localized: "Purchase Pending"),
+                    message: String(localized: "Your purchase is waiting for approval. Premium will unlock automatically once it's approved.")
+                )
 
             @unknown default:
                 break
