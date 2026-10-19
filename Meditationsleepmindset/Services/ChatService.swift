@@ -219,7 +219,13 @@ class ChatService: ObservableObject {
     }
 
     func clearAllHistory(in context: ModelContext) {
-        // End current session
+        // End current session. Cancel any reply still in flight: it captured
+        // the session we're about to delete, and touching a deleted, saved
+        // SwiftData model when it landed (session.id, messageCount) can crash.
+        currentAPITask?.cancel()
+        currentAPITask = nil
+        isLoading = false
+        lastFailedMessage = nil
         failedUserMessage = nil
         connectionErrorMessage = nil
         currentSession?.endSession()
