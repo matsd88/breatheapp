@@ -35,43 +35,11 @@ struct KidsView: View {
     // MARK: - Generation limits (shared counters with the AI meditation generator)
 
     private var hasReachedFreeLimit: Bool {
-        if storeManager.isSubscribed { return false }
-        let used = UserDefaults.standard.integer(forKey: "aiGenerationsUsed")
-        return used >= Constants.AIMeditation.freeGenerationLimit
-    }
-
-    private static var todayString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.timeZone = .current
-        return formatter.string(from: Date())
-    }
-
-    private var todayGenerationCount: Int {
-        let defaults = UserDefaults.standard
-        let lastDate = defaults.string(forKey: "aiGenerationDate") ?? ""
-        if lastDate != Self.todayString { return 0 }
-        return defaults.integer(forKey: "aiGenerationsDailyCount")
+        aiService.hasReachedFreeLimit(isSubscribed: storeManager.isSubscribed)
     }
 
     private var hasReachedDailyLimit: Bool {
-        guard storeManager.isSubscribed else { return false }
-        return todayGenerationCount >= Constants.AIMeditation.premiumDailyGenerationLimit
-    }
-
-    private func recordGeneration() {
-        let defaults = UserDefaults.standard
-        let today = Self.todayString
-        let lastDate = defaults.string(forKey: "aiGenerationDate") ?? ""
-        if lastDate != today {
-            defaults.set(today, forKey: "aiGenerationDate")
-            defaults.set(1, forKey: "aiGenerationsDailyCount")
-        } else {
-            defaults.set(defaults.integer(forKey: "aiGenerationsDailyCount") + 1, forKey: "aiGenerationsDailyCount")
-        }
-        if !storeManager.isSubscribed {
-            defaults.set(defaults.integer(forKey: "aiGenerationsUsed") + 1, forKey: "aiGenerationsUsed")
-        }
+        aiService.hasReachedDailyLimit(isSubscribed: storeManager.isSubscribed)
     }
 
     var body: some View {
@@ -315,7 +283,9 @@ struct KidsView: View {
                     voice: selectedVoice,
                     context: modelContext
                 )
-                if !aiService.lastResultWasCached { recordGeneration() }
+                if !aiService.lastResultWasCached {
+                    aiService.recordGeneration(isSubscribed: storeManager.isSubscribed)
+                }
                 HapticManager.success()
                 generatedStory = story
             } catch {

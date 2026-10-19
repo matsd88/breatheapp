@@ -53,6 +53,13 @@ class ChatService: ObservableObject {
     private var conversationHistory: [OpenAIProxyService.MessagePayload] = []
     private var currentAPITask: Task<Void, Never>?
     private var revealTimer: Timer?
+    /// The reply currently being typewriter-revealed and its full text. Cutting
+    /// the reveal short (sending the next message within ~2s, New Chat, Clear)
+    /// used to leave the partial text in the bubble and save it to SwiftData,
+    /// so the reply stayed truncated in history for good.
+    private var revealingMessage: ChatMessage?
+    private var revealingFullText: String?
+    private var cloudObserver: NSObjectProtocol?
     /// Bumped whenever memory is cleared, so an in-flight summarization can't repopulate it.
     private var memoryGeneration = 0
     /// Stores the last failed message text for retry
@@ -76,6 +83,25 @@ class ChatService: ObservableObject {
         // Restore selected coach
         let savedCoach = UserDefaults.standard.string(forKey: "selectedWellnessCoach")
         self.selectedCoach = savedCoach.flatMap { WellnessCoach(rawValue: $0) } ?? .general
+
+        // On a fresh install the iCloud value often arrives after launch, so the
+        // read above saw 0 and a reinstall reset the free-message count. Take
+        // the higher value whenever iCloud delivers.
+        cloudObserver = NotificationCenter.default.addObserver(
+            forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+            object: cloudStore,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                let cloud = Int(self.cloudStore.longLong(forKey: "cloud_chatMessagesSentCount"))
+                if cloud > self.messagesSentCount {
+                    self.messagesSentCount = cloud
+                    UserDefaults.standard.set(cloud, forKey: Constants.UserDefaultsKeys.chatMessagesSentCount)
+                }
+            }
+        }
+        cloudStore.synchronize()
 
         // Merge cloud memory into local if the device has none yet
         if (UserDefaults.standard.string(forKey: "aiUserMemory") ?? "").isEmpty,
@@ -161,8 +187,7 @@ class ChatService: ObservableObject {
         connectionErrorMessage = nil
         currentAPITask?.cancel()
         currentAPITask = nil
-        revealTimer?.invalidate()
-        revealTimer = nil
+        finishRevealImmediately()
         isLoading = false
         lastFailedMessage = nil
         currentSession?.endSession()
@@ -194,7 +219,13 @@ class ChatService: ObservableObject {
     }
 
     func clearAllHistory(in context: ModelContext) {
-        // End current session
+        // End current session. Cancel any reply still in flight: it captured
+        // the session we're about to delete, and touching a deleted, saved
+        // SwiftData model when it landed (session.id, messageCount) can crash.
+        currentAPITask?.cancel()
+        currentAPITask = nil
+        isLoading = false
+        lastFailedMessage = nil
         failedUserMessage = nil
         connectionErrorMessage = nil
         currentSession?.endSession()
@@ -206,8 +237,7 @@ class ChatService: ObservableObject {
 
         // Clearing history also wipes long-term memory (user's explicit reset).
         memoryGeneration += 1
-        revealTimer?.invalidate()
-        revealTimer = nil
+        finishRevealImmediately()
         userMemory = ""
 
         // Delete all sessions and messages
@@ -233,6 +263,8 @@ class ChatService: ObservableObject {
         // Voice dictation can call in while a reply is pending; two requests
         // in flight overwrote currentAPITask and cleared isLoading early.
         guard !isLoading else { return }
+        // The previous reply may still be typing out — show it in full now.
+        finishRevealImmediately()
 
         lastFailedMessage = nil
         failedUserMessage = nil
@@ -348,25 +380,43 @@ class ChatService: ObservableObject {
     /// Typewriter-reveal the assistant's reply into the (initially empty) message for a
     /// streaming feel. SwiftData @Model is Observable, so mutating `content` updates the UI live.
     private func revealText(_ full: String, into message: ChatMessage, context: ModelContext) {
-        revealTimer?.invalidate()
+        finishRevealImmediately()
         let chars = Array(full)
         guard !chars.isEmpty else { return }
+        revealingMessage = message
+        revealingFullText = full
         // ~120 ticks total max, so long replies finish in ~2.4s; short ones reveal per character.
         let chunk = max(1, chars.count / 120)
         var idx = 0
         revealTimer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { [weak self] timer in
             Task { @MainActor in
                 guard let self else { timer.invalidate(); return }
+                // A tick queued just before the reveal was finished early must
+                // not write partial text back over the full reply.
+                guard self.revealingMessage === message else { return }
                 idx = min(chars.count, idx + chunk)
                 message.content = String(chars[0..<idx])
                 if idx >= chars.count {
                     timer.invalidate()
                     self.revealTimer = nil
+                    self.revealingMessage = nil
+                    self.revealingFullText = nil
                     message.content = full
                     try? context.save()
                 }
             }
         }
+    }
+
+    /// Stop any running typewriter reveal and put the reply's full text in place.
+    private func finishRevealImmediately() {
+        revealTimer?.invalidate()
+        revealTimer = nil
+        if let message = revealingMessage, let full = revealingFullText {
+            message.content = full
+        }
+        revealingMessage = nil
+        revealingFullText = nil
     }
 
     /// Retry the last failed message

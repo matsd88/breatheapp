@@ -483,13 +483,17 @@ class NotificationService: ObservableObject {
         dateComponents.minute = 0
 
         // Don't schedule a non-repeating notification in the past — it would silently never fire.
-        guard let fireDate = Calendar.current.date(from: dateComponents), fireDate > Date() else { return }
+        // Nor after the trial has already ended: a trial that started in the
+        // morning converts before 20:00 (or 09:00) on its last day, and this
+        // then announced a trial ending "tonight" hours after the user was charged.
+        guard let fireDate = Calendar.current.date(from: dateComponents),
+              fireDate > Date(), fireDate < trialEndDate else { return }
 
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
 
         let content = UNMutableNotificationContent()
         content.title = String(localized: "Last day of your free trial")
-        content.body = String(localized: "Lock in annual today—that's just $0.96/week.")
+        content.body = String(localized: "Keep every meditation, sleep story and the AI Studio with Premium.")
         content.sound = .default
         content.categoryIdentifier = "TRIAL_CONVERSION"
 
@@ -508,13 +512,17 @@ class NotificationService: ObservableObject {
         dateComponents.minute = 0
 
         // Don't schedule a non-repeating notification in the past — it would silently never fire.
-        guard let fireDate = Calendar.current.date(from: dateComponents), fireDate > Date() else { return }
+        // Nor after the trial has already ended: a trial that started in the
+        // morning converts before 20:00 (or 09:00) on its last day, and this
+        // then announced a trial ending "tonight" hours after the user was charged.
+        guard let fireDate = Calendar.current.date(from: dateComponents),
+              fireDate > Date(), fireDate < trialEndDate else { return }
 
         let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
 
         let content = UNMutableNotificationContent()
         content.title = String(localized: "Your trial ends tonight")
-        content.body = String(localized: "Don't lose access to 500+ meditations. Continue for just $0.96/week.")
+        content.body = String(localized: "Keep access to every meditation, sleep story and the AI Studio.")
         content.sound = .default
         content.categoryIdentifier = "TRIAL_CONVERSION"
 
@@ -548,7 +556,9 @@ class NotificationService: ObservableObject {
 
         let content = UNMutableNotificationContent()
         content.title = String(localized: "Your calm space is still here")
-        content.body = String(localized: "Come back and unlock everything — at a special price, just for you.")
+        // There is no discounted offer behind this tap (it opens the regular
+        // plans), so don't promise a "special price".
+        content.body = String(localized: "Come back whenever you're ready — your sessions and favorites are waiting.")
         content.sound = .default
         content.categoryIdentifier = "TRIAL_CONVERSION"
 

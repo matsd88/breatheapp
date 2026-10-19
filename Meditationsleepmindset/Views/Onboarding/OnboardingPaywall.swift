@@ -611,11 +611,14 @@ struct OnboardingPlanOptionView: View {
     /// Falls back to the static label only if prices aren't loaded yet.
     private var savingsLabel: String? {
         if plan == .annual, let product, let monthlyProduct {
+            // With live prices in hand, never fall back to the hard-coded
+            // "Save 54%" — in storefronts where annual isn't cheaper (or saves
+            // less) that was a false claim. Matches PremiumPlanOptionView.
             let annualizedMonthly = monthlyProduct.price * 12
-            guard annualizedMonthly > 0, product.price < annualizedMonthly else { return plan.discount }
+            guard annualizedMonthly > 0, product.price < annualizedMonthly else { return nil }
             let fraction = (annualizedMonthly - product.price) / annualizedMonthly
             let percent = (fraction * 100 as NSDecimalNumber).intValue
-            return percent > 0 ? "Save \(percent)%" : plan.discount
+            return percent > 0 ? "Save \(percent)%" : nil
         }
         return plan.discount
     }
