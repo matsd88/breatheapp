@@ -23,6 +23,25 @@ final class iCloudSyncService {
     }
 
     private var cloudObserver: Any?
+    /// The app's main context, kept so a late iCloud initial sync can still
+    /// restore into an empty store (see handleExternalChange).
+    private var restoreContext: ModelContext?
+
+    /// After a reinstall (or on a second device) the local store is empty and
+    /// iCloud's initial download can arrive after launch. The first background
+    /// then wrote that empty list over the iCloud copy — wiping the very backup
+    /// meant to survive the reinstall. An empty local list may only replace a
+    /// non-empty iCloud one once this device has held data of its own.
+    private func mayWrite(isLocalEmpty: Bool, cloudKey: String) -> Bool {
+        let seenKey = "\(cloudKey)_hadLocalData"
+        if !isLocalEmpty {
+            UserDefaults.standard.set(true, forKey: seenKey)
+            return true
+        }
+        if UserDefaults.standard.bool(forKey: seenKey) { return true }
+        let cloudHasData = !((store.array(forKey: cloudKey))?.isEmpty ?? true)
+        return !cloudHasData
+    }
 
     private init() {
         // Listen for external iCloud changes
@@ -48,6 +67,7 @@ final class iCloudSyncService {
     func syncFavorites(from context: ModelContext) {
         let descriptor = FetchDescriptor<FavoriteContent>()
         guard let favorites = try? context.fetch(descriptor) else { return }
+        guard mayWrite(isLocalEmpty: favorites.isEmpty, cloudKey: Keys.favorites) else { return }
 
         let encoded = favorites.map { fav -> [String: Any] in
             [
@@ -86,6 +106,7 @@ final class iCloudSyncService {
 
         let itemDescriptor = FetchDescriptor<PlaylistItem>()
         guard let items = try? context.fetch(itemDescriptor) else { return }
+        guard mayWrite(isLocalEmpty: playlists.isEmpty, cloudKey: Keys.playlists) else { return }
 
         let encodedItems = items.map { item -> [String: Any] in
             [
@@ -114,6 +135,7 @@ final class iCloudSyncService {
         )
         descriptor.fetchLimit = 50
         guard let sessions = try? context.fetch(descriptor) else { return }
+        guard mayWrite(isLocalEmpty: sessions.isEmpty, cloudKey: Keys.sessions) else { return }
 
         let encoded = sessions.map { session -> [String: Any] in
             var dict: [String: Any] = [
@@ -140,6 +162,7 @@ final class iCloudSyncService {
 
     /// Restores favorites from iCloud if local store is empty (e.g. after reinstall)
     func restoreFavoritesIfNeeded(in context: ModelContext) {
+        restoreContext = context
         let descriptor = FetchDescriptor<FavoriteContent>()
         let localCount = (try? context.fetchCount(descriptor)) ?? 0
         guard localCount == 0 else { return }
@@ -287,6 +310,12 @@ final class iCloudSyncService {
     // MARK: - External Change Handler
 
     private func handleExternalChange() {
-        // External changes detected — will be picked up on next restore check
+        // iCloud's first download after a reinstall often lands after launch,
+        // when the launch-time restore already found nothing. Retry now; each
+        // restore is a no-op once the local store has data.
+        guard let context = restoreContext else { return }
+        restoreFavoritesIfNeeded(in: context)
+        restorePlaylistsIfNeeded(in: context)
+        restoreSessionsIfNeeded(in: context)
     }
 }
