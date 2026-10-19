@@ -59,6 +59,11 @@ struct HomeView: View {
     @StateObject private var personalizationService = PersonalizationService.shared
     @StateObject private var storeManager = StoreManager.shared
     @Environment(\.horizontalSizeClass) private var homeSizeClass
+    @Environment(\.scenePhase) private var homeScenePhase
+    /// Calendar day Home last rendered for. HomeView stays alive in its tab, so
+    /// without this, opening the app the next morning kept yesterday's plan,
+    /// week strip, daily mix and greeting until some other state changed.
+    @State private var homeDayKey: String = TodaysPlanSection.todayKey
 
     // Static cache so recommendations persist across tab switches
     private static var savedRecommendations: [Content] = []
@@ -599,6 +604,7 @@ struct HomeView: View {
 
                         // This week at a glance (Calm / Breathwrk pattern)
                         WeekProgressStrip()
+                            .id(homeDayKey)
                             .padding(16)
                             .background(Theme.cardBackground)
                             .clipShape(RoundedRectangle(cornerRadius: 18))
@@ -629,7 +635,7 @@ struct HomeView: View {
                             isSubscribed: storeManager.isSubscribed,
                             onPlay: { content in playContent(content, from: [content]) }
                         )
-                        .id(TodaysPlanSection.todayKey)
+                        .id(homeDayKey)
 
                         // Quick Meditations — short guided sessions, one tap to start
                         if !cachedQuickMeditations.isEmpty {
@@ -658,8 +664,11 @@ struct HomeView: View {
                                 Image(systemName: "arrow.clockwise")
                                     .font(.body)
                                     .foregroundStyle(.white.opacity(0.7))
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
                             }
                             .disabled(isLoadingRecommendations)
+                            .accessibilityLabel("Refresh recommendations")
                             .padding(.trailing, 10)
                         }
                         .padding(.horizontal)
@@ -930,6 +939,25 @@ struct HomeView: View {
             .onChange(of: playlistItems.count) { _, _ in
                 cachedPlaylistItemsByID = Dictionary(grouping: playlistItems, by: \.playlistID)
             }
+            .onChange(of: homeScenePhase) { _, phase in
+                if phase == .active { handleDayRolloverIfNeeded() }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged).receive(on: RunLoop.main)) { _ in
+                handleDayRolloverIfNeeded()
+            }
+        }
+    }
+
+    /// Rebuilds the day-scoped parts of Home after midnight: Today's Plan and
+    /// the week strip are keyed by `homeDayKey`, and the daily mix is
+    /// regenerated (generateDailyMix keeps the cached mix within the same day).
+    private func handleDayRolloverIfNeeded() {
+        let today = TodaysPlanSection.todayKey
+        guard today != homeDayKey else { return }
+        homeDayKey = today
+        recomputeDerivedState()
+        if !allContent.isEmpty {
+            dailyMix = generateDailyMix()
         }
     }
 
@@ -1471,6 +1499,10 @@ struct MoodSelectorView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
                         .buttonStyle(.plain)
+                        // VoiceOver read the emoji's name and never said which
+                        // mood was chosen.
+                        .accessibilityLabel(mood.displayName)
+                        .accessibilityAddTraits(selectedMood == mood ? .isSelected : [])
                     }
                 }
                 .padding(.horizontal)
