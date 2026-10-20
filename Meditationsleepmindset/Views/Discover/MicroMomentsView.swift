@@ -8,74 +8,93 @@
 
 import SwiftUI
 import SwiftData
-import AVFoundation
 
 struct MicroMomentsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @StateObject private var viewModel = MicroMomentsViewModel()
-    @State private var currentIndex = 0
+    @State private var currentID: String?
+
+    private var activeID: String? { currentID ?? viewModel.moments.first?.id }
+
+    private var currentIndex: Int {
+        viewModel.moments.firstIndex { $0.id == activeID } ?? 0
+    }
 
     var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
+        GeometryReader { proxy in
+            ZStack {
+                Color.black.ignoresSafeArea()
 
-            if viewModel.moments.isEmpty {
-                loadingView
-            } else {
-                // Vertical paging TabView (TikTok style)
-                TabView(selection: $currentIndex) {
-                    ForEach(Array(viewModel.moments.enumerated()), id: \.element.id) { index, moment in
-                        MicroMomentCard(
-                            moment: moment,
-                            isActive: index == currentIndex,
-                            onComplete: {
-                                viewModel.markCompleted(moment)
+                if viewModel.moments.isEmpty {
+                    loadingView
+                } else {
+                    // Vertical paging feed (TikTok style)
+                    ScrollView(.vertical, showsIndicators: false) {
+                        LazyVStack(spacing: 0) {
+                            ForEach(viewModel.moments) { moment in
+                                MicroMomentCard(
+                                    moment: moment,
+                                    isActive: moment.id == activeID,
+                                    safeArea: proxy.safeAreaInsets,
+                                    onComplete: {
+                                        viewModel.markCompleted(moment)
+                                    }
+                                )
+                                .containerRelativeFrame([.horizontal, .vertical])
+                                .id(moment.id)
                             }
-                        )
-                        .tag(index)
+                        }
+                        .scrollTargetLayout()
                     }
+                    .scrollTargetBehavior(.paging)
+                    .scrollPosition(id: $currentID)
+                    .ignoresSafeArea()
                 }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .ignoresSafeArea()
-            }
 
-            // Top bar overlay
-            VStack {
-                HStack {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .padding(12)
-                            .background(.ultraThinMaterial.opacity(0.5))
-                            .clipShape(Circle())
+                // Top bar overlay
+                VStack {
+                    HStack {
+                        Button {
+                            dismiss()
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.title3.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 44, height: 44)
+                                .background(.ultraThinMaterial.opacity(0.5))
+                                .clipShape(Circle())
+                        }
+                        .accessibilityLabel("Close")
+
+                        Spacer()
+
+                        // Progress indicator
+                        if !viewModel.moments.isEmpty {
+                            Text("\(currentIndex + 1) / \(viewModel.moments.count)")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.white.opacity(0.8))
+                                .monospacedDigit()
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(.ultraThinMaterial.opacity(0.5))
+                                .clipShape(Capsule())
+                                .contentTransition(.numericText())
+                                .animation(.snappy, value: currentIndex)
+                        }
                     }
+                    .padding(.horizontal)
+                    .padding(.top, 8)
 
                     Spacer()
-
-                    // Progress indicator
-                    if !viewModel.moments.isEmpty {
-                        Text("\(currentIndex + 1) / \(viewModel.moments.count)")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.white.opacity(0.7))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(.ultraThinMaterial.opacity(0.5))
-                            .clipShape(Capsule())
-                    }
                 }
-                .padding(.horizontal)
-                .padding(.top, 8)
-
-                Spacer()
             }
         }
         .statusBarHidden()
         .onAppear {
-            viewModel.loadMoments(context: modelContext)
+            if viewModel.moments.isEmpty {
+                viewModel.loadMoments(context: modelContext)
+            }
         }
     }
 
@@ -95,11 +114,15 @@ struct MicroMomentsView: View {
 @MainActor
 class MicroMomentsViewModel: ObservableObject {
     @Published var moments: [MicroMoment] = []
-    @Published var completedToday: Int = 0
+
+    private var todayKey: String {
+        "microMomentsCompleted_\(Date().formatted(.dateTime.year().month().day()))"
+    }
 
     func loadMoments(context: ModelContext) {
         // Load built-in micro moments
         var allMoments = MicroMoment.builtInMoments
+        let builtInTitles = Set(allMoments.map { $0.title.lowercased() })
 
         // Also find short content from database (under 90 seconds)
         let descriptor = FetchDescriptor<Content>(
@@ -110,19 +133,23 @@ class MicroMomentsViewModel: ObservableObject {
         )
 
         if let shortContent = try? context.fetch(descriptor) {
-            let contentMoments = shortContent.prefix(10).map { content in
-                MicroMoment(
-                    id: content.id.uuidString,
-                    type: .audioGuided,
-                    title: content.title,
-                    subtitle: content.narrator ?? "Guided",
-                    duration: content.durationSeconds,
-                    instruction: content.contentDescription ?? "Take a moment to breathe and relax.",
-                    backgroundColor: MicroMoment.gradientColors.randomElement() ?? ["#1a1a2e", "#16213e"],
-                    iconName: "headphones",
-                    youtubeVideoID: content.youtubeVideoID
-                )
-            }
+            // Skip catalog items that duplicate a built-in moment (e.g. "Box Breathing")
+            let contentMoments = shortContent
+                .filter { !builtInTitles.contains($0.title.lowercased()) }
+                .prefix(10)
+                .map { content in
+                    MicroMoment(
+                        id: content.id.uuidString,
+                        type: .audioGuided,
+                        title: content.title,
+                        subtitle: content.narrator ?? "Guided",
+                        duration: content.durationSeconds,
+                        instruction: content.contentDescription ?? "Take a moment to breathe and relax.",
+                        backgroundColor: MicroMoment.gradientColors.randomElement() ?? ["#1a1a2e", "#16213e"],
+                        iconName: "headphones",
+                        youtubeVideoID: content.youtubeVideoID
+                    )
+                }
             allMoments.append(contentsOf: contentMoments)
         }
 
@@ -131,10 +158,8 @@ class MicroMomentsViewModel: ObservableObject {
     }
 
     func markCompleted(_ moment: MicroMoment) {
-        completedToday += 1
-        // Could track in UserDefaults or SwiftData
-        let key = "microMomentsCompleted_\(Date().formatted(.dateTime.year().month().day()))"
-        UserDefaults.standard.set(completedToday, forKey: key)
+        let key = todayKey
+        UserDefaults.standard.set(UserDefaults.standard.integer(forKey: key) + 1, forKey: key)
     }
 }
 
@@ -150,6 +175,7 @@ struct MicroMoment: Identifiable {
     let backgroundColor: [String] // Gradient hex colors
     let iconName: String
     let youtubeVideoID: String?
+    let visual: MomentVisual
 
     enum MomentType {
         case breathing
@@ -160,7 +186,7 @@ struct MicroMoment: Identifiable {
         case audioGuided
     }
 
-    init(id: String = UUID().uuidString, type: MomentType, title: String, subtitle: String, duration: Int, instruction: String, backgroundColor: [String], iconName: String, youtubeVideoID: String? = nil) {
+    init(id: String = UUID().uuidString, type: MomentType, title: String, subtitle: String, duration: Int, instruction: String, backgroundColor: [String], iconName: String, youtubeVideoID: String? = nil, visual: MomentVisual? = nil) {
         self.id = id
         self.type = type
         self.title = title
@@ -170,6 +196,15 @@ struct MicroMoment: Identifiable {
         self.backgroundColor = backgroundColor
         self.iconName = iconName
         self.youtubeVideoID = youtubeVideoID
+        self.visual = visual ?? MicroMoment.defaultVisual(type: type, title: title)
+    }
+
+    private static func defaultVisual(type: MomentType, title: String) -> MomentVisual {
+        if title.localizedCaseInsensitiveContains("box breath") { return .box }
+        if type == .breathing || title.localizedCaseInsensitiveContains("breath") {
+            return .pulse(.reset44)
+        }
+        return .ripple
     }
 
     var gradient: LinearGradient {
@@ -190,7 +225,6 @@ struct MicroMoment: Identifiable {
         ["#c44536", "#9b2335"], // Deep crimson
         ["#5c4d9a", "#3a2d70"], // Muted violet
         ["#9b4dca", "#6a0572"], // Royal purple
-        ["#667eea", "#764ba2"], // Deep purple
         ["#6a11cb", "#2575fc"], // Indigo-blue
         ["#b5446e", "#862e5e"], // Berry
     ]
@@ -201,29 +235,32 @@ struct MicroMoment: Identifiable {
         MicroMoment(
             type: .breathing,
             title: "4-4 Breath Reset",
-            subtitle: "30 seconds",
-            duration: 30,
+            subtitle: "32 seconds",
+            duration: 32,
             instruction: "Breathe in for 4 seconds, out for 4 seconds. Let each breath bring calm.",
             backgroundColor: ["#667eea", "#764ba2"],
-            iconName: "wind"
+            iconName: "wind",
+            visual: .pulse(.reset44)
         ),
         MicroMoment(
             type: .breathing,
             title: "Box Breathing",
-            subtitle: "60 seconds",
-            duration: 60,
+            subtitle: "64 seconds",
+            duration: 64,
             instruction: "Inhale 4s → Hold 4s → Exhale 4s → Hold 4s. Repeat 4 times.",
-            backgroundColor: ["#4facfe", "#00f2fe"],
-            iconName: "square"
+            backgroundColor: ["#1e6fd9", "#0a7ea4"],
+            iconName: "square",
+            visual: .box
         ),
         MicroMoment(
             type: .breathing,
             title: "Calming Exhale",
-            subtitle: "45 seconds",
-            duration: 45,
+            subtitle: "48 seconds",
+            duration: 48,
             instruction: "Breathe in for 4 seconds, out for 8 seconds. Extended exhale activates calm.",
-            backgroundColor: ["#43e97b", "#38f9d7"],
-            iconName: "leaf.fill"
+            backgroundColor: ["#1a936f", "#0f6e6e"],
+            iconName: "leaf.fill",
+            visual: .pulse(.calmingExhale)
         ),
         MicroMoment(
             type: .breathing,
@@ -231,8 +268,9 @@ struct MicroMoment: Identifiable {
             subtitle: "30 seconds",
             duration: 30,
             instruction: "Quick breaths in through nose, strong exhale through mouth. Energize!",
-            backgroundColor: ["#f77062", "#fe5196"],
-            iconName: "bolt.fill"
+            backgroundColor: ["#e8505b", "#c2185b"],
+            iconName: "bolt.fill",
+            visual: .pulse(.energy)
         ),
 
         // Affirmations
@@ -280,8 +318,9 @@ struct MicroMoment: Identifiable {
             subtitle: "60 seconds",
             duration: 60,
             instruction: "Notice: 5 things you see, 4 you hear, 3 you feel, 2 you smell, 1 you taste.",
-            backgroundColor: ["#11998e", "#38ef7d"],
-            iconName: "hand.raised.fill"
+            backgroundColor: ["#11998e", "#1f7a4d"],
+            iconName: "hand.raised.fill",
+            visual: .senses
         ),
         MicroMoment(
             type: .grounding,
@@ -289,7 +328,7 @@ struct MicroMoment: Identifiable {
             subtitle: "30 seconds",
             duration: 30,
             instruction: "Feel your feet firmly on the ground. Press down. You are here, rooted.",
-            backgroundColor: ["#834d9b", "#d04ed6"],
+            backgroundColor: ["#834d9b", "#b03fb5"],
             iconName: "figure.stand"
         ),
         MicroMoment(
@@ -306,11 +345,12 @@ struct MicroMoment: Identifiable {
         MicroMoment(
             type: .bodyCheck,
             title: "Shoulder Drop",
-            subtitle: "20 seconds",
-            duration: 20,
+            subtitle: "24 seconds",
+            duration: 24,
             instruction: "Notice your shoulders. Are they tense? Let them drop. Release.",
-            backgroundColor: ["#f093fb", "#f5576c"],
-            iconName: "figure.arms.open"
+            backgroundColor: ["#c45ab3", "#d63c5e"],
+            iconName: "figure.arms.open",
+            visual: .pulse(.shoulderDrop)
         ),
         MicroMoment(
             type: .bodyCheck,
@@ -318,17 +358,19 @@ struct MicroMoment: Identifiable {
             subtitle: "20 seconds",
             duration: 20,
             instruction: "Unclench your jaw. Let your tongue rest. Soften your face.",
-            backgroundColor: ["#c471f5", "#fa71cd"],
-            iconName: "face.smiling"
+            backgroundColor: ["#9b4dca", "#c2489a"],
+            iconName: "face.smiling",
+            visual: .pulse(.jawRelease)
         ),
         MicroMoment(
             type: .bodyCheck,
             title: "Hand Awareness",
-            subtitle: "30 seconds",
-            duration: 30,
+            subtitle: "27 seconds",
+            duration: 27,
             instruction: "Look at your hands. Stretch fingers wide, then relax. Feel the sensation.",
-            backgroundColor: ["#48c6ef", "#6f86d6"],
-            iconName: "hand.raised.fill"
+            backgroundColor: ["#2f80b8", "#5468c4"],
+            iconName: "hand.raised.fill",
+            visual: .pulse(.handStretch)
         ),
 
         // Gratitude
@@ -339,7 +381,8 @@ struct MicroMoment: Identifiable {
             duration: 45,
             instruction: "Think of 3 good things from today, no matter how small. Feel grateful.",
             backgroundColor: ["#c06014", "#8b3a0f"],
-            iconName: "heart.circle.fill"
+            iconName: "heart.fill",
+            visual: .steps(["Think of one good thing", "Now another", "And one more"])
         ),
         MicroMoment(
             type: .gratitude,
@@ -348,7 +391,8 @@ struct MicroMoment: Identifiable {
             duration: 30,
             instruction: "With each exhale, silently say \"thank you\" for something in your life.",
             backgroundColor: ["#3a5ba0", "#1e3a6e"],
-            iconName: "sparkles"
+            iconName: "sparkles",
+            visual: .pulse(.gratitude)
         ),
     ]
 }
@@ -358,30 +402,24 @@ struct MicroMoment: Identifiable {
 struct MicroMomentCard: View {
     let moment: MicroMoment
     let isActive: Bool
+    let safeArea: EdgeInsets
     let onComplete: () -> Void
 
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isPlaying = false
-    @State private var timeRemaining: Int
-    @State private var timer: Timer?
-    @State private var breathPhase: BreathPhase = .inhale
-    @State private var circleScale: CGFloat = 0.6
+    /// Seconds played before the current run (pauses bank time here).
+    @State private var accumulated: Double = 0
+    @State private var resumedAt: Date?
+    @State private var ticker: Timer?
+    @State private var lastPhaseKey = 0
     @State private var showCompletion = false
     @State private var particlePositions: [(x: CGFloat, y: CGFloat, size: CGFloat)] = []
     @State private var completionTask: Task<Void, Never>?
 
     private var isRegular: Bool { sizeClass == .regular }
-
-    enum BreathPhase {
-        case inhale, hold, exhale, holdOut
-    }
-
-    init(moment: MicroMoment, isActive: Bool, onComplete: @escaping () -> Void) {
-        self.moment = moment
-        self.isActive = isActive
-        self.onComplete = onComplete
-        self._timeRemaining = State(initialValue: moment.duration)
-    }
+    private var hasStarted: Bool { isPlaying || accumulated > 0 }
 
     var body: some View {
         GeometryReader { geometry in
@@ -390,36 +428,47 @@ struct MicroMomentCard: View {
                 moment.gradient
                     .ignoresSafeArea()
 
-                // Ambient particles (using stable positions)
-                ForEach(Array(particlePositions.enumerated()), id: \.offset) { index, particle in
-                    Circle()
-                        .fill(.white.opacity(0.1))
-                        .frame(width: particle.size)
-                        .position(x: particle.x, y: particle.y)
-                        .blur(radius: 10)
-                }
+                TimelineView(.animation(paused: !isPlaying)) { context in
+                    let elapsed = elapsed(at: context.date)
 
-                VStack(spacing: 0) {
-                    Spacer()
+                    ZStack {
+                        // Ambient particles (stable positions, slow drift while playing)
+                        ForEach(Array(particlePositions.enumerated()), id: \.offset) { index, particle in
+                            let drift = reduceMotion ? 0 : sin(elapsed * 0.3 + Double(index)) * 14
+                            Circle()
+                                .fill(.white.opacity(0.1))
+                                .frame(width: particle.size)
+                                .position(x: particle.x, y: particle.y + drift)
+                                .blur(radius: 10)
+                        }
 
-                    // Central content
-                    if moment.type == .breathing && isPlaying {
-                        breathingAnimation
-                    } else {
-                        centralContent
+                        VStack(spacing: 0) {
+                            Spacer(minLength: 0)
+
+                            Group {
+                                if hasStarted {
+                                    playingContent(elapsed: elapsed)
+                                        .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                                } else {
+                                    centralContent
+                                        .transition(.opacity.combined(with: .scale(scale: 1.04)))
+                                }
+                            }
+
+                            Spacer(minLength: 0)
+
+                            bottomControls(elapsed: elapsed)
+                        }
+                        .padding(.top, safeArea.top + 64)
+                        .padding(.bottom, safeArea.bottom + (isRegular ? 48 : 28))
+                        .padding(.horizontal, isRegular ? 48 : 24)
                     }
-
-                    Spacer()
-
-                    // Bottom controls
-                    bottomControls
-                        .padding(.bottom, geometry.safeAreaInsets.bottom + (isRegular ? 60 : 40))
                 }
-                .padding(.horizontal, isRegular ? 48 : 24)
 
                 // Completion overlay
                 if showCompletion {
                     completionOverlay
+                        .transition(.opacity)
                 }
             }
             .onAppear {
@@ -436,15 +485,14 @@ struct MicroMomentCard: View {
             }
         }
         .onChange(of: isActive) { _, active in
-            if !active {
-                stopTimer()
-                isPlaying = false
-            }
+            if !active { resetSession() }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active && isPlaying { pauseSession() }
         }
         .onDisappear {
             // Clean up timer and tasks when view disappears
-            stopTimer()
-            isPlaying = false
+            resetSession()
             completionTask?.cancel()
         }
     }
@@ -473,7 +521,7 @@ struct MicroMomentCard: View {
 
                 Text(moment.subtitle)
                     .font(isRegular ? .body : .subheadline)
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(.white.opacity(0.75))
             }
 
             // Instruction
@@ -481,73 +529,55 @@ struct MicroMomentCard: View {
                 .font(isRegular ? .title3 : .body)
                 .foregroundStyle(.white.opacity(0.9))
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, isRegular ? 60 : 20)
+                .padding(.horizontal, isRegular ? 60 : 8)
                 .padding(.top, 8)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    // MARK: - Breathing Animation
+    // MARK: - Playing Content
 
-    private var breathingAnimation: some View {
-        let outerSize: CGFloat = isRegular ? 280 : 200
-        let mainSize: CGFloat = isRegular ? 220 : 160
-        let innerSize: CGFloat = isRegular ? 140 : 100
+    private func playingContent(elapsed: Double) -> some View {
+        VStack(spacing: isRegular ? 32 : 24) {
+            Text(moment.title)
+                .font(isRegular ? .title2.weight(.semibold) : .headline)
+                .foregroundStyle(.white.opacity(0.85))
+                .multilineTextAlignment(.center)
 
-        return VStack(spacing: isRegular ? 48 : 32) {
-            ZStack {
-                // Outer glow
-                Circle()
-                    .fill(.white.opacity(0.1))
-                    .frame(width: outerSize, height: outerSize)
-                    .scaleEffect(circleScale * 1.3)
+            MomentVisualView(
+                visual: moment.visual,
+                iconName: moment.iconName,
+                elapsed: elapsed,
+                duration: moment.duration,
+                isRegular: isRegular
+            )
 
-                // Main circle
-                Circle()
-                    .fill(.white.opacity(0.3))
-                    .frame(width: mainSize, height: mainSize)
-                    .scaleEffect(circleScale)
-
-                // Inner circle
-                Circle()
-                    .fill(.white.opacity(0.5))
-                    .frame(width: innerSize, height: innerSize)
-                    .scaleEffect(circleScale * 0.8)
-
-                // Phase text
-                Text(phaseText)
-                    .font(isRegular ? .title.weight(.medium) : .title3.weight(.medium))
+            if moment.visual.showsInstructionWhilePlaying {
+                Text(moment.instruction)
+                    .font(isRegular ? .title3.weight(.medium) : .body.weight(.medium))
                     .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, isRegular ? 60 : 8)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-
-            Text("\(timeRemaining)s")
-                .font(.system(size: isRegular ? 64 : 48, weight: .light, design: .rounded))
-                .foregroundStyle(.white.opacity(0.8))
-                .monospacedDigit()
-        }
-    }
-
-    private var phaseText: String {
-        switch breathPhase {
-        case .inhale: return "Breathe In"
-        case .hold: return "Hold"
-        case .exhale: return "Breathe Out"
-        case .holdOut: return "Hold"
         }
     }
 
     // MARK: - Bottom Controls
 
-    private var bottomControls: some View {
-        VStack(spacing: isRegular ? 28 : 20) {
-            // Timer display (when not breathing type or not playing)
-            if !isPlaying || moment.type != .breathing {
-                Text(formatTime(timeRemaining))
-                    .font(.system(size: isRegular ? 26 : 20, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.7))
-                    .monospacedDigit()
-            }
+    private func bottomControls(elapsed: Double) -> some View {
+        let remaining = max(0, moment.duration - Int(elapsed))
+        let progress = moment.duration > 0 ? elapsed / Double(moment.duration) : 0
+        let buttonSize: CGFloat = isRegular ? 96 : 72
 
-            // Play/Pause button
+        return VStack(spacing: isRegular ? 24 : 18) {
+            Text(formatTime(remaining))
+                .font(.system(size: isRegular ? 26 : 20, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.8))
+                .monospacedDigit()
+                .accessibilityLabel("\(remaining) seconds remaining")
+
+            // Play/Pause button with session progress ring
             Button {
                 HapticManager.medium()
                 if isPlaying {
@@ -558,25 +588,38 @@ struct MicroMomentCard: View {
             } label: {
                 ZStack {
                     Circle()
+                        .stroke(.white.opacity(0.25), lineWidth: 3)
+                        .frame(width: buttonSize + 14, height: buttonSize + 14)
+
+                    Circle()
+                        .trim(from: 0, to: progress)
+                        .stroke(.white, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                        .frame(width: buttonSize + 14, height: buttonSize + 14)
+
+                    Circle()
                         .fill(.white)
-                        .frame(width: isRegular ? 96 : 72, height: isRegular ? 96 : 72)
+                        .frame(width: buttonSize, height: buttonSize)
 
                     Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                         .font(isRegular ? .largeTitle : .title)
                         .foregroundStyle(.black)
                         .offset(x: isPlaying ? 0 : 2)
+                        .contentTransition(.symbolEffect(.replace))
                 }
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isPlaying ? "Pause" : (hasStarted ? "Resume" : "Start"))
 
-            // Swipe hint
-            if !isPlaying {
-                HStack(spacing: 4) {
-                    Image(systemName: "chevron.up")
-                    Text("Swipe for more")
-                }
-                .font(isRegular ? .body : .caption)
-                .foregroundStyle(.white.opacity(0.5))
+            // Swipe hint (kept in layout so nothing jumps when it hides)
+            HStack(spacing: 4) {
+                Image(systemName: "chevron.up")
+                Text("Swipe up for more")
             }
+            .font(isRegular ? .body : .caption)
+            .foregroundStyle(.white.opacity(0.6))
+            .opacity(isPlaying ? 0 : 1)
+            .accessibilityHidden(isPlaying)
         }
     }
 
@@ -591,6 +634,7 @@ struct MicroMomentCard: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 64))
                     .foregroundStyle(.green)
+                    .symbolEffect(.bounce, value: showCompletion)
 
                 Text("Well done!")
                     .font(.title2.bold())
@@ -600,57 +644,65 @@ struct MicroMomentCard: View {
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.7))
             }
-            .scaleEffect(showCompletion ? 1 : 0.8)
-            .opacity(showCompletion ? 1 : 0)
-            .animation(.spring(response: 0.5), value: showCompletion)
         }
     }
 
-    // MARK: - Timer Logic
+    // MARK: - Session Logic
+
+    private func elapsed(at date: Date) -> Double {
+        let running = resumedAt.map { date.timeIntervalSince($0) } ?? 0
+        return min(Double(moment.duration), accumulated + running)
+    }
 
     private func startSession() {
-        isPlaying = true
-
-        // If it's audio guided, play the content
-        if moment.type == .audioGuided, let videoID = moment.youtubeVideoID {
-            // Would play audio here using playerManager
+        guard !showCompletion else { return }
+        lastPhaseKey = moment.visual.phaseKey(elapsed: accumulated, duration: moment.duration)
+        withAnimation(.easeInOut(duration: 0.35)) {
+            resumedAt = Date()
+            isPlaying = true
         }
 
-        // Invalidate any existing timer before creating a new one
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            Task { @MainActor in
-                if timeRemaining > 0 {
-                    timeRemaining -= 1
-                    updateBreathingAnimation()
-                } else {
-                    completeSession()
-                }
-            }
+        ticker?.invalidate()
+        ticker = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+            Task { @MainActor in tick() }
         }
+    }
 
-        // Start breathing animation
-        if moment.type == .breathing {
-            startBreathingAnimation()
+    private func tick() {
+        guard isPlaying else { return }
+        let elapsed = elapsed(at: Date())
+        if elapsed >= Double(moment.duration) {
+            completeSession()
+            return
+        }
+        let key = moment.visual.phaseKey(elapsed: elapsed, duration: moment.duration)
+        if key != lastPhaseKey {
+            lastPhaseKey = key
+            HapticManager.light()
         }
     }
 
     private func pauseSession() {
+        accumulated = elapsed(at: Date())
+        resumedAt = nil
         isPlaying = false
-        timer?.invalidate()
-        timer = nil
+        ticker?.invalidate()
+        ticker = nil
     }
 
-    private func stopTimer() {
-        timer?.invalidate()
-        timer = nil
-        timeRemaining = moment.duration
+    private func resetSession() {
+        ticker?.invalidate()
+        ticker = nil
+        isPlaying = false
+        resumedAt = nil
+        accumulated = 0
     }
 
     private func completeSession() {
-        stopTimer()
-        isPlaying = false
-        showCompletion = true
+        pauseSession()
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showCompletion = true
+        }
         HapticManager.success()
         onComplete()
 
@@ -659,55 +711,9 @@ struct MicroMomentCard: View {
         completionTask = Task {
             try? await Task.sleep(nanoseconds: 2_000_000_000)
             guard !Task.isCancelled else { return }
-            showCompletion = false
-            timeRemaining = moment.duration
-        }
-    }
-
-    private func startBreathingAnimation() {
-        breathPhase = .inhale
-        animateBreath()
-    }
-
-    private func animateBreath() {
-        // 4-4-4-4 box breathing pattern
-        let phaseDuration = 4.0
-
-        withAnimation(.easeInOut(duration: phaseDuration)) {
-            circleScale = breathPhase == .inhale ? 1.0 : (breathPhase == .exhale ? 0.6 : circleScale)
-        }
-    }
-
-    private func updateBreathingAnimation() {
-        let elapsed = moment.duration - timeRemaining
-        let cyclePosition = elapsed % 16 // 4+4+4+4 = 16 second cycle
-
-        let newPhase: BreathPhase
-        if cyclePosition < 4 {
-            newPhase = .inhale
-        } else if cyclePosition < 8 {
-            newPhase = .hold
-        } else if cyclePosition < 12 {
-            newPhase = .exhale
-        } else {
-            newPhase = .holdOut
-        }
-
-        if newPhase != breathPhase {
-            breathPhase = newPhase
-            HapticManager.light()
-
-            withAnimation(.easeInOut(duration: 4)) {
-                switch breathPhase {
-                case .inhale:
-                    circleScale = 1.0
-                case .hold:
-                    break
-                case .exhale:
-                    circleScale = 0.6
-                case .holdOut:
-                    break
-                }
+            withAnimation(.easeInOut(duration: 0.4)) {
+                showCompletion = false
+                accumulated = 0
             }
         }
     }
