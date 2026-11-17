@@ -1,0 +1,699 @@
+============================================================
+BREATHE APP - 90 NEW YOUTUBE VIDEOS
+============================================================
+All video IDs verified as NOT already in ContentRepository.swift (955 existing IDs checked)
+Generated: 2026-03-04
+
+
+============================================================
+CATEGORY 1: MEDITATION (15 new videos)
+============================================================
+
+1. Tonglen Meditation - Pema Chodron
+   ID: QwqlurCvXuM
+   Title: Pema Chodron: Tonglen Meditation
+   Channel: Omega Institute for Holistic Studies
+   Views: 319K
+   Why: Pema Chodron is THE authority on Tonglen. Omega Institute is a prestigious wellness organization. High-quality, authentic Tibetan compassion practice.
+
+2. Tonglen Meditation - Pema Chodron (Belfast)
+   ID: SAV1RCnuAaE
+   Title: Pema Chodron - Guided Tonglen practise
+   Channel: Belfast Buddhist
+   Views: 150K
+   Why: Another essential Pema Chodron Tonglen recording. Practical guided session from a respected Buddhist center.
+
+3. Vipassana Meditation for Beginners
+   ID: Z7oYJZg9nOA
+   Title: Vipassana Meditation: Guided Meditation for Beginners; Meditate daily
+   Channel: Vipassana Meditation
+   Views: 2.9M
+   Why: Nearly 3 million views. The most popular beginner Vipassana video on YouTube. Clean, well-produced.
+
+4. Vipassana Meditation 30 Minutes
+   ID: PxuNf87E1_c
+   Title: Vipassana Meditation Guided 30 Minute Sit
+   Channel: Can You Zen
+   Views: 545K
+   Why: Popular mid-length Vipassana session. Can You Zen is a well-regarded meditation channel.
+
+5. ADHD Mindfulness Meditation
+   ID: y5EqO8CQ_cQ
+   Title: ADHD Mindfulness Meditation (Guided) - 30-Day Transformation
+   Channel: ADHDVision
+   Views: 330K
+   Why: Specifically designed for ADHD brains. 30-day transformation angle is great for engagement and retention.
+
+6. Racing Thoughts Sleep Help
+   ID: ft-vhYwHzxw
+   Title: Racing Thoughts While Trying To Sleep? Try This.
+   Channel: Headspace
+   Views: 2.7M
+   Why: From Headspace, a premium meditation brand. Massive view count. Directly targets racing thoughts/ADHD.
+
+7. Chronic Pain Meditation (Rising Higher)
+   ID: EpgusOQUlmA
+   Title: Heal Your Body. A Guided Meditation To Heal Your Body and Relieve Chronic Pain.
+   Channel: Rising Higher Meditation
+   Views: 1.2M
+   Why: Over 1M views. Addresses chronic pain with healing visualization. Well-produced guided meditation.
+
+8. Chronic Pain Meditation (Generation Calm)
+   ID: L3-SlMJHrms
+   Title: Chronic pain meditation | Natural Pain Relief | Relaxation for Pain
+   Channel: Generation Calm
+   Views: 955K
+   Why: Nearly 1M views. Focused specifically on natural pain relief through meditation.
+
+9. Ho'oponopono Prayer Meditation
+   ID: lNeiLi882MU
+   Title: Ho'oponopono Prayer | 108 Repetitions For Deep Healing & Forgiveness | Powerful Mantra Meditation
+   Channel: Mind Body Soul
+   Views: 6.1M
+   Why: 6+ million views. 108 repetitions format is traditional and immersive. Hawaiian forgiveness practice.
+
+10. Ho'oponopono Sleep Meditation
+    ID: yDJYZXlsASg
+    Title: Before Sleep Ho'oponopono Affirmation Meditation for Forgiveness, Reconciliation, Transformation
+    Channel: Jason Stephenson
+    Views: 8.5M
+    Why: 8.5M views from the hugely popular Jason Stephenson. Sleep-oriented Ho'oponopono is perfect crossover content.
+
+11. Meditation for New Parents (Postpartum)
+    ID: bXk916CpGxw
+    Title: DE-STRESS Affirmation Meditation | Postpartum Guided Meditation
+    Channel: Bridget Teyler
+    Views: 116K
+    Why: Leading postpartum meditation creator. Addresses the unique stress of new parenthood.
+
+12. Exam Success Meditation
+    ID: AtF0T2fPvbI
+    Title: Exam Success Meditation - Stay Calm & deal with test taking nerves & anxiety
+    Channel: Jason Stephenson
+    Views: 1.7M
+    Why: 1.7M views. Perfect for students. Jason Stephenson's soothing delivery targets test anxiety directly.
+
+13. Loving-Kindness / Metta Extended
+    ID: c2iCoEluq8A
+    Title: Guided Meditation for Giving & Receiving Loving Kindness (Happiness, Abundance & Healing)
+    Channel: Michael Sealey
+    Views: 1.9M
+    Why: Michael Sealey is one of the top meditation voices on YouTube. Nearly 2M views. Extended Metta practice.
+
+14. Meditation for Emotional Eating
+    ID: 9m45ITi-ALw
+    Title: Guided Meditation to STOP Emotional/Binge Eating: Heal the Hunger of the Divine Inner Child
+    Channel: Lisa A. Romano
+    Views: 205K
+    Why: Targets emotional/binge eating from a healing perspective. Lisa Romano is a well-known breakthrough coach.
+
+15. Third Eye / Pineal Gland Meditation
+    ID: yaA_aYEe8JA
+    Title: Opening the Third Eye Guided Meditation | Visualization for Activating the Pineal Gland
+    Channel: New Horizon - Meditation & Sleep Stories
+    Views: 1.6M
+    Why: 1.6M views. New Horizon is a premium meditation channel. Guided visualization for third eye activation.
+
+
+============================================================
+CATEGORY 2: SLEEP STORIES (15 new videos)
+============================================================
+
+1. Space/Astronomy Sleep Facts
+   ID: pXzD871cyEw
+   Title: The Most Relaxing Facts About The Universe to Fall Asleep To
+   Channel: Sleepy Science Channel
+   Views: 1.0M
+   Why: 1M+ views. Unique "relaxing facts" format about the universe. Educational yet deeply calming.
+
+2. Floating Among the Stars
+   ID: N4qCFFBrrgk
+   Title: Guided Meditation for Sleep... Floating Amongst the Stars
+   Channel: Jason Stephenson
+   Views: 16.4M
+   Why: 16M+ views - one of the most popular sleep meditations ever. Space-themed floating visualization.
+
+3. Rainy Train Journey Sleep Story
+   ID: vvfnUHwULvM
+   Title: A Rainy Train Ride to the Village of Sleep: A Magical Bedtime Story
+   Channel: Stephen Dalton Sleep Stories
+   Views: 114K
+   Why: Perfect niche fit - rainy train ride to a literal "Village of Sleep." Enchanting storytelling.
+
+4. Rainy Night Train Journey
+   ID: 46RQhUE0sD8
+   Title: Sleep Story for Grown-Ups | RAINY NIGHT TRAIN JOURNEY | Calm Bedtime Story with Rain Sounds
+   Channel: Michelle's Sanctuary Stories for Sleep
+   Views: 61K
+   Why: Adult-focused sleep story combining train sounds with gentle rain. Cozy and immersive.
+
+5. Stephen Fry Sleep Story (Deep Male Voice)
+   ID: _gRQleINoJk
+   Title: The Bookshop of Sleep: A Magical Sleep Narration with Rain Sounds
+   Channel: Stephen Dalton Sleep Stories
+   Views: 737K
+   Why: 737K views. Hits both "deep male voice" and "bookshop" niches. Rain sounds background.
+
+6. Cozy Mountain Cabin Sleep Story
+   ID: 1uwbPydMLjo
+   Title: The Cozy Mountain Cabin in the Rain: A Soothing Sleep Story
+   Channel: Stephen Dalton Sleep Stories
+   Views: 345K
+   Why: 345K views. Cabin in nature + rain. Stephen Dalton has one of the best voices for sleep content.
+
+7. Cozy Cabin Blizzard Ambience
+   ID: Rm-4JUivLcE
+   Title: Deep Sleep in a Cozy Winter Hut | Relaxing Fireplace Crackling, Blizzard, Wind & Snowfall Sounds
+   Channel: Rainy Guy
+   Views: 5.6M
+   Why: 5.6M views. Cozy winter cabin with fireplace crackling and blizzard outside. Perfect sleep ambience.
+
+8. Underwater City Sleep Story
+   ID: D8eplSV1wus
+   Title: Bedtime Story to Help You Sleep | The Underwater City | BetterSleep
+   Channel: BetterSleep
+   Views: 2.3M
+   Why: 2.3M views from BetterSleep (premium sleep app). Underwater adventure perfect for imagination.
+
+9. Underwater Voyage Sleep Story
+   ID: Btn0YZajEkk
+   Title: A Magical Underwater Voyage: Bedtime Story with Underwater Sounds
+   Channel: Stephen Dalton Sleep Stories
+   Views: 91K
+   Why: Enchanting underwater voyage with actual underwater sound design. High production quality.
+
+10. Greek Mythology Sleep Stories (6 Hour Compilation)
+    ID: By1-wZ9G2QQ
+    Title: Bedtime Sleep Stories | 6 HRS Greek Mythology Stories Compilation | Greek Gods & Goddesses
+    Channel: Soothing Pod
+    Views: 1.9M
+    Why: 1.9M views. 6-hour compilation of Greek mythology - perfect for long sleep sessions. Ancient world setting.
+
+11. Boring Greek Myths for Sleep
+    ID: jMxHxzY5usw
+    Title: Boring Greek Myths For Sleep | The Entire Story of Greek Mythology
+    Channel: Boring History
+    Views: 702K
+    Why: Clever "boring history" format designed specifically to help you fall asleep. 700K+ views.
+
+12. Fairy Tale Compilation for Adults
+    ID: 3Qx49IyhCME
+    Title: The COZIEST Fairytale | Snow White and the Seven Dwarves | Bedtime Story for Grown Ups
+    Channel: Get Sleepy
+    Views: 236K
+    Why: Get Sleepy is a premium sleep podcast. Fairy tale retold for adults with calming narration.
+
+13. Sleep Story with Gentle Rain (Honest Guys)
+    ID: oJjc4XreJSQ
+    Title: GUIDED SLEEP TALKDOWN - GENTLE RAIN. 1 HOUR. Insomnia. Relaxation.
+    Channel: The Honest Guys
+    Views: 6.0M
+    Why: 6M views from The Honest Guys, pioneers of YouTube sleep content. Classic gentle rain talkdown.
+
+14. Winter Stories Compilation
+    ID: ZVXflJ1g298
+    Title: 5HRS Magical Winter Stories | The Coziest Winter Stories for Sleep | Bedtime Stories Compilation
+    Channel: Get Sleepy
+    Views: 178K
+    Why: 5 hours of winter-themed sleep stories from Get Sleepy. Perfect for the winter wonderland niche.
+
+15. Library Sleep Story
+    ID: a9MZvseN6Ug
+    Title: A Night in the Library of Sleep: A Soothing Sleep Story
+    Channel: Stephen Dalton Sleep Stories
+    Views: 108K
+    Why: Perfectly fits the library/bookshop niche. "Library of Sleep" concept is magical and calming.
+
+
+============================================================
+CATEGORY 3: SOUNDSCAPE (15 new videos)
+============================================================
+
+1. Thunderstorm Heavy Rain 8 Hours
+   ID: 7ev8I2AW9ko
+   Title: Heavy Thunderstorm and Rain Sounds - 8 Hours For Sleep Study & Relaxation
+   Channel: SHAANTI - Virtual Environment
+   Views: 3.5M
+   Why: 3.5M views. Exactly 8 hours of heavy thunderstorm. High-quality audio recording.
+
+2. Thunderstorm on Old House
+   ID: GHqA2Ruhz1E
+   Title: Strong Rain Thunderstorm Sounds for Sleeping | Heavy Rain & Intense Thunder on Old House at Night
+   Channel: LUCASTA
+   Views: 5.3M
+   Why: 5.3M views. Unique "old house" setting gives character. Heavy rain + intense thunder.
+
+3. Japanese Zen Garden 10 Hours
+   ID: 40sHfUrDezE
+   Title: 10Hours of Shishi Odoshi Sound in Japanese Zen Garden - Traditional Japanese Bamboo Fountain sound
+   Channel: Positive Energy
+   Views: 105K
+   Why: Authentic shishi-odoshi (deer scarer) bamboo fountain sound. 10 hours. Traditional zen garden.
+
+4. Rain on Japanese Zen Garden
+   ID: YN6wj5NfOnM
+   Title: Rain On Japanese Zen Garden At Night 10 Hrs | For Sleep, Study, Relaxation
+   Channel: Calmbience
+   Views: 3.4M
+   Why: 3.4M views. Combines rain sounds with zen garden at night. 10 hours.
+
+5. Crackling Fireplace + Snowfall
+   ID: 8_6WU4kqr5A
+   Title: Crackling Fireplace and Gentle Snowfall Ambience | Winter Sounds for Deep Sleep and Stress Relief
+   Channel: Dreamy Sleep Ambience
+   Views: 432K
+   Why: Perfect combo of crackling fireplace and gentle snowfall visuals. Purpose-built for deep sleep.
+
+6. Blizzard + Fireplace (Rainy Guy)
+   ID: jK3cMcH9e_c
+   Title: Relaxing Blizzard for Sleep | Snowstorm Sounds with Fireplace Crackling
+   Channel: Rainy Guy
+   Views: 9.7M
+   Why: 9.7M views. Rainy Guy is a top ambient sound creator. Blizzard outside + fireplace inside.
+
+7. Tropical Rainforest Night
+   ID: FUQEecZ0HG0
+   Title: Tropical Rainforest Ambience | nature sounds for sleep 10 hours, rain on leaves & cozy treehouse
+   Channel: RainRider Ambience
+   Views: 6.0M
+   Why: 6M views. 10 hours of tropical rainforest at night with rain on leaves. Treehouse setting.
+
+8. Night Jungle Sounds (Crickets/Frogs)
+   ID: ih4_1FyVjaY
+   Title: Swamp Sounds at Night - Frogs, Crickets, Light Rain, Forest Nature Sounds
+   Channel: The Guild of Ambience
+   Views: 14.5M
+   Why: 14.5M views. Authentic nighttime nature recording - frogs, crickets, light rain. Hugely popular.
+
+9. Wind Through Pine Trees
+   ID: sT5f1jBJHng
+   Title: Strong Howling Wind Sound 2 Hours / Swaying Spruce Trees in The Wind
+   Channel: Relaxing Sounds Of Nature
+   Views: 4.3M
+   Why: 4.3M views. Powerful wind through conifer trees. Natural, non-looped recording.
+
+10. Rain in Spruce Forest with Wind
+    ID: bbjMDgMz504
+    Title: Sounds for Deep Sleep, Relaxation 10 Hours / Rain in Spruce Forest, Fog, Swaying Branches in Wind
+    Channel: Relaxing Sounds Of Nature
+    Views: 7.8M
+    Why: 7.8M views. 10 hours. Combines rain, forest, fog, and wind through branches. Deeply immersive.
+
+11. Tibetan Singing Bowls 3 Hours
+    ID: yuybyOCd0Bw
+    Title: 3 HOURS Long Tibetan Singing Bowl Meditation Chakra Healing | Third Eye | Brow Chakra
+    Channel: Elaine Leet
+    Views: 803K
+    Why: 3 hours of continuous singing bowls. Focused on chakra healing. Great length for extended sessions.
+
+12. Antique Singing Bowl 8 Hours
+    ID: -PS9EBu8KmQ
+    Title: **FALL ASLEEP FAST to this 300-Year-Old** Singing Bowl Antique | 8 Hours Deep Sleep Sound Meditation
+    Channel: Aurabowls
+    Views: 2.7M
+    Why: 2.7M views. A 300-year-old authentic singing bowl. 8 hours. Unique antique instrument angle.
+
+13. Desert Wind Sounds
+    ID: Bpq2KdZcOto
+    Title: HOWLING DESERT WINDS - Howling Wind Sounds for Sleep & Relaxation
+    Channel: RELAXATION ZONE
+    Views: 82K
+    Why: Pure desert wind soundscape. Unique sonic environment not commonly found. Great niche content.
+
+14. Scottish Highlands Storm
+    ID: 7_-XU8jSGZM
+    Title: Stormy Night at a Scottish Castle 4K | Heavy Rain & Distant Rolling Thunder | Relax | Study | Sleep
+    Channel: Outdoor Therapy
+    Views: 2.9M
+    Why: 2.9M views. Scottish castle in a storm. 4K visuals. Heavy rain + distant rolling thunder.
+
+15. Arctic Blizzard Ambience
+    ID: OD5worsS-Mg
+    Title: Blizzard Snowstorm & Arctic Howling Wind Sounds for Sleeping, Relaxing, & Insomnia | Igloo Ambience
+    Channel: Nature Therapy
+    Views: 5.9M
+    Why: 5.9M views. Arctic blizzard with igloo setting. Unique polar ambience. Perfect for the arctic niche.
+
+
+============================================================
+CATEGORY 4: MUSIC (15 new videos)
+============================================================
+
+1. 432 Hz Sleep Music
+   ID: o-9T184mpY4
+   Title: The Best SLEEP Music | 432hz - Healing Frequency | Deeply Relaxing | Raise Positive Vibrations
+   Channel: PowerThoughts Meditation Club
+   Views: 49.3M
+   Why: Nearly 50M views! The top 432 Hz sleep music video. PowerThoughts is a major meditation music channel.
+
+2. 432 Hz Sleep Instantly
+   ID: tQGE_Mivb8M
+   Title: SLEEP INSTANTLY with 432 Hz | Black Screen Sleep Music with Solfeggio Frequency
+   Channel: Meditate with Abhi
+   Views: 5.0M
+   Why: 5M views. Black screen format ideal for sleep. Solfeggio frequency combined with 432 Hz.
+
+3. 7 Chakras 432Hz Sleep Music
+   ID: UllduL1OqOc
+   Title: Full Night All 7 Chakras Opening, Balancing & Healing | 7 Chakra 432Hz Sleep Music & Meditation
+   Channel: Inner Lotus Music
+   Views: 8.1M
+   Why: 8M views. Full night length. Combines 432 Hz with chakra healing. Perfect for overnight play.
+
+4. Hang Drum Relaxation (Alex Dav)
+   ID: OHzT6IMx_S8
+   Title: Relaxing Hang Drum Music | 432 Hz
+   Channel: Alex Dav
+   Views: 1.6M
+   Why: 1.6M views. Authentic hang drum performance at 432 Hz. Alex Dav is a top hang drum artist.
+
+5. Handpan 1 Hour (Malte Marten)
+   ID: uwEaQk5VeS4
+   Title: Calming Meditation | 1 hour handpan music | Malte Marten
+   Channel: Malte Marten
+   Views: 29.4M
+   Why: 29M+ views! Malte Marten is THE handpan meditation artist. Beautiful, professional performance.
+
+6. Handpan Healing Frequency
+   ID: j_3C0z96GE0
+   Title: Healing Frequency Meditation (1111 Hz) | 1 hour handpan music | Malte Marten & Lynxk
+   Channel: Malte Marten Music
+   Views: 10.5M
+   Why: 10M+ views. Collaboration between two artists. 1111 Hz healing frequency with handpan.
+
+7. Classical Piano - Debussy, Chopin, Satie
+   ID: c1rX8wQ80JE
+   Title: Classical Music for Sleeping | Debussy, Chopin, Satie...
+   Channel: HALIDONMUSIC
+   Views: 1.2M
+   Why: 1.2M views. HALIDON is a major classical music label on YouTube. Perfect Debussy/Satie selection for sleep.
+
+8. Chopin for Relaxation
+   ID: 9Y5XmI8KiUc
+   Title: Chopin - Classical Music for Relaxation
+   Channel: HALIDONMUSIC
+   Views: 3.4M
+   Why: 3.4M views. Pure Chopin piano selections curated for relaxation by a professional classical label.
+
+9. Gregorian Chant 432Hz
+   ID: W-hrBhA4XkM
+   Title: Gregorian Chants at 432Hz | 3 Hours of Healing Music
+   Channel: Meditative Mind
+   Views: 14.3M
+   Why: 14M+ views. Meditative Mind is a top healing music channel. 3 hours of Gregorian chant at 432 Hz.
+
+10. Gregorian Chant for Healing
+    ID: d2MfVktfYFU
+    Title: Gregorian Chant for Healing | Divine Restoration (432Hz)
+    Channel: Gregorian Chants
+    Views: 1.3M
+    Why: 1.3M views. Focused specifically on healing/restoration. Authentic chant recordings at 432 Hz.
+
+11. Indian Sitar Relaxation
+    ID: FuZgOP5zOQM
+    Title: Relaxing Indian Sitar Music for Meditation
+    Channel: Best Relaxing Music
+    Views: 476K
+    Why: Pure sitar meditation music. Well-produced with authentic Indian instrumentation.
+
+12. Brian Eno - Music for Airports
+    ID: vNwYtllyt3Q
+    Title: Brian Eno - Ambient 1: Music for Airports [Full Album]
+    Channel: Methadone Methadone
+    Views: 5.9M
+    Why: 5.9M views. THE defining ambient album. Brian Eno literally invented ambient electronic music. Essential.
+
+13. Relaxing Harp Music for Sleep
+    ID: dCvEgqePl84
+    Title: Relaxing Harp Music for Sleep & Meditation | Instrumental Background Music
+    Channel: Soothing Relaxation
+    Views: 17.6M
+    Why: 17.6M views. Soothing Relaxation is one of the biggest relaxation music channels. Pure harp.
+
+14. Native American Flute + Canyon
+    ID: QCT3WcUPPmI
+    Title: Healing Rain | Native American Flute & Rain Sounds for Deep Sleep & Stress Relief
+    Channel: 24Relax
+    Views: 2.9M
+    Why: 2.9M views. Native American flute combined with rain sounds. Beautiful healing combination.
+
+15. Japanese Bamboo Flute Collection
+    ID: MzgMBrtrFc4
+    Title: Relaxing With Japanese Bamboo Flute, Guzheng, Erhu | Musical Instrument Collection
+    Channel: Ambient With Flute
+    Views: 18.3M
+    Why: 18M+ views. Japanese bamboo flute + guzheng + erhu. Pan-Asian instrumental meditation music.
+
+
+============================================================
+CATEGORY 5: MOVEMENT (15 new videos)
+============================================================
+
+1. Qigong for Beginners (Yoqi)
+   ID: IyINAjEoTIs
+   Title: Qigong for Beginners
+   Channel: Yoqi Yoga and Qigong
+   Views: 4.9M
+   Why: Nearly 5M views. Yoqi is the #1 Qigong channel on YouTube. Perfect beginner introduction.
+
+2. Daily Qigong Routine (Yoqi)
+   ID: nmmNWj9YtAw
+   Title: DAILY QIGONG ROUTINE
+   Channel: Yoqi Yoga and Qigong
+   Views: 6.8M
+   Why: 6.8M views. Follow-along daily routine. Most popular Qigong routine video on YouTube.
+
+3. Qigong for Stress & Anxiety
+   ID: CCicH-iz1oU
+   Title: Qi Gong Routine for Stress, Anxiety, and Energy w/ Jeff Chand
+   Channel: Qigong For Vitality
+   Views: 1.5M
+   Why: 1.5M views. Specifically targets stress and anxiety. Practical, follow-along format.
+
+4. Gentle Stretching for Seniors
+   ID: kfjVFQWWiZw
+   Title: Gentle Stretching for Seniors, Beginner Exercisers
+   Channel: yes2next
+   Views: 2.3M
+   Why: 2.3M views. yes2next specializes in senior fitness. Gentle, accessible, and highly rated.
+
+5. Chair Exercises for Seniors
+   ID: E2YqFYFLSbE
+   Title: Gentle Range of Motion Chair Exercises for SENIORS (Arthritis/Limited Mobility/True Beginners)
+   Channel: Improved Health
+   Views: 2.5M
+   Why: 2.5M views. Designed for limited mobility/arthritis. Seated exercises. Very accessible.
+
+6. Somatic Trauma Release (Caitlin Yoga)
+   ID: 24qDdn2QXjk
+   Title: Trauma-Informed Hip Opening Yoga for Emotional Release | Trauma Informed Yoga
+   Channel: Caitlin K'eli Yoga
+   Views: 4.3M
+   Why: 4.3M views. Trauma-informed somatic yoga. Hip opening for emotional release. Hugely popular.
+
+7. Somatic Practice for Trauma (Dr. Schwartz)
+   ID: xM2Z-miz3Y4
+   Title: Somatic Practice for Trauma and Stress Release | Dr. Arielle Schwartz
+   Channel: Dr. Arielle Schwartz
+   Views: 404K
+   Why: Led by Dr. Arielle Schwartz, a clinical psychologist. Professional, evidence-based somatic work.
+
+8. TRE Follow-Along Session
+   ID: QoB9wpuO688
+   Title: TRE Follow-Along Session with Dr. Berceli / Press Play and Release
+   Channel: Transform Pelvic Health
+   Views: 514K
+   Why: TRE (Trauma Release Exercises) with the method's creator. Unique somatic tremoring technique.
+
+9. Desk Stretches 10 Minutes (Pamela Reif)
+   ID: XZM1xiY9jOw
+   Title: 10 MIN OFFICE LIFE STRETCH, advanced - Sitting a lot? Release stiffness & fix your posture
+   Channel: Pamela Reif
+   Views: 1.6M
+   Why: 1.6M views. Pamela Reif is a major fitness YouTuber. High production value desk stretch routine.
+
+10. Yin Yoga 45 Min Deep Stretch
+    ID: 01L4f_oT6DM
+    Title: DEEP STRETCH Yin Yoga for Flexibility - 45 min FULL BODY Yin
+    Channel: Yoga with Kassandra
+    Views: 599K
+    Why: 599K views. Yoga with Kassandra is a top yoga channel. 45 min full body yin. Perfect length.
+
+11. Yoga for Lower Back Pain (Adriene)
+    ID: XeXz8fIZDCE
+    Title: Yoga For Lower Back Pain | Yoga With Adriene
+    Channel: Yoga With Adriene
+    Views: 14.7M
+    Why: 14.7M views. Yoga With Adriene is the #1 yoga channel. Back pain is the most requested yoga topic.
+
+12. Back Pain Relief Stretches (Mady Morrison)
+    ID: 2eA2Koq6pTI
+    Title: Back Pain Relief Stretches | 10 min. Yoga for Relaxation & Recovery
+    Channel: Mady Morrison
+    Views: 22.2M
+    Why: 22M+ views. Mady Morrison is massively popular. 10-minute format is perfect for the app.
+
+13. Morning Stretch No Talking 25 Min
+    ID: 8XNpAg5mDS8
+    Title: 25 min FULL BODY STRETCH (No Talking - for Relaxation, Flexibility & Stress Relief)
+    Channel: MadFit
+    Views: 5.5M
+    Why: 5.5M views. MadFit is a top fitness channel. No talking format is perfect for morning routines.
+
+14. Bedtime Yoga Stretch
+    ID: 4TQsfBYCyKQ
+    Title: Bedtime Yoga Stretch to Release Tension and Stress
+    Channel: Yoga With Bird
+    Views: 5.2M
+    Why: 5.2M views. Specifically designed for bedtime. Releases tension and stress before sleep.
+
+15. Gentle Pilates for Stress Relief
+    ID: IMB-7y1lfqs
+    Title: Gentle Pilates For Stress Relief | 25 Minutes To Be Gentle With Yourself
+    Channel: Lottie Murphy
+    Views: 243K
+    Why: Lottie Murphy is a respected Pilates instructor. "Be gentle with yourself" framing is perfect for wellness app.
+
+
+============================================================
+CATEGORY 6: MINDSET (15 new videos)
+============================================================
+
+1. Stoic Rules for a Better Life (Daily Stoic)
+   ID: heh5XLwZVOY
+   Title: 9 Stoic Rules For A Better Life (From Marcus Aurelius)
+   Channel: Daily Stoic
+   Views: 3.4M
+   Why: 3.4M views. Daily Stoic is THE Stoic philosophy channel. Practical rules from Marcus Aurelius.
+
+2. Stoic Principles - Nothing Affects You
+   ID: sx2CBR0O6RY
+   Title: 10 Stoic Principles So That NOTHING Can AFFECT YOU | Epictetus Stoicism
+   Channel: Stoic Journal
+   Views: 1.2M
+   Why: 1.2M views. Practical Stoic principles for emotional regulation. Epictetus-focused.
+
+3. Stoicism as a Philosophy for Ordinary Life (TEDx)
+   ID: Yhn1Fe8cT0Q
+   Title: Stoicism as a philosophy for an ordinary life | Massimo Pigliucci | TEDxAthens
+   Channel: TEDx Talks
+   Views: 2.6M
+   Why: 2.6M views. TEDx talk by a leading Stoic philosopher. Accessible, practical, well-produced.
+
+4. Growth Mindset with Carol Dweck
+   ID: KUWn_TJTrnU
+   Title: Growth Mindset vs. Fixed Mindset
+   Channel: Sprouts
+   Views: 4.5M
+   Why: 4.5M views. Animated explainer. Carol Dweck coined "growth mindset." Clear, engaging format.
+
+5. Growth Mindset Introduction
+   ID: 75GFzikmRY0
+   Title: Growth Mindset Introduction: What it is, How it Works, and Why it Matters
+   Channel: Trevor Ragan
+   Views: 1.8M
+   Why: 1.8M views. Comprehensive introduction to growth mindset. Great educational content.
+
+6. How to Stop People Pleasing
+   ID: 1naEi1f0Zo4
+   Title: How To Stop People Pleasing
+   Channel: Psych2Go
+   Views: 394K
+   Why: Psych2Go is a massive psychology channel with animated content. Clear, actionable advice.
+
+7. People Pleasing and Health (Mel Robbins)
+   ID: FbmwWvZEdZw
+   Title: The Surprising Link Between People Pleasing & Your Health: MD's Recommendation on How to Say "No"
+   Channel: Mel Robbins
+   Views: 248K
+   Why: Mel Robbins is a bestselling author/speaker. Links people-pleasing to health outcomes. Practical.
+
+8. Three Secrets of Resilient People (TEDx)
+   ID: 3qELiw_1Ddg
+   Title: What Trauma Taught Me About Resilience | Charles Hunt | TEDxCharlotte
+   Channel: TEDx Talks
+   Views: 1.1M
+   Why: 1.1M views. Powerful personal story about building resilience from trauma. TEDx quality.
+
+9. 10 Ways to Build Resilience
+   ID: VNCL1glwyOI
+   Title: 10 Ways to Build and Develop Resilience
+   Channel: The Art of Improvement
+   Views: 299K
+   Why: Practical, actionable video with 10 specific resilience strategies. Well-animated.
+
+10. Breaking Negative Thought Loops (Therapy in a Nutshell)
+    ID: V3vhXQy48jo
+    Title: Intrusive Thoughts and Overthinking: The Skill of Cognitive Defusion 20/30
+    Channel: Therapy in a Nutshell
+    Views: 6.6M
+    Why: 6.6M views! Therapy in a Nutshell is run by a licensed therapist. CBT/ACT technique for intrusive thoughts.
+
+11. Automatic Negative Thoughts - CBT
+    ID: lLZ-3TSoe9E
+    Title: Automatic Negative Thoughts - Break the Anxiety Cycle 11/30
+    Channel: Therapy in a Nutshell
+    Views: 959K
+    Why: Nearly 1M views. Part of a professional 30-video therapy series. CBT for breaking anxiety cycles.
+
+12. Self-Compassion Break (Kristin Neff)
+    ID: LX71ZTAsmg8
+    Title: Tender Self-Compassion Break | Soothing Meditation for Emotional Support Guided by Dr. Kristin Neff
+    Channel: Dr. Kristin Neff
+    Views: 47K
+    Why: Dr. Kristin Neff literally created the self-compassion research field. Guided practice from the source.
+
+13. Dopamine Detox Full Protocol
+    ID: gh2m0dj_lFk
+    Title: How to Stop Wasting your Life | Full Dopamine Detox Protocol
+    Channel: Koi
+    Views: 3.9M
+    Why: 3.9M views. Comprehensive dopamine detox protocol. Actionable digital wellness strategies.
+
+14. Rewire Brain to Enjoy Discipline
+    ID: KXvyd-tkrmc
+    Title: How to Rewire Your Brain to Enjoy Discipline (Dopamine Detox Explained)
+    Channel: HustleCore
+    Views: 2.3M
+    Why: 2.3M views. Reframes dopamine detox as brain rewiring. Positive, empowering approach.
+
+15. Overcoming Perfectionism
+    ID: SxA69uUGEUI
+    Title: Advice for Perfectionists & Procrastinators: The 70% Rule
+    Channel: struthless
+    Views: 1.0M
+    Why: 1M views. The "70% rule" is a memorable, practical framework. struthless is a beloved creator.
+
+
+============================================================
+SUMMARY
+============================================================
+
+Total NEW videos found: 90
+- Meditation: 15 new (0 duplicates in final list)
+- Sleep Stories: 15 new (0 duplicates in final list)
+- Soundscape: 15 new (0 duplicates in final list)
+- Music: 15 new (0 duplicates in final list)
+- Movement: 15 new (0 duplicates in final list)
+- Mindset: 15 new (0 duplicates in final list)
+
+All 90 video IDs verified against the 955 existing IDs in ContentRepository.swift.
+
+View count highlights:
+- 49.3M: 432 Hz Sleep Music (o-9T184mpY4)
+- 29.4M: Malte Marten Handpan (uwEaQk5VeS4)
+- 22.2M: Back Pain Relief Stretches (2eA2Koq6pTI)
+- 18.3M: Japanese Bamboo Flute (MzgMBrtrFc4)
+- 17.6M: Relaxing Harp Music (dCvEgqePl84)
+- 16.4M: Floating Among Stars (N4qCFFBrrgk)
+- 14.7M: Yoga for Back Pain (XeXz8fIZDCE)
+- 14.5M: Swamp Sounds Night (ih4_1FyVjaY)
+- 14.3M: Gregorian Chant 432Hz (W-hrBhA4XkM)
+
+Notable channels represented:
+- Jason Stephenson, Get Sleepy, Stephen Dalton (Sleep)
+- Yoga With Adriene, MadFit, Pamela Reif (Movement)
+- Therapy in a Nutshell, TEDx, Daily Stoic (Mindset)
+- Pema Chodron, Michael Sealey, New Horizon (Meditation)
+- Rainy Guy, Nature Therapy, Outdoor Therapy (Soundscape)
+- HALIDONMUSIC, Malte Marten, Soothing Relaxation (Music)

@@ -1,0 +1,30 @@
+{
+    "applinks": {
+        "details": [
+            {
+                "appIDs": [
+                    "H4SZ78GZXW.com.meditation.Meditation-Sleep-Mindset"
+                ],
+                "components": [
+                    {
+                        "/": "/content/*",
+                        "comment": "Shared content deep link"
+                    },
+                    {
+                        "/": "/breathe",
+                        "comment": "Breathing exercise technique picker"
+                    },
+                    {
+                        "/": "/breathe/*",
+                        "comment": "Specific breathing technique"
+                    }
+                ]
+            }
+        ]
+    },
+    "appclips": {
+        "apps": [
+            "H4SZ78GZXW.com.meditation.Meditation-Sleep-Mindset.Clip"
+        ]
+    }
+}

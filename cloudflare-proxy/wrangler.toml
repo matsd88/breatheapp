@@ -1,0 +1,22 @@
+name = "winter-hill-e14c"
+main = "src/index.js"
+compatibility_date = "2026-01-31"
+preview_urls = false
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+
+# KV namespace for rate limiting & usage tracking
+# Create with: npx wrangler kv namespace create RATE_LIMIT
+# Then paste the binding id below
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "90865a645b19449b998e8419066ab20e"
+
+# Environment variables (set via wrangler secret)
+# npx wrangler secret put OPENAI_API_KEY
+# npx wrangler secret put DAILY_BUDGET_CENTS (e.g. 500 = $5.00/day)
+# npx wrangler secret put MONTHLY_BUDGET_CENTS (e.g. 10000 = $100.00/month)

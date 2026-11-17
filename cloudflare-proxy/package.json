@@ -1,0 +1,13 @@
+{
+  "name": "breathe-openai-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "npx wrangler dev",
+    "deploy": "npx wrangler deploy",
+    "spend": "npx wrangler kv key get --binding RATE_LIMIT \"$(echo spend:day:$(date +%Y-%m-%d))\" && npx wrangler kv key get --binding RATE_LIMIT \"$(echo spend:month:$(date +%Y-%m))\""
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

@@ -1,0 +1,203 @@
+============================================================
+Meditation Video Downloader for Cloudflare R2
+============================================================
+Using pytubefix version: 10.3.6
+
+Total videos: 895
+Completed: 783
+Failed: 112
+Remaining: 112
+
+[1/112] -5ajVJ1Yxlg... FAIL: Audio: -5ajVJ1Yxlg is streaming live and cannot be loaded; Video: -5ajVJ1Yxlg is streaming live and cannot be loaded
+[2/112] 0V0SKiiFZMs... FAIL: Audio: 0V0SKiiFZMs is streaming live and cannot be loaded; Video: 0V0SKiiFZMs is streaming live and cannot be loaded
+[3/112] 4BrvMGznLTo... FAIL: Audio: 4BrvMGznLTo is streaming live and cannot be loaded; Video: 4BrvMGznLTo is streaming live and cannot be loaded
+[4/112] 4rS8_sBRAAE... FAIL: Audio: 4rS8_sBRAAE is streaming live and cannot be loaded; Video: 4rS8_sBRAAE is streaming live and cannot be loaded
+[5/112] 55DScz0y3Bc... ANDROID_VR client returned: This video is not available
+Switching to client: TV
+FAIL: Audio: 55DScz0y3Bc This request was detected as a bot. DO; Video: 55DScz0y3Bc This request was detected as a bot. DO
+[6/112] 5qap5aO4i9A... FAIL: Audio: 5qap5aO4i9A is unavailable; Video: 5qap5aO4i9A is unavailable
+[7/112] 8rTTEMdMh8Q... FAIL: Audio: 8rTTEMdMh8Q is streaming live and cannot be loaded; Video: 8rTTEMdMh8Q is streaming live and cannot be loaded
+[8/112] 9xFr2HRttck... FAIL: Audio: 9xFr2HRttck is streaming live and cannot be loaded; Video: 9xFr2HRttck is streaming live and cannot be loaded
+[9/112] ABEykxJAMGA... ANDROID_VR client returned: This video is not available
+Switching to client: TV
+FAIL: Audio: ABEykxJAMGA This request was detected as a bot. DO; Video: ABEykxJAMGA This request was detected as a bot. DO
+[10/112] BUboJN6hZhw... FAIL: Audio: BUboJN6hZhw is unavailable; Video: BUboJN6hZhw is unavailable
+    Saved. Rate: 32.9/min, ETA: 3.1 min
+[11/112] BVupSeAWIaw... ANDROID_VR client returned: This video is not available
+Switching to client: TV
+FAIL: Audio: BVupSeAWIaw This request was detected as a bot. DO; Video: BVupSeAWIaw This request was detected as a bot. DO
+[12/112] CEzt9rjhe4o... FAIL: Audio: CEzt9rjhe4o is streaming live and cannot be loaded; Video: CEzt9rjhe4o is streaming live and cannot be loaded
+[13/112] Dfm2rB-nQ9Y... FAIL: Audio: Dfm2rB-nQ9Y is streaming live and cannot be loaded; Video: Dfm2rB-nQ9Y is streaming live and cannot be loaded
+[14/112] EJT2LocgtuY... FAIL: Audio: EJT2LocgtuY is streaming live and cannot be loaded; Video: EJT2LocgtuY is streaming live and cannot be loaded
+[15/112] FA65XVp0I9M... FAIL: Audio: FA65XVp0I9M is streaming live and cannot be loaded; Video: FA65XVp0I9M is streaming live and cannot be loaded
+[16/112] FFcDEljYirw... ANDROID_VR client returned: This video is not available
+Switching to client: TV
+FAIL: Audio: FFcDEljYirw This request was detected as a bot. DO; Video: FFcDEljYirw This request was detected as a bot. DO
+[17/112] FUYwRbt4Qa4... FAIL: Audio: FUYwRbt4Qa4 This video is no longer available beca; Video: FUYwRbt4Qa4 This video is no longer available beca; Thumb: HTTP Error 404: Not Found
+[18/112] Flexibility... FAIL: Audio: Flexibility is unavailable; Video: Flexibility is unavailable; Thumb: HTTP Error 404: Not Found
+[19/112] Gq2yioc5qjM... FAIL: Audio: Gq2yioc5qjM is streaming live and cannot be loaded; Video: Gq2yioc5qjM is streaming live and cannot be loaded
+[20/112] Ju5USgX0pWY... FAIL: Audio: Ju5USgX0pWY does not have a live stream recording ; Video: Ju5USgX0pWY does not have a live stream recording 
+    Saved. Rate: 31.0/min, ETA: 3.0 min
+[21/112] JustMusicTV... FAIL: Audio: JustMusicTV is unavailable; Video: JustMusicTV is unavailable; Thumb: HTTP Error 404: Not Found
+[22/112] KJ2j2yJ-6JE... ANDROID_VR client returned: This video is not available
+Switching to client: TV
+FAIL: Audio: KJ2j2yJ-6JE This request was detected as a bot. DO; Video: KJ2j2yJ-6JE This request was detected as a bot. DO
+[23/112] LnD-XEQ2hzQ... FAIL: Audio: LnD-XEQ2hzQ is streaming live and cannot be loaded; Video: LnD-XEQ2hzQ is streaming live and cannot be loaded
+[24/112] Mindfulness... FAIL: Audio: Mindfulness is unavailable; Video: Mindfulness is unavailable; Thumb: HTTP Error 404: Not Found
+[25/112] Motiversity... FAIL: Audio: Motiversity is unavailable; Video: Motiversity is unavailable; Thumb: HTTP Error 404: Not Found
+[26/112] Of59snU2_1Y... FAIL: Audio: Of59snU2_1Y is streaming live and cannot be loaded; Video: Of59snU2_1Y is streaming live and cannot be loaded
+[27/112] Ou6PRUxP1eo... FAIL: Audio: Ou6PRUxP1eo is streaming live and cannot be loaded; Video: Ou6PRUxP1eo is streaming live and cannot be loaded
+[28/112] Py10WYS1ahg... ANDROID_VR client returned: This video is not available
+Switching to client: TV
+FAIL: Audio: Py10WYS1ahg This request was detected as a bot. DO; Video: Py10WYS1ahg This request was detected as a bot. DO
+[29/112] Restorative... FAIL: Audio: Restorative is unavailable; Video: Restorative is unavailable; Thumb: HTTP Error 404: Not Found
+[30/112] SNap3hBScJI... FAIL: Audio: SNap3hBScJI is streaming live and cannot be loaded; Video: SNap3hBScJI is streaming live and cannot be loaded
+    Saved. Rate: 29.9/min, ETA: 2.7 min
+[31/112] SStn9gRauLk... FAIL: Audio: SStn9gRauLk is streaming live and cannot be loaded; Video: SStn9gRauLk is streaming live and cannot be loaded
+[32/112] Self-Belief... FAIL: Audio: Self-Belief is unavailable; Video: Self-Belief is unavailable; Thumb: HTTP Error 404: Not Found
+[33/112] Tranquility... FAIL: Audio: Tranquility is unavailable; Video: Tranquility is unavailable; Thumb: HTTP Error 404: Not Found
+[34/112] Underground... FAIL: Audio: Underground is unavailable; Video: Underground is unavailable; Thumb: HTTP Error 404: Not Found
+[35/112] VGlYxtkZUXI... OK
+[36/112] VW60iOM-H_I... OK
+[37/112] VlZ7zmX1HzE... OK
+[38/112] WYWy7LbLHV8... OK
+[39/112] WqdEsz3lwxg... ANDROID_VR client returned: This video is not available
+Switching to client: TV
+FAIL: Audio: WqdEsz3lwxg This request was detected as a bot. DO; Video: WqdEsz3lwxg This request was detected as a bot. DO
+[40/112] Wqx06DtYIZs... OK
+    Saved. Rate: 33.0/min, ETA: 2.2 min
+[41/112] WsnlMXBPDnE... OK
+[42/112] WzRMsvw5E_U... OK
+[43/112] XxP8kxUn5bc... OK
+[44/112] YLvLfNx0bQw... FAIL: Timed out
+[45/112] ZQkBmCJG9i8... OK
+[46/112] ZXDJ51-NYuM... FAIL: Audio: ZXDJ51-NYuM does not have a live stream recording ; Video: ZXDJ51-NYuM does not have a live stream recording 
+[47/112] Zbc2NC__m_0... OK
+[48/112] ZnBxnQPWNlQ... OK
+[49/112] _GUVcWffjjo... FAIL: Timed out
+[50/112] _NjjVWShjIo... OK
+    Saved. Rate: 13.1/min, ETA: 4.7 min
+[51/112] _Ta52qomXDE... OK
+[52/112] _TcGXaBU3QU... OK
+[53/112] _ZVVAFYxG4A... FAIL: Timed out
+[54/112] _fxCKCcBVQs... OK
+[55/112] b3Xm12phFts... OK
+[56/112] bQ5dASMUyvM... OK
+[57/112] bn9F19Hi1Lk... OK
+[58/112] c1XOgrBz6sU... OK
+[59/112] cCF6nZ1Kd8o... OK
+[60/112] cJqc5HENm5E... FAIL: Audio: cJqc5HENm5E is streaming live and cannot be loaded; Video: cJqc5HENm5E is streaming live and cannot be loaded
+    Saved. Rate: 12.1/min, ETA: 4.3 min
+[61/112] cMnGfz042C4... ANDROID_VR client returned: This video is not available
+Switching to client: TV
+FAIL: Audio: cMnGfz042C4 This request was detected as a bot. DO; Video: cMnGfz042C4 This request was detected as a bot. DO
+[62/112] cdKop6aixVE... OK
+[63/112] cmBjsxT0bH8... OK
+[64/112] eTeD8DAta4c... OK
+[65/112] ekXFslHOvZ8... OK
+[66/112] ep4JqcEX1qc... OK
+[67/112] f5IgT5BsL9o... ANDROID_VR client returned: This video is not available
+Switching to client: TV
+FAIL: Audio: f5IgT5BsL9o This request was detected as a bot. DO; Video: f5IgT5BsL9o This request was detected as a bot. DO
+[68/112] fEvM-OUbaKs... FAIL: Audio: fEvM-OUbaKs is streaming live and cannot be loaded; Video: fEvM-OUbaKs is streaming live and cannot be loaded
+[69/112] i-jTCdbIt2A... FAIL: Audio: i-jTCdbIt2A does not have a live stream recording ; Video: i-jTCdbIt2A does not have a live stream recording 
+[70/112] j6LWFLrtvyI... ANDROID_VR client returned: This video is not available
+Switching to client: TV
+FAIL: Audio: j6LWFLrtvyI This request was detected as a bot. DO; Video: j6LWFLrtvyI This request was detected as a bot. DO
+    Saved. Rate: 13.4/min, ETA: 3.1 min
+[71/112] jFOnYloDzg4... OK
+[72/112] jFl6Fx4-cig... ANDROID_VR client returned: This video is not available
+Switching to client: TV
+FAIL: Audio: jFl6Fx4-cig This request was detected as a bot. DO; Video: jFl6Fx4-cig This request was detected as a bot. DO
+[73/112] jVKEcUPEF8M... OK
+[74/112] jfKfPfyJRdk... FAIL: Audio: jfKfPfyJRdk is streaming live and cannot be loaded; Video: jfKfPfyJRdk is streaming live and cannot be loaded
+[75/112] jqHlflq4adg... ANDROID_VR client returned: This video is not available
+Switching to client: TV
+FAIL: Audio: jqHlflq4adg This request was detected as a bot. DO; Video: jqHlflq4adg This request was detected as a bot. DO
+[76/112] kKJvGtqcnno... OK
+[77/112] l2i67fFHwtM... OK
+[78/112] lP99b7b2mEQ... OK
+[79/112] mSX3OyW9Rao... OK
+[80/112] nFE50bCyNlA... FAIL: Audio: nFE50bCyNlA is streaming live and cannot be loaded; Video: nFE50bCyNlA is streaming live and cannot be loaded
+    Saved. Rate: 14.7/min, ETA: 2.2 min
+[81/112] nbdqtoVEsOw... OK
+[82/112] oq2hQYmsFng... OK
+[83/112] pThdXAcU_DY... OK
+[84/112] px9CzSZsa0Y... ANDROID_VR client returned: This video is not available
+Switching to client: TV
+FAIL: Audio: px9CzSZsa0Y This request was detected as a bot. DO; Video: px9CzSZsa0Y This request was detected as a bot. DO
+[85/112] q4UO0YmBP0M... FAIL: Audio: q4UO0YmBP0M is streaming live and cannot be loaded; Video: q4UO0YmBP0M is streaming live and cannot be loaded
+[86/112] quXkhxjsU1c... FAIL: Audio: quXkhxjsU1c is streaming live and cannot be loaded; Video: quXkhxjsU1c is streaming live and cannot be loaded
+[87/112] rqrKF5t1yU4... OK
+[88/112] sKKYL0lyILU... OK
+[89/112] tBCBsFyAM5c... OK
+[90/112] tE7udR7r1HU... OK
+    Saved. Rate: 16.0/min, ETA: 1.4 min
+[91/112] tNkZsRW7h2c... FAIL: Audio: tNkZsRW7h2c does not have a live stream recording ; Video: tNkZsRW7h2c does not have a live stream recording 
+[92/112] tpYnYczNkQc... OK
+[93/112] tzcNCcfcdhE... FAIL: Timed out
+[94/112] u3papaX85MA... FAIL: Timed out
+[95/112] u4pQ7O8uQRw... OK
+[96/112] u7nPyizNXc8... OK
+[97/112] vPhg6sc1Mk4... OK
+[98/112] vbO3evPu_8g... OK
+[99/112] wGZ05AS639s... OK
+[100/112] wm_FpvnXhXM... OK
+    Saved. Rate: 12.9/min, ETA: 0.9 min
+[101/112] x0uCKhBKzZs... OK
+[102/112] x30hX9F3txs... FAIL: Audio: x30hX9F3txs is streaming live and cannot be loaded; Video: x30hX9F3txs is streaming live and cannot be loaded
+[103/112] xT0rkZ36bh0... OK
+[104/112] xm_GCZKltLA... ANDROID_VR client returned: This video is not available
+Switching to client: TV
+FAIL: Audio: xm_GCZKltLA This request was detected as a bot. DO; Video: xm_GCZKltLA This request was detected as a bot. DO
+[105/112] xu84bbTu7ak... OK
+[106/112] yIQd2Ya0Ziw... OK
+[107/112] yMRoNNKWuqQ... OK
+[108/112] yPSshiEsYh0... OK
+[109/112] ybX6OLo9UMU... OK
+[110/112] yiUh4PWCddA... OK
+    Saved. Rate: 13.9/min, ETA: 0.1 min
+[111/112] yzoNuPZm5AU... OK
+[112/112] zbRS1WFaVho... OK
+
+============================================================
+DONE!
+  Completed: 55
+  Failed: 57
+  Time: 7.9 min
+
+Next steps:
+1. Upload 'output' folder to Cloudflare R2
+2. Rename to 'videos' in R2
+============================================================
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           OK
+[146/160] vbO3evPu_8g... OK
+[147/160] wGZ05AS639s... FAIL: Timed out
+[148/160] wm_FpvnXhXM... OK
+[149/160] x0uCKhBKzZs... OK
+[150/160] x30hX9F3txs... FAIL: Audio: x30hX9F3txs is streaming live and cannot be loaded; Video: x30hX9F3txs is streaming live and cannot be loaded
+    Saved. Rate: 2.9/min, ETA: 3.5 min
+[151/160] xT0rkZ36bh0... OK
+[152/160] xm_GCZKltLA... ANDROID_VR client returned: This video is not available
+Switching to client: TV
+FAIL: Audio: xm_GCZKltLA This request was detected as a bot. DO; Video: xm_GCZKltLA This request was detected as a bot. DO
+[153/160] xu84bbTu7ak... OK
+[154/160] yIQd2Ya0Ziw... OK
+[155/160] yMRoNNKWuqQ... OK
+[156/160] yPSshiEsYh0... OK
+[157/160] ybX6OLo9UMU... OK
+[158/160] yiUh4PWCddA... FAIL: Timed out
+[159/160] yzoNuPZm5AU... OK
+[160/160] zbRS1WFaVho... FAIL: Timed out
+    Saved. Rate: 2.9/min, ETA: 0.0 min
+
+============================================================
+DONE!
+  Completed: 60
+  Failed: 100
+  Time: 54.3 min
+
+Next steps:
+1. Upload 'output' folder to Cloudflare R2
+2. Rename to 'videos' in R2
+============================================================

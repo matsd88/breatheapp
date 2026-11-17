@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Breathe — Open in App</title>
+    <meta name="description" content="Open this meditation in the Breathe app, or download it free on the App Store.">
+    <meta property="og:title" content="Breathe — Meditation & Sleep">
+    <meta property="og:description" content="Someone shared a meditation with you. Tap to listen in the Breathe app.">
+    <meta property="og:image" content="https://www.meditationandsleepapp.com/icon.png">
+    <meta property="og:url" content="https://www.meditationandsleepapp.com/content/">
+    <meta property="og:type" content="website">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Breathe — Meditation & Sleep">
+    <meta name="twitter:description" content="Someone shared a meditation with you. Tap to listen.">
+    <meta name="twitter:image" content="https://www.meditationandsleepapp.com/icon.png">
+    <meta name="apple-itunes-app" content="app-id=6758229420">
+    <link rel="icon" type="image/png" href="/icon.png">
+    <link rel="apple-touch-icon" href="/icon.png">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #050810;
+            --accent: #7c6aff;
+            --accent2: #00d4ff;
+            --text: #fff;
+            --text-secondary: rgba(255,255,255,.55);
+            --gradient: linear-gradient(135deg, #7c6aff 0%, #00d4ff 100%);
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100dvh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-font-smoothing: antialiased;
+        }
+        .card {
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+            padding: 48px 24px;
+        }
+        .icon {
+            width: 96px;
+            height: 96px;
+            border-radius: 22px;
+            margin: 0 auto 24px;
+            box-shadow: 0 8px 32px rgba(124,106,255,.3);
+        }
+        .app-name {
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 40px;
+            line-height: 1.5;
+        }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 16px 24px;
+            border: none;
+            border-radius: 14px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.15s ease, opacity 0.15s ease;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary {
+            background: var(--gradient);
+            color: #fff;
+            margin-bottom: 12px;
+        }
+        .btn-secondary {
+            background: rgba(255,255,255,0.06);
+            color: var(--text);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .store-badge {
+            margin-top: 32px;
+        }
+        .store-badge img {
+            height: 44px;
+        }
+        .glow {
+            position: fixed;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.15;
+            pointer-events: none;
+            z-index: -1;
+        }
+        .glow-1 { background: var(--accent); top: -100px; left: -80px; }
+        .glow-2 { background: var(--accent2); bottom: -100px; right: -80px; }
+    </style>
+</head>
+<body>
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
+    <div class="card">
+        <img src="/icon.png" alt="Breathe App" class="icon">
+        <h1 class="app-name">Breathe</h1>
+        <p class="subtitle">Someone shared a meditation with you.<br>Open it in the app to start listening.</p>
+        <a id="openApp" href="#" class="btn btn-primary">Open in Breathe</a>
+        <a id="getApp" href="https://apps.apple.com/app/id6758229420" class="btn btn-secondary">Download Free on App Store</a>
+    </div>
+    <script>
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            var videoId = params.get('v') || '';
+            var timestamp = params.get('t') || '';
+
+            // Build the custom scheme URL for opening the app
+            var appUrl = 'meditation://content/' + encodeURIComponent(videoId);
+            if (timestamp) appUrl += '?t=' + timestamp;
+
+            // Build the App Store URL
+            var storeUrl = 'https://apps.apple.com/app/id6758229420';
+
+            var openBtn = document.getElementById('openApp');
+            var getBtn = document.getElementById('getApp');
+
+            openBtn.href = appUrl;
+            getBtn.href = storeUrl;
+
+            // On iOS/iPadOS, try opening the app. If it fails (no app installed),
+            // the page stays visible and the user can tap "Download".
+            // On non-Apple devices, the "Open" button won't work, so show store link prominently.
+            var isApple = /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
+
+            if (!isApple) {
+                openBtn.style.display = 'none';
+                document.querySelector('.subtitle').textContent =
+                    'This meditation is available in the Breathe app for iPhone and iPad.';
+            }
+        })();
+    </script>
+</body>
+</html>
