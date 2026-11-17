@@ -1,0 +1,89 @@
+app:
+  name: "Trending.fm"
+  tagline: "Your music, actually personal"
+  app_store_url: "https://apps.apple.com/app/trending-fm/id6742693791"
+  platform: "iOS"
+  description: >
+    Trending.fm is a music streaming app that learns what you actually like.
+    No algorithmic traps, no pay-to-play playlists. Just music discovery that
+    gets better the more you listen.
+
+benefits:
+  - "Daily mixes that actually match your taste — not what labels paid to promote"
+  - "Built-in equalizer so your music sounds the way you want"
+  - "Clean, distraction-free interface focused on listening"
+  - "Smart recommendations that improve over time"
+  - "Easy playlist creation and management"
+  - "Works with your existing music library"
+
+voice:
+  social:
+    tone: "Friendly, confident, slightly irreverent. Like a music-obsessed friend who found something cool."
+    do:
+      - "Use conversational language"
+      - "Reference real music experiences and frustrations"
+      - "Be specific rather than generic"
+      - "Use line breaks for readability"
+      - "Include relevant emojis sparingly"
+    dont:
+      - "Sound corporate or salesy"
+      - "Use buzzwords like 'revolutionary' or 'game-changing'"
+      - "Over-promise or make vague claims"
+      - "Use more than 2-3 emojis per post"
+  reddit:
+    tone: "Genuine music enthusiast. You love discovering and sharing music. You never promote anything."
+    do:
+      - "Share genuine opinions and experiences"
+      - "Ask thoughtful questions"
+      - "Provide value (recommendations, insights, discussion starters)"
+      - "Match the subreddit's culture and norms"
+      - "Write like a real person, not a brand"
+    dont:
+      - "Mention any app or product by name"
+      - "Include any links"
+      - "Sound like marketing copy"
+      - "Use corporate language"
+      - "Be generic — be specific about artists, genres, experiences"
+
+subreddits:
+  - name: "r/Music"
+    focus: "General music discussion, discovery, opinions"
+    style: "Broad appeal, conversation starters"
+  - name: "r/ifyoulikeblank"
+    focus: "Music recommendations in 'if you like X, try Y' format"
+    style: "Specific artist/genre chains, helpful and knowledgeable"
+  - name: "r/ListeningHeads"
+    focus: "Thoughtful music discussion, what you're listening to"
+    style: "Reflective, detailed, genuine enthusiasm"
+  - name: "r/spotify"
+    focus: "Streaming discussion, playlist culture, discovery frustrations"
+    style: "Relatable complaints and tips, community-focused"
+  - name: "r/playlists"
+    focus: "Playlist sharing and curation"
+    style: "Collaborative, sharing-focused"
+  - name: "r/iOSapps"
+    focus: "iOS app discussion and recommendations"
+    style: "Helpful, review-style, comparative"
+  - name: "r/apple"
+    focus: "Apple ecosystem discussion"
+    style: "Tech-savvy, ecosystem-aware"
+
+social_post_types:
+  - type: "educational"
+    description: "Music discovery tips, playlist curation advice, listening habits"
+    example_angle: "How to break out of your listening rut"
+  - type: "pain_point"
+    description: "Frustrations with current music streaming (algorithm fatigue, messy libraries)"
+    example_angle: "When your Discover Weekly is 80% songs you've already skipped"
+  - type: "feature_spotlight"
+    description: "Highlight a specific Trending.fm feature with a real use case"
+    example_angle: "The equalizer preset that makes your AirPods sound like studio monitors"
+  - type: "cta"
+    description: "Soft call-to-action, value-first with App Store link"
+    example_angle: "What if your daily mix actually knew you?"
+  - type: "engagement"
+    description: "Question or poll about music habits to drive discussion"
+    example_angle: "What's the one song you've had on repeat this month?"
+  - type: "bonus"
+    description: "Repeat the best-performing post type from previous weeks (default to engagement)"
+    example_angle: "Hot take: shuffle should be smarter than random"
